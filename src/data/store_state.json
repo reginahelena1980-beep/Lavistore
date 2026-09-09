@@ -1,0 +1,193 @@
+{
+  "updatedAt": "2026-09-07T17:45:00.000Z",
+  "products": [
+    {
+      "id": "lav-74750",
+      "name": "Meia 3/4 Flores",
+      "category": "floral-special",
+      "price": 15,
+      "originalPrice": 19.9,
+      "rating": 5.0,
+      "reviewCount": 28,
+      "stock": 20,
+      "isFloralSpecial": true,
+      "badge": "Exclusivo 🌸",
+      "images": [
+        "https://images.unsplash.com/photo-1582966770380-921587181f82?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "Meia 3/4 charmosa e delicada com estampa de florzinhas da coleção exclusiva Lavistore. Confeccionada em algodão macio com elasticidade confortável para o dia a dia.",
+      "features": [
+        "Algodão penteado macio e respirável",
+        "Cano 3/4 com ajuste suave sem apertar",
+        "Estampa floral fofa exclusiva Lavistore",
+        "Embalada para presente com cheirinho doce"
+      ],
+      "tag": "Exclusivo 🌸"
+    },
+    {
+      "id": "lav-15329",
+      "name": "Meia 3/ cores",
+      "category": "floral-special",
+      "price": 15,
+      "originalPrice": 19.9,
+      "rating": 5.0,
+      "reviewCount": 19,
+      "stock": 20,
+      "isFloralSpecial": true,
+      "badge": "Colorida ✨",
+      "images": [
+        "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "Meia cano 3/4 colorida com listras vibrantes e acabamento impecável. Perfeita para compor looks alegres e descontraídos com o toque doce da Lavistore.",
+      "features": [
+        "Cores suaves e alegres",
+        "Algodão macio de toque aconchegante",
+        "Tamanho único confortável",
+        "Acompanha tag colecionável de mimo"
+      ],
+      "tag": "Colorida ✨"
+    },
+    {
+      "id": "lav-03352",
+      "name": "Meia 3/4 Arco-íris",
+      "category": "floral-special",
+      "price": 15,
+      "originalPrice": 19.9,
+      "rating": 5.0,
+      "reviewCount": 35,
+      "stock": 20,
+      "isFloralSpecial": true,
+      "badge": "Divertida 🌈",
+      "images": [
+        "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "Meia 3/4 arco-íris cheia de boas energias! Com listras coloridas que combinam com qualquer tênis ou sapatinho, trazendo alegria a cada passo.",
+      "features": [
+        "Estampa arco-íris estilosa e divertida",
+        "Conforto térmico para qualquer estação",
+        "Costura plana que não incomoda os dedos",
+        "Cheirinho artesanal doce no pacote"
+      ],
+      "tag": "Divertida 🌈"
+    },
+    {
+      "id": "lav-13",
+      "name": "Meia 3/4 Panda Listrada Algodão Confort",
+      "category": "acessorios-mimos",
+      "price": 15,
+      "originalPrice": 22.0,
+      "rating": 5.0,
+      "reviewCount": 42,
+      "stock": 20,
+      "badge": "Mais Amada 🐼",
+      "images": [
+        "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "Meia 3/4 fofa com carinha de pandinha e listras em tons suaves. Maciez absoluta e elasticidade perfeita para aquecer os pés com muito estilo e fofura.",
+      "features": [
+        "Bordado/estampa de pandinha super meigo",
+        "Algodão antialérgico macio",
+        "Cano médio-alto 3/4 anatômico",
+        "Embalada com carinho na sacolinha de mimos"
+      ],
+      "tag": "Mais Amada 🐼"
+    }
+  ],
+  "categories": [
+    {
+      "id": "todos",
+      "name": "Todos os Mimos",
+      "icon": "✨",
+      "description": "Catálogo completo de fofuras e mimos",
+      "showInFooter": false,
+      "showInFilter": true
+    },
+    {
+      "id": "floral-special",
+      "name": "Meias 3/4 ",
+      "icon": "🌸",
+      "description": "Produtos exclusivos Estilo Bee",
+      "badge": "Exclusivo",
+      "showInFooter": true,
+      "showInFilter": true
+    },
+    {
+      "id": "cadernos-planners",
+      "name": "Papelaria divertida",
+      "icon": "📖",
+      "description": "Papelaria divertida",
+      "badge": "Mais Vendidos",
+      "showInFooter": true,
+      "showInFilter": true
+    },
+    {
+      "id": "washi-adesivos",
+      "name": "Acessórios",
+      "icon": "🎀",
+      "description": "Acessórios",
+      "showInFooter": true,
+      "showInFilter": true,
+      "badge": "Lançamento"
+    },
+    {
+      "id": "presentes-kits",
+      "name": "Presentes e Mimos",
+      "icon": "🎁",
+      "description": "Presentes e mimos",
+      "badge": "Popular",
+      "showInFooter": true,
+      "showInFilter": true
+    }
+  ],
+  "coupons": [
+    {
+      "id": "coupon-torri",
+      "code": "TORRI",
+      "description": "Frete Grátis para Amiguinhos do Torri!",
+      "type": "free_shipping",
+      "discountValue": 0,
+      "minOrderValue": 0,
+      "isActive": true,
+      "timesUsed": 50,
+      "createdAt": "2026-03-01"
+    },
+    {
+      "id": "coupon-enjoy",
+      "code": "ENJOY",
+      "description": "Frete Grátis para os vizinhos do Enjoy!",
+      "type": "free_shipping",
+      "discountValue": 0,
+      "minOrderValue": 0,
+      "isActive": true,
+      "timesUsed": 40,
+      "createdAt": "2026-03-01"
+    },
+    {
+      "id": "coupon-primeiracompra",
+      "code": "PRIMEIRACOMPRA",
+      "description": "10% de desconto de boas-vindas!",
+      "type": "percentage",
+      "discountValue": 10,
+      "minOrderValue": 0,
+      "isActive": true,
+      "timesUsed": 25,
+      "createdAt": "2026-03-01"
+    }
+  ],
+  "heroConfig": {
+    "badge": "Presentes & Mimos Criativos 🌸",
+    "title": "Demonstre seu carinho com nossos mimos!",
+    "subtitle": "Presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+    "imageFit": "cover",
+    "imageScale": 100,
+    "imagePosition": "center",
+    "imagePositionX": 50,
+    "imagePositionY": 50,
+    "bannerHeight": "medium"
+  },
+  "homePageConfig": {
+    "announcementText": "Frete Grátis para todo o Brasil para compras acima de R$ 150.00",
+    "announcementCoupon": "TORRI",
+    "showAnnouncement": true
+  }
+}
