@@ -42,7 +42,8 @@ import {
   MessageCircle,
   Ticket,
   ShoppingBag,
-  Store
+  Store,
+  BarChart3
 } from 'lucide-react';
 import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, Coupon } from '../types';
 import { CATEGORIES } from '../data/categories';
@@ -58,6 +59,7 @@ import { ContactFooterManager } from './ContactFooterManager';
 import { ReviewsManager } from './ReviewsManager';
 import { CouponManager } from './CouponManager';
 import { OrdersManager } from './OrdersManager';
+import { BiFinancialManager } from './BiFinancialManager';
 import { DEFAULT_HOME_PAGE_CONFIG } from '../utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from '../data/filterConfig';
 
@@ -90,7 +92,7 @@ interface AdminDashboardProps {
   coupons?: Coupon[];
   onUpdateCoupons?: (coupons: Coupon[]) => void;
   onResetCoupons?: () => void;
-  initialAdminSection?: 'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons';
+  initialAdminSection?: 'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi';
   onGoToStorefront?: () => void;
   onGoToAboutPage?: () => void;
   onPublishToServer?: () => Promise<boolean | void> | void;
@@ -130,7 +132,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onGoToAboutPage,
   onPublishToServer
 }) => {
-  const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons'>(initialAdminSection);
+  const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi'>(initialAdminSection);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
@@ -574,6 +576,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Section Switcher Tabs */}
       <div className="flex flex-wrap items-center gap-2 p-1.5 bg-amber-100/70 border-2 border-amber-300 rounded-2xl">
         <button
+          id="btn-tab-admin-bi"
+          onClick={() => setAdminSection('bi')}
+          className={`flex-1 min-w-[170px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            adminSection === 'bi'
+              ? 'bg-gradient-to-r from-purple-950 via-pink-900 to-rose-900 text-white shadow-md border-2 border-pink-400'
+              : 'text-purple-950 hover:bg-amber-200/60 font-extrabold'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4 text-emerald-400" />
+          <span>📊 BI & Planilhas (Financeiro)</span>
+        </button>
+
+        <button
           id="btn-tab-admin-orders"
           onClick={() => setAdminSection('orders')}
           className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
@@ -695,6 +710,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <span>🎟️ Cupons ({coupons.length})</span>
         </button>
       </div>
+
+      {/* BI & GESTÃO FINANCEIRA (PLANILHAS E APURAÇÃO) */}
+      {adminSection === 'bi' && (
+        <BiFinancialManager
+          products={products}
+          onSaveProduct={onEditProduct}
+          onDeleteProduct={onDeleteProduct}
+          categories={categories}
+          onViewProductLive={onViewProductLive}
+          onGoToStorefront={onGoToStorefront}
+          onNotify={(msg) => {
+            setCopiedNotification(msg);
+            setTimeout(() => setCopiedNotification(null), 4000);
+          }}
+        />
+      )}
 
       {/* ORDERS MANAGER VIEW */}
       {adminSection === 'orders' && (

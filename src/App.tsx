@@ -604,6 +604,13 @@ export default function App() {
   const filteredProducts = useMemo(() => {
     let list = [...products];
 
+    // Regra da Vitrine: Ocultar produtos despublicados ou pausados automaticamente por estoque zerado
+    list = list.filter(p => {
+      if (p.isPublished === false) return false;
+      if (p.autoHideWhenOutOfStock && (p.stock ?? 0) <= 0) return false;
+      return true;
+    });
+
     // Category Filter
     if (selectedCategory === 'floral-special') {
       list = list.filter(p => p.isFloralSpecial || p.category === 'floral-special');
@@ -1431,6 +1438,64 @@ export default function App() {
                 return updatedProduct;
               });
             });
+
+            // Sincronização em tempo real com o BI Financeiro e Estoque da Lavistore
+            try {
+              const biRaw = localStorage.getItem('lavistore_bi_records');
+              if (biRaw) {
+                const biRecords = JSON.parse(biRaw);
+                if (Array.isArray(biRecords)) {
+                  let hasChanges = false;
+                  const updatedBiRecords = biRecords.map((r: any) => {
+                    const matchingOrderItems = (orderData.items as CartItem[]).filter(item => {
+                      if (item.product.biRecordId && item.product.biRecordId === r.id) return true;
+                      if (r.vitrineProductId && item.product.id === r.vitrineProductId) return true;
+                      const pNameNorm = item.product.name.trim().toLowerCase();
+                      const rNameNorm = r.produto.trim().toLowerCase();
+                      return pNameNorm === rNameNorm || pNameNorm.startsWith(rNameNorm);
+                    });
+
+                    if (matchingOrderItems.length === 0) return r;
+
+                    const totalQtyBought = matchingOrderItems.reduce((acc, i) => acc + i.quantity, 0);
+                    if (totalQtyBought <= 0) return r;
+
+                    hasChanges = true;
+                    const novaQtdVendida = (Number(r.quantidadeVendida) || 0) + totalQtyBought;
+                    const novoSaldoEstoque = Math.max(0, (Number(r.quantidadeComprada) || 0) - novaQtdVendida);
+                    const novaVendaTotal = novaQtdVendida * (Number(r.precoVenda) || 0);
+                    const novoCpv = novaQtdVendida * (Number(r.custoUnitario) || 0);
+                    const novoLucroBruto = novaVendaTotal - novoCpv;
+                    const novaMargem = novaVendaTotal > 0 ? Math.round((novoLucroBruto / novaVendaTotal) * 100) : 0;
+                    const novoStatus = novoSaldoEstoque <= 0 ? 'esgotado' : novoSaldoEstoque <= 5 ? 'baixo' : 'ok';
+                    const novoCustoEstoque = novoSaldoEstoque * (Number(r.custoUnitario) || 0);
+
+                    return {
+                      ...r,
+                      quantidadeVendida: novaQtdVendida,
+                      saldoEstoqueQtd: novoSaldoEstoque,
+                      vendaTotal: Number(novaVendaTotal.toFixed(2)),
+                      cpv: Number(novoCpv.toFixed(2)),
+                      lucroBruto: Number(novoLucroBruto.toFixed(2)),
+                      margemLucro: novaMargem,
+                      statusEstoque: novoStatus,
+                      custoEstoque: Number(novoCustoEstoque.toFixed(2))
+                    };
+                  });
+
+                  if (hasChanges) {
+                    localStorage.setItem('lavistore_bi_records', JSON.stringify(updatedBiRecords));
+                    fetch('/api/bi/records', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ records: updatedBiRecords })
+                    }).catch(console.warn);
+                  }
+                }
+              }
+            } catch (biSyncErr) {
+              console.warn('Erro ao sincronizar saldo de estoque com o BI:', biSyncErr);
+            }
 
             setCartItems([]);
             setCompletedOrderData(orderData);

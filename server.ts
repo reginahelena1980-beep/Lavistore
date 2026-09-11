@@ -24,6 +24,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Arquivo de persistência da loja para publicação oficial
 const STORE_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'store_state.json');
+const BI_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'bi_records.json');
 
 // Origem padrão da loja (Lavistore - São Paulo/SP)
 const DEFAULT_FROM_CEP = '01001-000';
@@ -89,6 +90,184 @@ app.post('/api/store/sync', (req, res) => {
   } catch (error: any) {
     console.error('[Store Data] Erro ao gravar store_state.json:', error);
     return res.status(500).json({ error: 'Falha ao salvar dados da loja', details: error.message });
+  }
+});
+
+/**
+ * =====================================================================
+ * MÓDULO BI & GESTÃO FINANCEIRA LAVISTORE (UPLOAD & APURAÇÃO)
+ * =====================================================================
+ */
+
+/**
+ * GET /api/bi/records
+ * Retorna os registros financeiros processados de compras, vendas e estoque
+ */
+app.get('/api/bi/records', (_req, res) => {
+  try {
+    if (fs.existsSync(BI_DATA_FILE)) {
+      const content = fs.readFileSync(BI_DATA_FILE, 'utf-8');
+      const records = JSON.parse(content);
+      return res.json({ success: true, count: records.length, records });
+    }
+    return res.json({ success: true, count: 0, records: [] });
+  } catch (err: any) {
+    console.error('[BI API] Erro ao ler bi_records.json:', err);
+    return res.status(500).json({ error: 'Falha ao buscar registros de BI', details: err.message });
+  }
+});
+
+/**
+ * POST /api/bi/upload
+ * Recebe lote de produtos importados via planilha (CSV/Excel) já validados ou para cálculo
+ */
+app.post('/api/bi/upload', (req, res) => {
+  try {
+    const { records } = req.body;
+    if (!Array.isArray(records)) {
+      return res.status(400).json({ error: 'Formato inválido. Esperado array de registros de produtos.' });
+    }
+
+    const dir = path.dirname(BI_DATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fs.writeFileSync(BI_DATA_FILE, JSON.stringify(records, null, 2), 'utf-8');
+    console.log(`[BI API] ${records.length} registros salvos com sucesso em ${BI_DATA_FILE}`);
+
+    return res.json({
+      success: true,
+      message: `${records.length} registros processados e gravados com sucesso no banco de dados da aplicação!`,
+      count: records.length,
+      records
+    });
+  } catch (err: any) {
+    console.error('[BI API] Erro ao salvar registros de BI:', err);
+    return res.status(500).json({ error: 'Falha ao persistir planilha de BI', details: err.message });
+  }
+});
+
+/**
+ * POST /api/bi/import-google-drive
+ * Baixa arquivo ou planilha do Google Sheets / Google Drive através do link público/compartilhado
+ */
+app.post('/api/bi/import-google-drive', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'URL do Google Drive ou Google Sheets é obrigatória.' });
+    }
+
+    const trimmed = url.trim();
+    let exportUrl = trimmed;
+
+    // Detecta se é link do Google Sheets
+    const sheetsMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/i);
+    if (sheetsMatch && sheetsMatch[1]) {
+      const spreadsheetId = sheetsMatch[1];
+      const gidMatch = trimmed.match(/[#?&]gid=([0-9]+)/i);
+      const gid = gidMatch ? gidMatch[1] : '0';
+      // URL de exportação direta do Google Sheets como CSV
+      exportUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+    } else {
+      // Detecta se é link de arquivo no Google Drive (ex: .xlsx ou .csv armazenado no Drive)
+      const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9-_]+)/i) || trimmed.match(/[?&]id=([a-zA-Z0-9-_]+)/i);
+      if (driveMatch && driveMatch[1]) {
+        const fileId = driveMatch[1];
+        exportUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      }
+    }
+
+    console.log(`[BI API] Baixando planilha do Google Drive/Sheets em: ${exportUrl}`);
+
+    const response = await fetch(exportUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,*/*'
+      },
+      redirect: 'follow'
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return res.status(404).json({ error: 'Planilha não encontrada no Google Drive. Verifique se o link está correto.' });
+      }
+      return res.status(response.status).json({
+        error: `Não foi possível acessar a planilha (HTTP ${response.status}). Certifique-se de que a permissão está como "Qualquer pessoa com o link".`
+      });
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Se o retorno for uma página HTML, o arquivo requer autenticação ou está privado
+    const previewText = buffer.slice(0, 1000).toString('utf-8');
+    if (previewText.includes('<!DOCTYPE html') || previewText.includes('<html') || contentType.includes('text/html')) {
+      if (
+        previewText.includes('accounts.google.com') ||
+        previewText.includes('ServiceLogin') ||
+        previewText.includes('Sign in - Google Accounts') ||
+        previewText.includes('drive.google.com/signin')
+      ) {
+        return res.status(403).json({
+          error: 'Esta planilha no Google Drive/Sheets está com acesso RESTRITO (privada). No Google Sheets ou Drive, clique em "Compartilhar" no canto superior direito e mude o Acesso Geral para "Qualquer pessoa com o link" (como Leitor).'
+        });
+      }
+    }
+
+    if (buffer.length < 5) {
+      return res.status(400).json({ error: 'O arquivo baixado do Google Drive está vazio.' });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Planilha baixada do Google Drive com sucesso!',
+      contentType,
+      sizeBytes: buffer.length,
+      dataBase64: buffer.toString('base64'),
+      isSpreadsheet: true
+    });
+  } catch (err: any) {
+    console.error('[BI API] Falha na importação do Google Drive:', err);
+    return res.status(500).json({
+      error: 'Falha ao conectar com o Google Drive/Sheets.',
+      details: err.message
+    });
+  }
+});
+
+/**
+ * POST /api/bi/records
+ * Atualiza ou salva a lista completa de registros
+ */
+app.post('/api/bi/records', (req, res) => {
+  try {
+    const { records } = req.body;
+    if (!Array.isArray(records)) {
+      return res.status(400).json({ error: 'Esperado array de registros no corpo da requisição.' });
+    }
+
+    fs.writeFileSync(BI_DATA_FILE, JSON.stringify(records, null, 2), 'utf-8');
+    return res.json({ success: true, count: records.length, records });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Falha ao atualizar registros', details: err.message });
+  }
+});
+
+/**
+ * DELETE /api/bi/records
+ * Limpa todos os dados de BI
+ */
+app.delete('/api/bi/records', (_req, res) => {
+  try {
+    if (fs.existsSync(BI_DATA_FILE)) {
+      fs.writeFileSync(BI_DATA_FILE, JSON.stringify([], null, 2), 'utf-8');
+    }
+    return res.json({ success: true, message: 'Registros de BI limpos com sucesso.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Falha ao limpar registros', details: err.message });
   }
 });
 
@@ -707,6 +886,92 @@ app.post('/api/orders', async (req, res) => {
 
     storeOrders.unshift(orderRecord);
     if (storeOrders.length > 50) storeOrders.pop(); // Mantém os últimos 50 pedidos em memória
+
+    // Sincronização ACID: Abate automático de estoque em BI_DATA_FILE e STORE_DATA_FILE
+    try {
+      if (Array.isArray(order.items) && order.items.length > 0) {
+        // 1. Atualizar BI_DATA_FILE
+        if (fs.existsSync(BI_DATA_FILE)) {
+          const biRaw = fs.readFileSync(BI_DATA_FILE, 'utf-8');
+          const biRecords = JSON.parse(biRaw);
+          if (Array.isArray(biRecords)) {
+            let biChanged = false;
+            const updatedBi = biRecords.map((r: any) => {
+              const matchedItems = order.items.filter((item: any) => {
+                const prod = item.product || item;
+                if (prod.biRecordId && prod.biRecordId === r.id) return true;
+                if (r.vitrineProductId && prod.id === r.vitrineProductId) return true;
+                const pName = String(prod.name || '').trim().toLowerCase();
+                const rName = String(r.produto || '').trim().toLowerCase();
+                return pName === rName || pName.startsWith(rName);
+              });
+
+              if (matchedItems.length === 0) return r;
+              const qtyBought = matchedItems.reduce((acc: number, i: any) => acc + (Number(i.quantity) || 1), 0);
+              if (qtyBought <= 0) return r;
+
+              biChanged = true;
+              const novaQtdVendida = (Number(r.quantidadeVendida) || 0) + qtyBought;
+              const novoSaldoEstoque = Math.max(0, (Number(r.quantidadeComprada) || 0) - novaQtdVendida);
+              const novaVendaTotal = novaQtdVendida * (Number(r.precoVenda) || 0);
+              const novoCpv = novaQtdVendida * (Number(r.custoUnitario) || 0);
+              const novoLucroBruto = novaVendaTotal - novoCpv;
+              const novaMargem = novaVendaTotal > 0 ? Math.round((novoLucroBruto / novaVendaTotal) * 100) : 0;
+              const novoStatus = novoSaldoEstoque <= 0 ? 'esgotado' : novoSaldoEstoque <= 5 ? 'baixo' : 'ok';
+              const novoCustoEstoque = novoSaldoEstoque * (Number(r.custoUnitario) || 0);
+
+              return {
+                ...r,
+                quantidadeVendida: novaQtdVendida,
+                saldoEstoqueQtd: novoSaldoEstoque,
+                vendaTotal: Number(novaVendaTotal.toFixed(2)),
+                cpv: Number(novoCpv.toFixed(2)),
+                lucroBruto: Number(novoLucroBruto.toFixed(2)),
+                margemLucro: novaMargem,
+                statusEstoque: novoStatus,
+                custoEstoque: Number(novoCustoEstoque.toFixed(2))
+              };
+            });
+
+            if (biChanged) {
+              fs.writeFileSync(BI_DATA_FILE, JSON.stringify(updatedBi, null, 2), 'utf-8');
+              console.log(`[BI & Estoque] Saldo abatido automaticamente no BI após pedido #${order.orderId}`);
+            }
+          }
+        }
+
+        // 2. Atualizar STORE_DATA_FILE (vitrine persistida)
+        if (fs.existsSync(STORE_DATA_FILE)) {
+          const storeRaw = fs.readFileSync(STORE_DATA_FILE, 'utf-8');
+          const storeState = JSON.parse(storeRaw);
+          if (Array.isArray(storeState.products)) {
+            let storeChanged = false;
+            storeState.products = storeState.products.map((prod: any) => {
+              const matchedItems = order.items.filter((item: any) => {
+                const p = item.product || item;
+                return p.id === prod.id;
+              });
+              if (matchedItems.length === 0) return prod;
+              const qtyBought = matchedItems.reduce((acc: number, i: any) => acc + (Number(i.quantity) || 1), 0);
+              if (qtyBought <= 0) return prod;
+              storeChanged = true;
+              return {
+                ...prod,
+                stock: Math.max(0, (Number(prod.stock) || 0) - qtyBought)
+              };
+            });
+
+            if (storeChanged) {
+              storeState.updatedAt = new Date().toISOString();
+              fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(storeState, null, 2), 'utf-8');
+              console.log(`[Store Data] Estoque da vitrine atualizado no store_state.json após pedido #${order.orderId}`);
+            }
+          }
+        }
+      }
+    } catch (syncErr: any) {
+      console.warn('[Sync Pedido -> Estoque] Erro ao sincronizar estoque:', syncErr.message);
+    }
 
     const { transporter, isConfigured } = createMailTransporter();
     const htmlContent = generateOrderEmailHtml(order, storeEmail);

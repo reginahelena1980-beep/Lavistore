@@ -54,6 +54,12 @@ export interface Product {
   markupPercent?: number;
   grossProfit?: number;
   grossMarginPercent?: number;
+
+  // Vitrine Integration & Inventory Sync
+  biRecordId?: string; // ID correspondente na tabela de estoque/BI
+  originTamCor?: string;
+  isPublished?: boolean; // Ativo na vitrine para compra pelos clientes (padrão true)
+  autoHideWhenOutOfStock?: boolean; // Ocultar automaticamente da vitrine se o saldo zerar
 }
 
 export interface CartItem {
@@ -354,4 +360,73 @@ export interface OrderData {
   cardBrand?: string;
   cardLastFourDigits?: string;
   cardInstallments?: number;
+}
+
+export interface BiProductRowRaw {
+  ano: number | string;
+  mes: string;
+  produto: string;
+  tamCor: string;
+  descricao: string;
+  quantidadeComprada: number;
+  custoTotal: number;
+  precoVenda: number;
+  quantidadeVendida: number;
+  publishedToVitrine?: boolean;
+  vitrineProductId?: string;
+  autoHideWhenOutOfStock?: boolean;
+  vitrineImageUrl?: string;
+  vitrineCategory?: string;
+  vitrineTag?: string;
+}
+
+export interface BiProductCalculatedRecord {
+  id: string;
+  ano: number;
+  mes: string;
+  produto: string;
+  tamCor: string;
+  descricao: string;
+  quantidadeComprada: number;
+  custoTotal: number;
+  precoVenda: number;
+  quantidadeVendida: number;
+  
+  // Indicadores calculados pelo motor de BI Financeiro
+  custoUnitario: number; // Custo Total / Quantidade Comprada
+  vendaTotal: number; // Faturamento = Quantidade Vendida * Preço de Venda
+  custoVenda: number; // CPV = Quantidade Vendida * Custo Unitário
+  lucroBruto: number; // Venda Total - Custo da Venda
+  saldoEstoqueQtd: number; // Quantidade Comprada - Quantidade Vendida
+  custoEstoque: number; // Capital Imobilizado = Saldo em Estoque * Custo Unitário
+  margemLucro: number; // Margem Real (%) = (Lucro Bruto / Venda Total) * 100
+  markupReal: number; // Mark-up Real (%)
+  faturamentoPlanejado: number; // Quantidade Comprada * Preço de Venda
+  lucroPlanejado: number; // Faturamento Planejado - Custo Total
+  margemPlanejada: number; // Margem Planejada (%)
+  atingimentoMeta: number; // Atingimento da Meta (%) = (Venda Total / Faturamento Planejado) * 100
+  rentabilidade: number; // Rentabilidade (%) = (Lucro Bruto / Custo Total) * 100
+  statusEstoque: 'ok' | 'baixo' | 'esgotado' | 'negativo';
+
+  // Integração com a Vitrine do E-commerce
+  publishedToVitrine?: boolean;
+  vitrineProductId?: string;
+  autoHideWhenOutOfStock?: boolean;
+  vitrineImageUrl?: string;
+  vitrineCategory?: string;
+  vitrineTag?: string;
+}
+
+export interface BiConsolidatedKpis {
+  faturamentoTotal: number;
+  custoTotalCompras: number;
+  cpvTotal: number;
+  lucroBrutoTotal: number;
+  valorTotalEstoque: number;
+  saldoTotalEstoqueQtd: number;
+  totalCompradoQtd: number;
+  totalVendidoQtd: number;
+  margemLucroMedia: number;
+  faturamentoPlanejadoTotal: number;
+  atingimentoGlobal: number;
 }

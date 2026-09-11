@@ -67,6 +67,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <span className="bg-rose-600 text-white text-[9px] sm:text-xs font-extrabold px-2.5 py-1 rounded-full shadow-md border border-white/70 tracking-wide uppercase">
               Esgotado
             </span>
+          ) : product.stock > 0 && product.stock <= 5 ? (
+            <span className="bg-gradient-to-r from-amber-500 to-rose-500 text-white text-[8px] sm:text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md border border-white/80 tracking-wide flex items-center gap-1 animate-pulse">
+              <span>⚡ Restam {product.stock} un.</span>
+            </span>
           ) : product.tag ? (
             <span className="bg-white/95 backdrop-blur-xs text-purple-950 text-[8px] sm:text-xs font-bold px-2.5 py-1 rounded-full shadow-xs border border-amber-200/80 flex items-center gap-1">
               <Flower2 className="w-3 h-3 text-pink-500 fill-pink-300" />
