@@ -271,7 +271,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span>🌸 Todos os mimos</span>
           </button>
 
-          {/* 2. Dedicatórias fofas */}
+          {/* 2. Dedicatórias */}
           <button
             id="nav-tab-card-generator"
             onClick={() => setActiveTab('card-generator')}
@@ -282,7 +282,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <span className="font-bold text-purple-600">%</span>
-            <span>Dedicatórias fofas</span>
+            <span>Dedicatórias</span>
           </button>
 
           {/* 3. Nossa história */}

@@ -359,7 +359,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                 {/* Quick Templates */}
                 <div>
                   <label className="text-xs font-bold text-purple-900 mb-2 block">
-                    Sugestões de Mensagens Fofas:
+                    Sugestões de Mensagens:
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {CARD_TEMPLATES.map((tpl, i) => (

@@ -1221,7 +1221,7 @@ export default function App() {
                       {homePageConfig.aboutPillar3Icon || '💌'}
                     </div>
                     <h4 className="font-['Mali'] font-bold text-purple-950 text-base">
-                      {homePageConfig.aboutPillar3Title || 'Dedicatórias Fofas'}
+                      {homePageConfig.aboutPillar3Title || 'Dedicatórias'}
                     </h4>
                     <p className="text-xs text-slate-600 font-['Comfortaa'] leading-relaxed font-medium">
                       {homePageConfig.aboutPillar3Desc || 'Cartinhas afetivas e bilhetinhos personalizados para emocionar e marcar memórias para sempre.'}
