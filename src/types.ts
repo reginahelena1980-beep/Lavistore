@@ -285,14 +285,14 @@ export interface ShippingOption {
   error?: string | null;
 }
 
-export type CouponType = 'percentage' | 'fixed' | 'free_shipping';
+export type CouponType = 'percentage' | 'fixed' | 'free_shipping' | 'gift';
 
 export interface Coupon {
   id: string;
   code: string;
   description: string;
   type: CouponType;
-  discountValue: number; // Porcentagem (ex: 10 para 10%), valor fixo (ex: 15 para R$ 15), ou 0 para frete grátis
+  discountValue: number; // Porcentagem, valor fixo, 0 para frete grátis ou brinde
   minOrderValue?: number; // Valor mínimo de pedido (opcional)
   isActive: boolean;
   timesUsed?: number;
@@ -303,6 +303,7 @@ export interface CouponEvaluation {
   code: string;
   isValid: boolean;
   isFreeShipping: boolean;
+  isGift?: boolean;
   discountPercentage?: number;
   discountFixed?: number;
   calculatedDiscount: number;

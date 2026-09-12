@@ -13,7 +13,8 @@ import {
   DollarSign, 
   AlertCircle,
   X,
-  Power
+  Power,
+  Gift
 } from 'lucide-react';
 import { Coupon, CouponType } from '../types';
 import { DEFAULT_COUPONS } from '../data/coupons';
@@ -94,7 +95,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
     }
 
     const minOrder = parseFloat(formMinOrderValue) || 0;
-    const discountVal = formType === 'free_shipping' ? 0 : Number(formDiscountValue);
+    const discountVal = (formType === 'free_shipping' || formType === 'gift') ? 0 : Number(formDiscountValue);
 
     if (formType === 'percentage' && (discountVal <= 0 || discountVal > 100)) {
       setFormError('Para cupom percentual, o desconto deve estar entre 1% e 100%.');
@@ -147,6 +148,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
   };
 
   const getDefaultDescription = (type: CouponType, val: number, code: string) => {
+    if (type === 'gift') return `Cupom Especial de Brinde: Compra 100% Grátis (Total R$ 0,00)`;
     if (type === 'free_shipping') return `Frete Grátis garantido para todo o Brasil com o cupom ${code}`;
     if (type === 'percentage') return `${val}% de desconto no valor total dos mimos`;
     return `R$ ${val.toFixed(2)} de desconto especial no seu pedido`;
@@ -190,7 +192,8 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
   // Metrics
   const activeCouponsCount = coupons.filter(c => c.isActive).length;
   const freeShippingCouponsCount = coupons.filter(c => c.type === 'free_shipping').length;
-  const discountCouponsCount = coupons.filter(c => c.type !== 'free_shipping').length;
+  const giftCouponsCount = coupons.filter(c => c.type === 'gift').length;
+  const discountCouponsCount = coupons.filter(c => c.type === 'percentage' || c.type === 'fixed').length;
 
   return (
     <div className="space-y-6 font-['Comfortaa'] animate-in fade-in">
@@ -214,7 +217,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
               Cupons de Desconto & Frete Grátis 🎟️
             </h2>
             <p className="text-xs sm:text-sm text-slate-700 max-w-2xl font-medium leading-relaxed">
-              Crie, edite e ative os cupons da sua loja. Você pode criar cupons de <strong>Frete Grátis</strong> (que zeram o frete calculado no carrinho), cupons de <strong>Porcentagem (%)</strong> ou de <strong>Valor Fixo (R$)</strong> com pedido mínimo opcional.
+              Crie, edite e ative os cupons da sua loja. Você pode criar cupons de <strong>Frete Grátis</strong> (que zeram o frete real), cupons de <strong>Brinde (Compra R$ 0,00)</strong> ou cupons de <strong>Porcentagem (%)</strong> e <strong>Valor Fixo (R$)</strong>.
             </p>
           </div>
 
@@ -260,10 +263,10 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
             <span className="text-[10px] text-sky-700 font-medium">Zeram o frete real</span>
           </div>
 
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-purple-200 shadow-2xs space-y-1">
-            <span className="text-[11px] text-purple-800 font-bold block">Descontos (% / R$)</span>
-            <p className="font-['Mali'] text-2xl font-bold text-purple-900">{discountCouponsCount}</p>
-            <span className="text-[10px] text-purple-700 font-medium">Deduzem no subtotal</span>
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-pink-200 shadow-2xs space-y-1">
+            <span className="text-[11px] text-pink-800 font-bold block">Brindes (R$ 0,00)</span>
+            <p className="font-['Mali'] text-2xl font-bold text-pink-600">{giftCouponsCount}</p>
+            <span className="text-[10px] text-pink-700 font-medium">{discountCouponsCount} com %/R$ OFF</span>
           </div>
         </div>
       </div>
@@ -358,6 +361,13 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
 
                     {/* Type and value highlight */}
                     <div className="flex items-center gap-2 pt-1">
+                      {coupon.type === 'gift' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-pink-900 bg-pink-100/90 px-2.5 py-0.5 rounded-lg border border-pink-300">
+                          <Gift className="w-3.5 h-3.5 text-pink-600" />
+                          <span>Brinde (Compra R$ 0,00)</span>
+                        </span>
+                      )}
+
                       {coupon.type === 'free_shipping' && (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-sky-800 bg-sky-50 px-2.5 py-0.5 rounded-lg border border-sky-200">
                           <Truck className="w-3.5 h-3.5 text-sky-600" />
@@ -503,7 +513,21 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
                 <label className="block text-xs font-bold text-purple-950 mb-1.5">
                   Tipo de Cupom *
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormType('gift')}
+                    className={`p-3 rounded-2xl border-2 text-center transition-all cursor-pointer ${
+                      formType === 'gift'
+                        ? 'border-pink-500 bg-pink-50 text-pink-950 font-bold shadow-xs'
+                        : 'border-slate-200 hover:border-pink-200 text-slate-600'
+                    }`}
+                  >
+                    <Gift className="w-5 h-5 mx-auto mb-1 text-pink-600" />
+                    <span className="text-xs block font-bold">Brinde (R$ 0,00)</span>
+                    <span className="text-[10px] text-slate-500 block">Zera toda a compra</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setFormType('free_shipping')}
@@ -548,8 +572,21 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
                 </div>
               </div>
 
+              {/* Guidance for gift coupon */}
+              {formType === 'gift' && (
+                <div className="p-4 bg-gradient-to-r from-pink-50 via-purple-50 to-amber-50 rounded-2xl border-2 border-pink-300 text-xs text-purple-950 space-y-1 shadow-2xs">
+                  <div className="flex items-center gap-2 font-bold text-pink-700">
+                    <Gift className="w-4 h-4 text-pink-600 shrink-0" />
+                    <span>Opção Cupom BRINDE (Compra 100% Grátis)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Quando este cupom for aplicado na Sacola ou Checkout, o valor dos produtos e do frete serão zerados (<strong>Total: R$ 0,00</strong>). O cliente não precisará pagar nada.
+                  </p>
+                </div>
+              )}
+
               {/* Value (only if percentage or fixed) */}
-              {formType !== 'free_shipping' && (
+              {formType !== 'free_shipping' && formType !== 'gift' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-purple-950 mb-1">

@@ -34,7 +34,6 @@ import {
   Calculator,
   TrendingUp,
   Percent,
-  CheckCircle2,
   X,
   Tag,
   Heart,
@@ -96,7 +95,6 @@ interface AdminDashboardProps {
   initialAdminSection?: 'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi';
   onGoToStorefront?: () => void;
   onGoToAboutPage?: () => void;
-  onPublishToServer?: () => Promise<boolean | void> | void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -131,33 +129,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onResetCoupons,
   initialAdminSection = 'products',
   onGoToStorefront,
-  onGoToAboutPage,
-  onPublishToServer
+  onGoToAboutPage
 }) => {
   const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi'>(initialAdminSection);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [copiedNotification, setCopiedNotification] = useState<string | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
-
-  const handleTriggerPublish = async () => {
-    if (onPublishToServer) {
-      setIsPublishing(true);
-      try {
-        const ok = await onPublishToServer();
-        if (ok !== false) {
-          setCopiedNotification('✅ Todas as fotos, frases e produtos foram gravados no servidor com sucesso para publicação oficial!');
-          setTimeout(() => setCopiedNotification(null), 4000);
-        }
-      } catch {
-        setCopiedNotification('⚠️ Erro ao gravar dados no servidor.');
-        setTimeout(() => setCopiedNotification(null), 3000);
-      } finally {
-        setIsPublishing(false);
-      }
-    }
-  };
 
   const handleExportFullStore = () => {
     const fullBackup = {
@@ -466,20 +444,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               >
                 <Store className="w-4 h-4 text-purple-700" />
                 <span>Ver Loja (Vitrine)</span>
-              </button>
-            )}
-
-            {onPublishToServer && (
-              <button
-                id="btn-admin-publish-to-server"
-                type="button"
-                onClick={handleTriggerPublish}
-                disabled={isPublishing}
-                className="px-4 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs shadow-md border-2 border-emerald-300 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
-                title="Grava permanentemente todas as fotos, frases e produtos desta versão para que todos os clientes vejam o site publicado"
-              >
-                <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                <span>{isPublishing ? 'Gravando no Servidor...' : '💾 Gravar Alterações para Publicação'}</span>
               </button>
             )}
 

@@ -72,6 +72,22 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     };
   }, [orderData?.mercadoPagoPaymentId, pixPaymentStatus]);
 
+  const isGiftOrder = Number(orderData?.total || 0) === 0 || 
+                      orderData?.couponApplied?.toUpperCase() === 'BRINDE' || 
+                      orderData?.paymentMethod?.toLowerCase().includes('brinde') || 
+                      orderData?.paymentMethod?.toLowerCase().includes('cortesia');
+
+  useEffect(() => {
+    if (isGiftOrder) {
+      confetti({
+        particleCount: 90,
+        spread: 75,
+        origin: { y: 0.6 },
+        colors: ['#EC4899', '#A855F7', '#F59E0B', '#10B981']
+      });
+    }
+  }, [isGiftOrder]);
+
   if (!orderData) return null;
 
   const isMercadoPagoPayment = Boolean(orderData.mercadoPagoPaymentId) || 
@@ -193,8 +209,32 @@ ${orderData.couponApplied ? `🏷️ *Cupom:* ${orderData.couponApplied} (- R$ $
           </div>
         </div>
 
+        {/* PEDIDO CORTESIA / CUPOM BRINDE (VALOR ZERO) */}
+        {isGiftOrder && (
+          <div className="bg-gradient-to-br from-pink-50 via-purple-50 to-amber-50 p-6 rounded-3xl border-2 border-pink-300 text-center space-y-3.5 shadow-md animate-in fade-in">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-pink-500 to-rose-400 text-white flex items-center justify-center mx-auto shadow-lg shadow-pink-200 animate-pulse">
+              <Gift className="w-8 h-8" />
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-xs font-extrabold text-pink-700 uppercase tracking-wider bg-pink-100 px-3.5 py-1 rounded-full border border-pink-200 inline-block shadow-2xs">
+                🎉 Pedido Cortesia Aprovado (100% Grátis)
+              </span>
+              <h3 className="font-['Playfair_Display'] font-bold text-xl text-purple-950">
+                Resgate Concluído com Sucesso!
+              </h3>
+              <p className="text-xs sm:text-sm text-purple-900 leading-relaxed max-w-md mx-auto">
+                O cupom <strong>{orderData.couponApplied || 'BRINDE'}</strong> foi aplicado e o valor total do pedido e do frete foi 100% isento (<strong>Total: R$ 0,00</strong>). Não é necessário efetuar nenhum pagamento!
+              </p>
+            </div>
+            <div className="p-3 bg-white/90 rounded-2xl border border-pink-200 text-xs inline-flex items-center gap-2 font-bold text-emerald-700 shadow-2xs">
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <span>Status: Pedido Aprovado & Confirmado • Valor Pago: R$ 0,00 🌸</span>
+            </div>
+          </div>
+        )}
+
         {/* MERCADO PAGO - CARTÃO DE CRÉDITO APROVADO */}
-        {orderData.paymentMethod.includes('Cartão') && isMercadoPagoPayment && (
+        {orderData.paymentMethod.includes('Cartão') && isMercadoPagoPayment && !isGiftOrder && (
           <div className="bg-gradient-to-br from-emerald-50 via-purple-50 to-pink-50 p-5 rounded-2xl border-2 border-emerald-300 text-center space-y-3 shadow-xs">
             <div className="flex items-center justify-center gap-2 text-emerald-950 font-bold text-sm">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -230,7 +270,7 @@ ${orderData.couponApplied ? `🏷️ *Cupom:* ${orderData.couponApplied} (- R$ $
         )}
 
         {/* CARTÃO DE CRÉDITO - PAGSEGURO (LINK DE PAGAMENTO - SE NÃO FOR MERCADO PAGO) */}
-        {isPagSeguroPayment && !isMercadoPagoPayment && (
+        {isPagSeguroPayment && !isMercadoPagoPayment && !isGiftOrder && (
           <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-amber-50 p-5 rounded-2xl border-2 border-purple-300 text-center space-y-3 shadow-xs">
             <div className="flex items-center justify-center gap-2 text-purple-950 font-bold text-sm">
               <CreditCard className="w-5 h-5 text-purple-700" />
@@ -315,7 +355,7 @@ ${orderData.couponApplied ? `🏷️ *Cupom:* ${orderData.couponApplied} (- R$ $
         )}
 
         {/* PIX QR CODE & COPIA E COLA */}
-        {orderData.paymentMethod.includes('PIX') && (
+        {orderData.paymentMethod.includes('PIX') && !isGiftOrder && (
           <div className={`p-5 rounded-2xl border-2 text-center space-y-3 transition-colors shadow-xs ${
             pixPaymentStatus === 'approved' 
               ? 'bg-emerald-50/90 border-emerald-300' 

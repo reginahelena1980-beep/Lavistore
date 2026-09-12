@@ -241,23 +241,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Lógica de cálculo do cupom
   const couponEvaluation = evaluateCoupon(checkoutCoupon, subtotal, 0, availableCoupons);
   const isFreeShippingCoupon = couponEvaluation.isFreeShipping;
+  const isGiftCoupon = couponEvaluation.isGift || checkoutCoupon?.toUpperCase() === 'BRINDE';
   const FREE_SHIPPING_THRESHOLD = 149.00;
-  const isFreeShippingEligible = isFreeShippingCoupon || subtotal >= FREE_SHIPPING_THRESHOLD;
+  const isFreeShippingEligible = isFreeShippingCoupon || isGiftCoupon || subtotal >= FREE_SHIPPING_THRESHOLD;
 
-  // Desconto no subtotal dos produtos (ex: LAVI10, FLORZINHA)
-  const currentDiscountAmount = couponEvaluation.calculatedDiscount;
+  // Desconto no subtotal dos produtos (ex: LAVI10, FLORZINHA, BRINDE)
+  const currentDiscountAmount = isGiftCoupon ? subtotal : couponEvaluation.calculatedDiscount;
 
   // Valor do Frete Selecionado (preserva o valor previamente escolhido/calculado)
   const baseShippingCost = selectedOption 
     ? selectedOption.price 
     : (externalSelectedShipping ? externalSelectedShipping.price : (shippingOptions[0]?.price ?? 13.38));
-  const finalShippingCost = isFreeShippingEligible ? 0 : baseShippingCost;
+  const finalShippingCost = (isFreeShippingEligible || isGiftCoupon) ? 0 : baseShippingCost;
 
-  // Desconto PIX de 5%
-  const pixDiscount = paymentMethod === 'pix' ? (subtotal - currentDiscountAmount) * 0.05 : 0;
+  // Desconto PIX de 5% (somente se não for brinde)
+  const pixDiscount = (!isGiftCoupon && paymentMethod === 'pix') ? (subtotal - currentDiscountAmount) * 0.05 : 0;
 
-  // Total Final
-  const finalOrderTotal = Math.max(0, subtotal - currentDiscountAmount - pixDiscount + finalShippingCost);
+  // Total Final (zero quando for cupom de brinde!)
+  const finalOrderTotal = isGiftCoupon ? 0 : Math.max(0, subtotal - currentDiscountAmount - pixDiscount + finalShippingCost);
 
   // Aplicação do Cupom
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -371,6 +372,60 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const executeMercadoPagoPayment = async (customFormData?: any) => {
     setIsProcessing(true);
     setPaymentErrorMessage(null);
+
+    // Se o cupom for BRINDE ou o total for zero, finaliza o pedido grátis diretamente sem chamar gateway de pagamento!
+    if (isGiftCoupon || finalOrderTotal === 0) {
+      const freeGiftOrder: OrderData = {
+        orderId: `LAVI-${Math.floor(100000 + Math.random() * 900000)}`,
+        date: new Date().toLocaleDateString('pt-BR'),
+        customerName: customerName || 'Cliente Lavistore',
+        customerEmail: customerEmail || 'contato@lavistore.com.br',
+        customerPhone: customerPhone || '(11) 99999-9999',
+        customerCpf: customerCpf || '123.456.789-00',
+        address: `${street || 'Endereço'}, ${number || 'S/N'} ${complement ? complement + ' ' : ''}- ${district || 'Bairro'}, ${city || 'Cidade'}/${state || 'UF'} - CEP: ${cep || '00000-000'}`,
+        paymentMethod: 'Cortesia Especial / Cupom BRINDE (R$ 0,00)',
+        shippingMethod: selectedOption ? `${selectedOption.carrier} (${selectedOption.name})` : 'Frete Cortesia Especial',
+        shippingDeadline: selectedOption?.deadline || '3 a 6 dias úteis',
+        items,
+        subtotal,
+        discountAmount: subtotal,
+        couponApplied: checkoutCoupon || 'BRINDE',
+        isFreeShippingApplied: true,
+        shippingCost: 0,
+        total: 0,
+        hidePrices,
+        notes: orderNotes
+      };
+
+      try {
+        const response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(freeGiftOrder)
+        });
+        const result = await response.json();
+        setIsProcessing(false);
+        confetti({
+          particleCount: 100,
+          spread: 75,
+          origin: { y: 0.6 },
+          colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
+        });
+        onOrderSuccess(result.order || freeGiftOrder);
+        return;
+      } catch (err) {
+        console.warn('Erro ao registrar pedido de brinde no backend:', err);
+        setIsProcessing(false);
+        confetti({
+          particleCount: 100,
+          spread: 75,
+          origin: { y: 0.6 },
+          colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
+        });
+        onOrderSuccess(freeGiftOrder);
+        return;
+      }
+    }
 
     const cleanCpf = customerCpf.replace(/\D/g, '') || '12345678900';
     const isPix = paymentMethod === 'pix' || customFormData?.selectedPaymentMethod === 'bank_transfer';
@@ -865,196 +920,222 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaymentMethod('pix');
-                    }}
-                    className={`py-3.5 px-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
-                      paymentMethod === 'pix'
-                        ? 'border-pink-500 bg-pink-50 text-pink-900 ring-2 ring-pink-300 shadow-xs'
-                        : 'border-purple-200 bg-white text-slate-700 hover:bg-purple-50'
-                    }`}
-                  >
-                    <QrCode className="w-5 h-5 text-pink-600" />
-                    <span className="text-xs">PIX Instantâneo</span>
-                    <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">+5% OFF • Mercado Pago</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaymentMethod('credit');
-                    }}
-                    className={`py-3.5 px-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
-                      paymentMethod === 'credit'
-                        ? 'border-purple-600 bg-purple-100 text-purple-950 ring-2 ring-purple-300 shadow-xs'
-                        : 'border-purple-200 bg-white text-slate-700 hover:bg-purple-50'
-                    }`}
-                  >
-                    <CreditCard className="w-5 h-5 text-purple-600" />
-                    <span className="text-xs">Cartão de Crédito</span>
-                    <span className="text-[9px] bg-purple-200 text-purple-900 px-2 py-0.5 rounded-full font-bold">Mercado Pago até 12x</span>
-                  </button>
-                </div>
-
-                {/* Container Oficial Mercado Pago Payment Brick (quando ativado) */}
-                <div id="paymentBrick_container" className="empty:hidden my-2"></div>
-
-                {paymentMethod === 'pix' && (
-                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <p className="font-bold flex items-center gap-1.5 text-emerald-900">
-                        <Sparkles className="w-4 h-4 text-emerald-600" />
-                        <span>PIX Mercado Pago • 5% OFF Automático</span>
-                      </p>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                        Aprovação em Segundos
+                {/* Se o cupom for BRINDE / Total for Zero, dispensa gateways e exibe card de cortesia */}
+                {isGiftCoupon || finalOrderTotal === 0 ? (
+                  <div className="p-5 bg-gradient-to-br from-pink-50 via-purple-50 to-amber-50 rounded-2xl border-2 border-pink-300 text-center space-y-3 shadow-xs animate-in fade-in">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-pink-500 to-rose-400 text-white flex items-center justify-center mx-auto shadow-md">
+                      <Gift className="w-7 h-7 animate-pulse" />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-extrabold text-pink-700 uppercase tracking-wider bg-pink-100 px-3 py-0.5 rounded-full border border-pink-200">
+                        🎉 Opção Cupom BRINDE Ativa
                       </span>
+                      <h5 className="font-['Playfair_Display'] font-bold text-lg text-purple-950">
+                        Cortesia Especial Lavistore (100% Grátis)
+                      </h5>
+                      <p className="text-xs text-purple-900 leading-relaxed max-w-md mx-auto">
+                        Com o cupom <strong>{checkoutCoupon || 'BRINDE'}</strong> selecionado, o valor dos produtos e do frete foram totalmente zerados (<strong>Total: R$ 0,00</strong>). Você não precisa efetuar nenhum pagamento nem digitar dados de cartão!
+                      </p>
                     </div>
-
-                    <p className="text-[11px] text-emerald-800 leading-relaxed">
-                      Ao clicar em <strong>Confirmar e Finalizar Pedido</strong>, o Mercado Pago gerará dinamicamente o <strong>QR Code oficial</strong> e a chave <strong>Pix Copia e Cola</strong> com o valor exato do pedido (R$ {finalOrderTotal.toFixed(2)} já com frete e descontos).
-                    </p>
-
-                    <div className="p-2.5 bg-white/90 rounded-xl border border-emerald-200 flex items-center justify-between text-[11px] text-emerald-900">
-                      <span>Total cobrado via PIX:</span>
-                      <strong className="text-emerald-700 text-sm font-bold">R$ {finalOrderTotal.toFixed(2)}</strong>
+                    <div className="p-3 bg-white/90 rounded-xl border border-pink-200 text-xs inline-flex items-center gap-2 font-bold text-emerald-700">
+                      <Sparkles className="w-4 h-4 text-emerald-600" />
+                      <span>Total a pagar: R$ 0,00 (Compra Cortesia Grátis) 🌸</span>
                     </div>
-
-                    {!brickActive && (
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setBrickActive(true)}
-                        className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-medium flex items-center gap-1 cursor-pointer"
+                        onClick={() => {
+                          setPaymentMethod('pix');
+                        }}
+                        className={`py-3.5 px-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                          paymentMethod === 'pix'
+                            ? 'border-pink-500 bg-pink-50 text-pink-900 ring-2 ring-pink-300 shadow-xs'
+                            : 'border-purple-200 bg-white text-slate-700 hover:bg-purple-50'
+                        }`}
                       >
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Ativar componente visual Mercado Pago Payment Brick</span>
+                        <QrCode className="w-5 h-5 text-pink-600" />
+                        <span className="text-xs">PIX Instantâneo</span>
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">+5% OFF • Mercado Pago</span>
                       </button>
-                    )}
-                  </div>
-                )}
 
-                {paymentMethod === 'credit' && (
-                  <div className="p-4 bg-purple-50/80 rounded-2xl border-2 border-purple-200 text-xs text-purple-950 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold flex items-center gap-1.5 text-purple-950">
-                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                        <span>Checkout Transparente Mercado Pago</span>
-                      </span>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                        Criptografia PCI-DSS
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod('credit');
+                        }}
+                        className={`py-3.5 px-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                          paymentMethod === 'credit'
+                            ? 'border-purple-600 bg-purple-100 text-purple-950 ring-2 ring-purple-300 shadow-xs'
+                            : 'border-purple-200 bg-white text-slate-700 hover:bg-purple-50'
+                        }`}
+                      >
+                        <CreditCard className="w-5 h-5 text-purple-600" />
+                        <span className="text-xs">Cartão de Crédito</span>
+                        <span className="text-[9px] bg-purple-200 text-purple-900 px-2 py-0.5 rounded-full font-bold">Mercado Pago até 12x</span>
+                      </button>
                     </div>
 
-                    <p className="text-[11px] text-slate-700 leading-relaxed">
-                      Preencha os dados do seu cartão diretamente no site com total segurança. O pagamento é processado instantaneamente pela infraestrutura oficial do Mercado Pago.
-                    </p>
+                    {/* Container Oficial Mercado Pago Payment Brick (quando ativado) */}
+                    <div id="paymentBrick_container" className="empty:hidden my-2"></div>
 
-                    {/* Campos Seguros de Cartão Direto no Site */}
-                    <div className="space-y-2.5 pt-1">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                          Número do Cartão de Crédito
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={cardNumber}
-                            onChange={(e) => setCardNumber(e.target.value)}
-                            placeholder="0000 0000 0000 0000"
-                            maxLength={19}
-                            className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                          />
-                          <CreditCard className="w-4 h-4 text-purple-400 absolute right-3 top-2.5 pointer-events-none" />
+                    {paymentMethod === 'pix' && (
+                      <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold flex items-center gap-1.5 text-emerald-900">
+                            <Sparkles className="w-4 h-4 text-emerald-600" />
+                            <span>PIX Mercado Pago • 5% OFF Automático</span>
+                          </p>
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                            Aprovação em Segundos
+                          </span>
                         </div>
-                      </div>
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                          Nome do Titular (Como impresso no cartão)
-                        </label>
-                        <input
-                          type="text"
-                          value={cardHolder}
-                          onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
-                          placeholder="Nome impresso no cartão"
-                          className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs uppercase font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        />
-                      </div>
+                        <p className="text-[11px] text-emerald-800 leading-relaxed">
+                          Ao clicar em <strong>Confirmar e Finalizar Pedido</strong>, o Mercado Pago gerará dinamicamente o <strong>QR Code oficial</strong> e a chave <strong>Pix Copia e Cola</strong> com o valor exato do pedido (R$ {finalOrderTotal.toFixed(2)} já com frete e descontos).
+                        </p>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                            Validade (MM/AA)
-                          </label>
-                          <input
-                            type="text"
-                            value={cardExpiry}
-                            onChange={(e) => setCardExpiry(e.target.value)}
-                            placeholder="MM/AA"
-                            maxLength={5}
-                            className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                          />
+                        <div className="p-2.5 bg-white/90 rounded-xl border border-emerald-200 flex items-center justify-between text-[11px] text-emerald-900">
+                          <span>Total cobrado via PIX:</span>
+                          <strong className="text-emerald-700 text-sm font-bold">R$ {finalOrderTotal.toFixed(2)}</strong>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                            CVV (Código de Segurança)
-                          </label>
-                          <input
-                            type="password"
-                            value={cardCvv}
-                            onChange={(e) => setCardCvv(e.target.value)}
-                            placeholder="CVV"
-                            maxLength={4}
-                            className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                          />
-                        </div>
-                      </div>
 
-                      {/* Parcelamento Dinâmico Mercado Pago */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                          Quantidade de Parcelas (Mercado Pago em até 12x)
-                        </label>
-                        <select
-                          value={installments}
-                          onChange={(e) => setInstallments(e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
-                        >
-                          <option value="1">1x de R$ {finalOrderTotal.toFixed(2)} (à vista)</option>
-                          <option value="2">2x de R$ {(finalOrderTotal / 2).toFixed(2)} sem juros</option>
-                          <option value="3">3x de R$ {(finalOrderTotal / 3).toFixed(2)} sem juros</option>
-                          <option value="4">4x de R$ {(finalOrderTotal / 4).toFixed(2)}</option>
-                          <option value="6">6x de R$ {(finalOrderTotal / 6).toFixed(2)}</option>
-                          <option value="10">10x de R$ {(finalOrderTotal / 10).toFixed(2)}</option>
-                          <option value="12">12x de R$ {(finalOrderTotal / 12).toFixed(2)}</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {!brickActive && (
-                      <div className="pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setBrickActive(true)}
-                          className="text-[10px] text-purple-700 hover:text-purple-900 underline font-medium flex items-center gap-1 cursor-pointer"
-                        >
-                          <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                          <span>Carregar componente visual nativo Mercado Pago Payment Brick</span>
-                        </button>
+                        {!brickActive && (
+                          <button
+                            type="button"
+                            onClick={() => setBrickActive(true)}
+                            className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-medium flex items-center gap-1 cursor-pointer"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Ativar componente visual Mercado Pago Payment Brick</span>
+                          </button>
+                        )}
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-purple-200/60">
-                      <span>Processador oficial: Mercado Pago</span>
-                      <span className="flex items-center gap-1 text-emerald-700 font-bold">
-                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                        Transação Protegida
-                      </span>
-                    </div>
-                  </div>
+                    {paymentMethod === 'credit' && (
+                      <div className="p-4 bg-purple-50/80 rounded-2xl border-2 border-purple-200 text-xs text-purple-950 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold flex items-center gap-1.5 text-purple-950">
+                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                            <span>Checkout Transparente Mercado Pago</span>
+                          </span>
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                            Criptografia PCI-DSS
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-700 leading-relaxed">
+                          Preencha os dados do seu cartão diretamente no site com total segurança. O pagamento é processado instantaneamente pela infraestrutura oficial do Mercado Pago.
+                        </p>
+
+                        {/* Campos Seguros de Cartão Direto no Site */}
+                        <div className="space-y-2.5 pt-1">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                              Número do Cartão de Crédito
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={cardNumber}
+                                onChange={(e) => setCardNumber(e.target.value)}
+                                placeholder="0000 0000 0000 0000"
+                                maxLength={19}
+                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                              />
+                              <CreditCard className="w-4 h-4 text-purple-400 absolute right-3 top-2.5 pointer-events-none" />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                              Nome do Titular (Como impresso no cartão)
+                            </label>
+                            <input
+                              type="text"
+                              value={cardHolder}
+                              onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                              placeholder="Nome impresso no cartão"
+                              className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs uppercase font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                Validade (MM/AA)
+                              </label>
+                              <input
+                                type="text"
+                                value={cardExpiry}
+                                onChange={(e) => setCardExpiry(e.target.value)}
+                                placeholder="MM/AA"
+                                maxLength={5}
+                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                CVV (Código de Segurança)
+                              </label>
+                              <input
+                                type="password"
+                                value={cardCvv}
+                                onChange={(e) => setCardCvv(e.target.value)}
+                                placeholder="CVV"
+                                maxLength={4}
+                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Parcelamento Dinâmico Mercado Pago */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                              Quantidade de Parcelas (Mercado Pago em até 12x)
+                            </label>
+                            <select
+                              value={installments}
+                              onChange={(e) => setInstallments(e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
+                            >
+                              <option value="1">1x de R$ {finalOrderTotal.toFixed(2)} (à vista)</option>
+                              <option value="2">2x de R$ {(finalOrderTotal / 2).toFixed(2)} sem juros</option>
+                              <option value="3">3x de R$ {(finalOrderTotal / 3).toFixed(2)} sem juros</option>
+                              <option value="4">4x de R$ {(finalOrderTotal / 4).toFixed(2)}</option>
+                              <option value="6">6x de R$ {(finalOrderTotal / 6).toFixed(2)}</option>
+                              <option value="10">10x de R$ {(finalOrderTotal / 10).toFixed(2)}</option>
+                              <option value="12">12x de R$ {(finalOrderTotal / 12).toFixed(2)}</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {!brickActive && (
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setBrickActive(true)}
+                              className="text-[10px] text-purple-700 hover:text-purple-900 underline font-medium flex items-center gap-1 cursor-pointer"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                              <span>Carregar componente visual nativo Mercado Pago Payment Brick</span>
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-purple-200/60">
+                          <span>Processador oficial: Mercado Pago</span>
+                          <span className="flex items-center gap-1 text-emerald-700 font-bold">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            Transação Protegida
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -1105,8 +1186,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {checkoutCoupon ? (
                   <div className="flex items-center justify-between bg-pink-500/20 px-3 py-2 rounded-xl border border-pink-400/40 text-xs">
                     <span className="flex items-center gap-1.5 font-bold text-pink-300">
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      Cupom Ativo: <strong>{checkoutCoupon}</strong>
+                      {isGiftCoupon ? <Gift className="w-3.5 h-3.5 text-pink-300" /> : <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                      Cupom Ativo: <strong>{checkoutCoupon}</strong> {isGiftCoupon && '(Brinde - R$ 0,00)'}
                     </span>
                     <button
                       type="button"
@@ -1140,7 +1221,77 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     {couponFeedback.message}
                   </p>
                 )}
+
+                {/* Opções Rápidas de Cupons com destaque para a Opção de Cupom BRINDE */}
+                <div className="pt-1 space-y-1 border-t border-purple-800/60">
+                  <span className="text-[10px] text-purple-300 font-bold block">
+                    Sugestões & Cupons Ativos:
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {/* Opção Cupom BRINDE */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isGiftCoupon) {
+                          handleRemoveCoupon();
+                        } else {
+                          setCheckoutCoupon('BRINDE');
+                          if (setExternalAppliedCoupon) setExternalAppliedCoupon('BRINDE');
+                          const evalResult = evaluateCoupon('BRINDE', subtotal, 0, availableCoupons);
+                          setCouponFeedback({ message: evalResult.message, isError: false });
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                        isGiftCoupon
+                          ? 'bg-pink-500 text-white border-pink-400 shadow-xs'
+                          : 'bg-gradient-to-r from-pink-500/25 via-purple-500/25 to-amber-500/25 hover:from-pink-500/40 hover:to-amber-500/40 text-pink-200 border-pink-400/60 shadow-2xs'
+                      }`}
+                      title="Clique para selecionar o cupom BRINDE (Zera toda a compra!)"
+                    >
+                      <Gift className="w-3.5 h-3.5 text-pink-300" />
+                      <span>{isGiftCoupon ? '✓ Cupom BRINDE Ativo' : '🎁 Cupom BRINDE (Zera Compra)'}</span>
+                    </button>
+
+                    {availableCoupons && availableCoupons
+                      .filter(c => c.isActive && c.code.toUpperCase() !== 'BRINDE')
+                      .slice(0, 3)
+                      .map(c => {
+                        const isSelected = checkoutCoupon?.toUpperCase() === c.code.toUpperCase();
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                handleRemoveCoupon();
+                              } else {
+                                setCheckoutCoupon(c.code);
+                                if (setExternalAppliedCoupon) setExternalAppliedCoupon(c.code);
+                                const evalResult = evaluateCoupon(c.code, subtotal, 0, availableCoupons);
+                                setCouponFeedback({ message: evalResult.message, isError: false });
+                              }
+                            }}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-amber-400 text-purple-950 border-amber-300 shadow-2xs'
+                                : 'bg-purple-800/80 hover:bg-purple-700 text-purple-200 border-purple-700'
+                            }`}
+                          >
+                            🎟️ {c.code}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
               </div>
+
+              {/* Mensagem especial quando o Cupom BRINDE está ativo no checkout */}
+              {isGiftCoupon && (
+                <div className="p-2.5 bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-amber-500/20 rounded-xl border border-pink-400/40 text-xs text-pink-200 font-bold flex items-center justify-center gap-1.5 shadow-2xs animate-in fade-in">
+                  <Gift className="w-4 h-4 text-pink-300 shrink-0" />
+                  <span>Cupom BRINDE Selecionado: Total do Pedido R$ 0,00! 🌸</span>
+                </div>
+              )}
 
               {/* Detalhes de Preço */}
               <div className="space-y-1.5 text-xs text-purple-200 border-t border-purple-800/80 pt-3">
@@ -1152,7 +1303,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {currentDiscountAmount > 0 && (
                   <div className="flex justify-between text-pink-300 font-semibold">
                     <span>Desconto do Cupom ({checkoutCoupon}):</span>
-                    <span>- R$ {currentDiscountAmount.toFixed(2)}</span>
+                    <span>- R$ {currentDiscountAmount.toFixed(2)}{isGiftCoupon ? ' (100% OFF Brinde)' : ''}</span>
                   </div>
                 )}
 
@@ -1177,7 +1328,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           </span>
                         )}
                         <span className="text-emerald-300 font-extrabold text-xs">
-                          R$ 0,00 {isFreeShippingCoupon ? '(Cupom Frete Grátis) 🎁' : 'GRÁTIS 🚚'}
+                          R$ 0,00 {isGiftCoupon ? '(Cortesia Brinde) 🎁' : isFreeShippingCoupon ? '(Cupom Frete Grátis) 🎁' : 'GRÁTIS 🚚'}
                         </span>
                       </div>
                     ) : (
@@ -1190,8 +1341,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <div className="flex justify-between items-baseline pt-2 border-t border-purple-800 text-sm">
                   <span className="font-bold text-white">Total Final:</span>
-                  <span className="text-2xl font-extrabold text-pink-400">
+                  <span className={`text-2xl font-extrabold ${isGiftCoupon ? 'text-emerald-300' : 'text-pink-400'}`}>
                     R$ {finalOrderTotal.toFixed(2)}
+                    {isGiftCoupon && ' (Grátis! 🎁)'}
                   </span>
                 </div>
               </div>
@@ -1216,6 +1368,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               >
                 {isProcessing ? (
                   <span>Preparando seu pacotinho perfumado... 🌸</span>
+                ) : isGiftCoupon ? (
+                  <>
+                    <Gift className="w-5 h-5 text-amber-300" />
+                    <span>Resgatar Pedido Grátis (R$ 0,00) 🎁</span>
+                  </>
                 ) : (
                   <>
                     <Flower2 className="w-4 h-4" />

@@ -40,7 +40,7 @@ export function evaluateCoupon(
   const couponList = (availableCoupons && availableCoupons.length > 0) ? availableCoupons : DEFAULT_COUPONS;
 
   // Busca o cupom na lista de cupons gerenciados pelo administrador
-  // Também mapeia variações comuns caso o cupom FRETEGRATIS exista
+  // Também mapeia variações comuns caso o cupom FRETEGRATIS ou BRINDE exista
   const matchedCoupon = couponList.find(c => {
     const normalizedDbCode = normalizeCouponCode(c.code);
     if (normalizedDbCode === clean) return true;
@@ -49,14 +49,32 @@ export function evaluateCoupon(
     if (c.type === 'free_shipping' && normalizedDbCode === 'FRETEGRATIS') {
       return ['FRETEGRATIS', 'FRETEZERO', 'ENVIOGRATIS', 'QUEROFRETEGRATIS'].includes(clean);
     }
+
+    // Suporte a variações para o cupom BRINDE
+    if (c.type === 'gift' || normalizedDbCode === 'BRINDE') {
+      return ['BRINDE', 'MIMOBRINDE', 'BRINDEGRATIS', 'PRESENTE', 'CORTESIA'].includes(clean);
+    }
+
     return false;
   });
+
+  // Garantia direta do cupom oficial BRINDE mesmo se ainda não sincronizado
+  if (!matchedCoupon && clean === 'BRINDE') {
+    return {
+      code: 'BRINDE',
+      isValid: true,
+      isFreeShipping: true,
+      isGift: true,
+      calculatedDiscount: subtotal,
+      message: '🎁 Cupom BRINDE aplicado com sucesso! Compra 100% Grátis / Cortesia Especial (Valor Total: R$ 0,00).'
+    };
+  }
 
   if (!matchedCoupon) {
     // Sugestão dos cupons ativos disponíveis
     const activeHints = couponList
       .filter(c => c.isActive)
-      .slice(0, 3)
+      .slice(0, 4)
       .map(c => c.code)
       .join(', ');
 
@@ -64,6 +82,7 @@ export function evaluateCoupon(
       code: clean,
       isValid: false,
       isFreeShipping: false,
+      isGift: false,
       calculatedDiscount: 0,
       message: activeHints 
         ? `Cupom "${clean}" não encontrado. Dica: experimente ${activeHints} ✨`
@@ -77,8 +96,21 @@ export function evaluateCoupon(
       code: matchedCoupon.code,
       isValid: false,
       isFreeShipping: false,
+      isGift: false,
       calculatedDiscount: 0,
       message: `O cupom "${matchedCoupon.code}" está temporariamente inativo ou pausado.`
+    };
+  }
+
+  // 0. Tipo Brinde (Zera 100% dos produtos e do frete -> Compra R$ 0,00)
+  if (matchedCoupon.type === 'gift' || clean === 'BRINDE') {
+    return {
+      code: matchedCoupon.code,
+      isValid: true,
+      isFreeShipping: true,
+      isGift: true,
+      calculatedDiscount: subtotal,
+      message: `🎁 Cupom ${matchedCoupon.code} aplicado com sucesso! Compra 100% Grátis / Cortesia Especial (Valor Total: R$ 0,00).`
     };
   }
 
@@ -89,6 +121,7 @@ export function evaluateCoupon(
       code: matchedCoupon.code,
       isValid: false,
       isFreeShipping: false,
+      isGift: false,
       calculatedDiscount: 0,
       message: `O cupom "${matchedCoupon.code}" exige pedido mínimo de R$ ${matchedCoupon.minOrderValue.toFixed(2)}. Faltam R$ ${faltam}.`
     };

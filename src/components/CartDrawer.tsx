@@ -88,13 +88,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   // Avaliação do cupom
   const couponEval = evaluateCoupon(appliedCoupon, subtotal, 0, availableCoupons);
   const isFreeShippingCoupon = couponEval.isFreeShipping;
-  const isFreeShippingEligible = isFreeShippingCoupon || subtotal >= FREE_SHIPPING_THRESHOLD;
+  const isGiftCoupon = couponEval.isGift || appliedCoupon?.toUpperCase() === 'BRINDE';
+  const isFreeShippingEligible = isFreeShippingCoupon || isGiftCoupon || subtotal >= FREE_SHIPPING_THRESHOLD;
 
   // Valor do frete considerado
   const rawShippingCost = selectedShippingOption ? selectedShippingOption.price : 0;
   const effectiveShippingCost = isFreeShippingEligible ? 0 : rawShippingCost;
 
-  const finalTotal = Math.max(0, subtotal - discountAmount + effectiveShippingCost);
+  const finalTotal = isGiftCoupon ? 0 : Math.max(0, subtotal - discountAmount + effectiveShippingCost);
 
   // Aplicar Cupom
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -466,7 +467,80 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {couponMessage.text}
                   </p>
                 )}
+
+                {/* Opções Rápidas de Cupons (incluindo a opção de Cupom BRINDE) */}
+                <div className="pt-1 space-y-1">
+                  <span className="text-[10px] text-slate-500 font-bold block">
+                    Sugestões & Cupons Ativos:
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {/* Botão de Destaque para a Opção de Cupom BRINDE */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isGiftCoupon) {
+                          setAppliedCoupon(null);
+                          setCouponInput('');
+                          setCouponMessage({ text: 'Cupom removido.', isError: false });
+                        } else {
+                          setAppliedCoupon('BRINDE');
+                          const evalResult = evaluateCoupon('BRINDE', subtotal, 0, availableCoupons);
+                          setCouponMessage({ text: evalResult.message, isError: false });
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                        isGiftCoupon
+                          ? 'bg-pink-600 text-white border-pink-700 shadow-xs'
+                          : 'bg-gradient-to-r from-pink-100 via-purple-100 to-amber-100 hover:from-pink-200 hover:to-amber-200 text-purple-950 border-pink-300 shadow-2xs'
+                      }`}
+                      title="Clique para selecionar o cupom BRINDE (Zera toda a compra!)"
+                    >
+                      <Gift className="w-3.5 h-3.5 text-pink-600" />
+                      <span>{isGiftCoupon ? '✓ Cupom BRINDE Ativo' : '🎁 Cupom BRINDE (Zera Compra)'}</span>
+                    </button>
+
+                    {/* Outros cupons ativos disponíveis */}
+                    {availableCoupons && availableCoupons
+                      .filter(c => c.isActive && c.code.toUpperCase() !== 'BRINDE')
+                      .slice(0, 3)
+                      .map(c => {
+                        const isSelected = appliedCoupon?.toUpperCase() === c.code.toUpperCase();
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setAppliedCoupon(null);
+                                setCouponInput('');
+                                setCouponMessage({ text: 'Cupom removido.', isError: false });
+                              } else {
+                                setAppliedCoupon(c.code);
+                                const evalResult = evaluateCoupon(c.code, subtotal, 0, availableCoupons);
+                                setCouponMessage({ text: evalResult.message, isError: false });
+                              }
+                            }}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-purple-950 text-amber-300 border-purple-950 shadow-2xs'
+                                : 'bg-purple-50/80 hover:bg-purple-100 text-purple-900 border-purple-200'
+                            }`}
+                          >
+                            🎟️ {c.code}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
               </div>
+
+              {/* Mensagem especial quando o Cupom BRINDE está ativo */}
+              {isGiftCoupon && (
+                <div className="p-2.5 bg-gradient-to-r from-pink-50 via-purple-50 to-amber-50 rounded-xl border border-pink-300 text-xs text-pink-950 font-bold flex items-center justify-center gap-1.5 shadow-2xs animate-in fade-in">
+                  <Gift className="w-4 h-4 text-pink-600 shrink-0" />
+                  <span>Cupom BRINDE Selecionado: Valor da compra zerado para R$ 0,00! 🌸</span>
+                </div>
+              )}
 
               {/* Detalhamento de Valores */}
               <div className="space-y-1.5 text-xs text-slate-600 border-t border-purple-100 pt-3">
@@ -477,14 +551,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                 {/* Cupom Aplicado */}
                 {appliedCoupon && (
-                  <div className="flex justify-between items-center text-pink-600 font-semibold bg-pink-50/70 px-2.5 py-1.5 rounded-lg border border-pink-200">
+                  <div className={`flex justify-between items-center font-semibold px-2.5 py-1.5 rounded-lg border ${
+                    isGiftCoupon
+                      ? 'bg-pink-100/90 text-pink-950 border-pink-300 shadow-2xs'
+                      : 'bg-pink-50/70 text-pink-600 border-pink-200'
+                  }`}>
                     <span className="flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5 text-pink-500" />
+                      {isGiftCoupon ? <Gift className="w-3.5 h-3.5 text-pink-600" /> : <Tag className="w-3.5 h-3.5 text-pink-500" />}
                       <span>Cupom ({appliedCoupon}):</span>
                     </span>
                     <div className="flex items-center gap-2">
-                      <span>
-                        {isFreeShippingCoupon 
+                      <span className={isGiftCoupon ? 'font-bold text-pink-900' : ''}>
+                        {isGiftCoupon
+                          ? `- R$ ${subtotal.toFixed(2)} (100% OFF Brinde)`
+                          : isFreeShippingCoupon 
                           ? 'Frete Grátis 🚚' 
                           : `- R$ ${discountAmount.toFixed(2)}`}
                       </span>
@@ -521,7 +601,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           </span>
                         )}
                         <span className="text-emerald-600 font-bold">
-                          R$ 0,00 {isFreeShippingCoupon ? '(Cupom) 🎁' : 'GRÁTIS 🚚'}
+                          R$ 0,00 {isGiftCoupon ? '(Cortesia Brinde) 🎁' : isFreeShippingCoupon ? '(Cupom) 🎁' : 'GRÁTIS 🚚'}
                         </span>
                       </div>
                     ) : selectedShippingOption ? (
@@ -539,8 +619,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* Total da Sacola */}
                 <div className="flex justify-between items-baseline pt-2 border-t border-purple-100 text-sm">
                   <span className="font-bold text-purple-950">Total da Sacola:</span>
-                  <span className="text-xl font-extrabold text-pink-600">
+                  <span className={`text-xl font-extrabold ${isGiftCoupon ? 'text-emerald-700' : 'text-pink-600'}`}>
                     R$ {finalTotal.toFixed(2)}
+                    {isGiftCoupon && ' (Grátis! 🎁)'}
                   </span>
                 </div>
               </div>

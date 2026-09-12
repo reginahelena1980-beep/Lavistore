@@ -789,7 +789,6 @@ export default function App() {
                   onGoToAboutPage={() => {
                     navigateToStorefront('about');
                   }}
-                  onPublishToServer={handlePublishToServer}
                 />
               </div>
             )}

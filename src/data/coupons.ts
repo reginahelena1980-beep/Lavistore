@@ -47,5 +47,16 @@ export const DEFAULT_COUPONS: Coupon[] = (storeState && Array.isArray(storeState
     isActive: true,
     timesUsed: 83,
     createdAt: '2026-03-01'
+  },
+  {
+    id: 'coupon-brinde',
+    code: 'BRINDE',
+    description: 'Cupom Especial de Brinde: Compra 100% Grátis (Total R$ 0,00)',
+    type: 'gift',
+    discountValue: 0,
+    minOrderValue: 0,
+    isActive: true,
+    timesUsed: 12,
+    createdAt: '2026-03-12'
   }
 ];
