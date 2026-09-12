@@ -458,6 +458,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     const prodId = existing?.id || updatedRecord.vitrineProductId || `lav-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
     
     const productToSave: Product = {
+      ...productData,
       id: prodId,
       name: productData.name || updatedRecord.produto,
       category: productData.category || 'papelaria',
@@ -476,13 +477,25 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         'Pronta entrega em estoque real'
       ],
       tag: productData.tag || 'Novidade ✨',
+      dimensions: productData.dimensions,
       isNew: productData.isNew ?? true,
       isBestseller: productData.isBestseller ?? false,
-      stock: updatedRecord.saldoEstoqueQtd, // Sincronização em tempo real com o saldo da apuração
+      isFloralSpecial: productData.isFloralSpecial ?? false,
+      hasSizes: productData.hasSizes ?? false,
+      sizePricingMode: productData.sizePricingMode || 'same',
+      sizes: productData.sizes,
+      hasColors: productData.hasColors ?? false,
+      colors: productData.colors,
+      imageFit: productData.imageFit || 'cover',
+      imagePosition: productData.imagePosition || 'center',
+      imageScale: productData.imageScale || 100,
+      stock: productData.stock ?? updatedRecord.saldoEstoqueQtd, // Preserva estoque calculado ou sincronizado
       biRecordId: updatedRecord.id,
       originTamCor: updatedRecord.tamCor,
-      isPublished: true,
-      autoHideWhenOutOfStock: updatedRecord.autoHideWhenOutOfStock !== undefined ? updatedRecord.autoHideWhenOutOfStock : true
+      isPublished: productData.isPublished !== undefined ? productData.isPublished : true,
+      autoHideWhenOutOfStock: productData.autoHideWhenOutOfStock !== undefined 
+        ? productData.autoHideWhenOutOfStock 
+        : (updatedRecord.autoHideWhenOutOfStock !== undefined ? updatedRecord.autoHideWhenOutOfStock : true)
     };
 
     if (onSaveProduct) {

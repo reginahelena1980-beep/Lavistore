@@ -719,6 +719,7 @@ export default function App() {
                     setEditingProduct(prod);
                     setIsCreatingProduct(false);
                   }}
+                  onSaveProduct={handleSaveProduct}
                   onDuplicateProduct={handleDuplicateProduct}
                   onDeleteProduct={handleDeleteProduct}
                   onResetProducts={handleResetProducts}
@@ -1320,6 +1321,9 @@ export default function App() {
         onSaveProduct={handleSaveProduct}
         onDeleteProduct={handleDeleteProduct}
         categories={categories}
+        onViewLiveProduct={(product) => {
+          setSelectedProduct(product);
+        }}
       />
 
       {/* Cart Drawer */}

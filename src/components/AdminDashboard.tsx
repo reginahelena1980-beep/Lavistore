@@ -67,6 +67,7 @@ interface AdminDashboardProps {
   products: Product[];
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
+  onSaveProduct?: (product: Product) => void;
   onDuplicateProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
   onResetProducts: () => void;
@@ -102,6 +103,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   products,
   onAddProduct,
   onEditProduct,
+  onSaveProduct,
   onDuplicateProduct,
   onDeleteProduct,
   onResetProducts,
@@ -715,7 +717,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {adminSection === 'bi' && (
         <BiFinancialManager
           products={products}
-          onSaveProduct={onEditProduct}
+          onSaveProduct={onSaveProduct}
           onDeleteProduct={onDeleteProduct}
           categories={categories}
           onViewProductLive={onViewProductLive}

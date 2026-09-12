@@ -22,19 +22,74 @@ import {
   Palette,
   Camera,
   Percent,
-  Star
+  Star,
+  Store,
+  Eye,
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
-import { Product, ProductSizeVariant, ProductColorVariant, Category } from '../types';
+import { Product, ProductSizeVariant, ProductColorVariant, Category, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { safeSetItem, compressImage } from '../utils/storage';
 
-interface AdminProductModalProps {
+export const SUGGESTED_PRODUCT_PHOTOS: Record<string, string[]> = {
+  caneta: [
+    'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1585336261026-41804f58c73c?w=800&auto=format&fit=crop&q=80'
+  ],
+  caderno: [
+    'https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=800&auto=format&fit=crop&q=80'
+  ],
+  meia: [
+    'https://images.unsplash.com/photo-1582966770380-921587181f82?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=800&auto=format&fit=crop&q=80'
+  ],
+  caneca: [
+    'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1577937927133-66ef06acdf18?w=800&auto=format&fit=crop&q=80'
+  ],
+  garrafa: [
+    'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=800&auto=format&fit=crop&q=80'
+  ],
+  adesivo: [
+    'https://images.unsplash.com/photo-1572375992501-4b0892d50c69?w=800&auto=format&fit=crop&q=80'
+  ],
+  necessaire: [
+    'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop&q=80'
+  ],
+  pelucia: [
+    'https://images.unsplash.com/photo-1559454403-b8fb88521f11?w=800&auto=format&fit=crop&q=80'
+  ],
+  default: [
+    'https://images.unsplash.com/photo-1582966770380-921587181f82?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&auto=format&fit=crop&q=80'
+  ]
+};
+
+export const getSuggestedPhotoForName = (text: string) => {
+  const lower = (text || '').toLowerCase();
+  for (const [key, urls] of Object.entries(SUGGESTED_PRODUCT_PHOTOS)) {
+    if (key !== 'default' && lower.includes(key)) {
+      return { keyword: key, url: urls[0] };
+    }
+  }
+  return null;
+};
+
+export interface AdminProductModalProps {
   isOpen: boolean;
   productToEdit: Product | null;
   onClose: () => void;
   onSaveProduct: (product: Product) => void;
   onDeleteProduct?: (productId: string) => void;
   categories?: Category[];
+  // Integração unificada com a Planilha BI:
+  biRecord?: BiProductCalculatedRecord | null;
+  onPublishBiRecord?: (record: BiProductCalculatedRecord, productData: Partial<Product>) => void;
+  onUnpublishBiRecord?: (recordId: string, productId?: string) => void;
+  onViewLiveProduct?: (product: Product) => void;
 }
 
 export const AdminProductModal: React.FC<AdminProductModalProps> = ({
@@ -43,9 +98,16 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
   onClose,
   onSaveProduct,
   onDeleteProduct,
-  categories = CATEGORIES
+  categories = CATEGORIES,
+  biRecord,
+  onPublishBiRecord,
+  onUnpublishBiRecord,
+  onViewLiveProduct
 }) => {
   const isEditing = !!productToEdit;
+
+  // Identifica se há um registro da planilha vinculado a esta tela
+  const [currentBiRecord, setCurrentBiRecord] = useState<BiProductCalculatedRecord | null>(biRecord || null);
 
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
@@ -71,6 +133,8 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     isNew: true,
     isBestseller: false,
     isFloralSpecial: false,
+    isPublished: true,
+    autoHideWhenOutOfStock: true,
   });
 
   const [newFeatureText, setNewFeatureText] = useState('');
@@ -81,8 +145,25 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
   const [showImageAdjustments, setShowImageAdjustments] = useState(false);
 
+  // Determinar se há foto sugerida para o nome atual digitado
+  const suggestedPhoto = getSuggestedPhotoForName(formData.name || (currentBiRecord ? currentBiRecord.produto : ''));
+
   // Initialize form state when opening or editing
   useEffect(() => {
+    // 1. Resolver o registro do BI correspondente (se passado diretamente ou por vínculo no produto)
+    let foundBi: BiProductCalculatedRecord | null = biRecord || null;
+    if (!foundBi && productToEdit?.biRecordId) {
+      try {
+        const raw = localStorage.getItem('lavistore_bi_records');
+        if (raw) {
+          const list = JSON.parse(raw);
+          foundBi = list.find((item: any) => item.id === productToEdit.biRecordId) || null;
+        }
+      } catch {}
+    }
+    setCurrentBiRecord(foundBi);
+
+    // 2. Se temos produto já cadastrado na vitrine
     if (productToEdit) {
       const hasSz = productToEdit.hasSizes ?? (productToEdit.sizes && productToEdit.sizes.length > 0) ?? false;
       const szList = productToEdit.sizes ? [...productToEdit.sizes] : [];
@@ -107,18 +188,70 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
         colors: colList,
         price: productToEdit.price,
         originalPrice: productToEdit.originalPrice,
-        stock: productToEdit.stock ?? 10,
+        stock: foundBi ? foundBi.saldoEstoqueQtd : (productToEdit.stock ?? 10),
         imageFit: productToEdit.imageFit || 'cover',
         imagePosition: productToEdit.imagePosition || 'center',
         imageScale: productToEdit.imageScale || 100,
         images: productToEdit.images && productToEdit.images.length > 0 
           ? [...productToEdit.images] 
-          : ['https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80'],
-        features: productToEdit.features ? [...productToEdit.features] : []
+          : (foundBi?.vitrineImageUrl ? [foundBi.vitrineImageUrl] : ['https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80']),
+        features: productToEdit.features ? [...productToEdit.features] : [],
+        isPublished: productToEdit.isPublished !== undefined ? productToEdit.isPublished : true,
+        autoHideWhenOutOfStock: productToEdit.autoHideWhenOutOfStock !== undefined 
+          ? productToEdit.autoHideWhenOutOfStock 
+          : (foundBi?.autoHideWhenOutOfStock !== undefined ? foundBi.autoHideWhenOutOfStock : true),
+        biRecordId: foundBi?.id || productToEdit.biRecordId,
+        originTamCor: foundBi?.tamCor || productToEdit.originTamCor
+      });
+      setHasRestoredDraft(false);
+    } else if (foundBi) {
+      // 3. Veio diretamente da planilha do BI sem produto na vitrine ainda
+      const defaultName = foundBi.tamCor && foundBi.tamCor.toLowerCase() !== 'único' && foundBi.tamCor.toLowerCase() !== 'unico'
+        ? `${foundBi.produto} - ${foundBi.tamCor}`
+        : foundBi.produto;
+
+      const initialPhotos = foundBi.vitrineImageUrl
+        ? [foundBi.vitrineImageUrl]
+        : [getSuggestedPhotoForName(foundBi.produto)?.url || SUGGESTED_PRODUCT_PHOTOS.default[0]];
+
+      setFormData({
+        id: foundBi.vitrineProductId || `lav-${Date.now().toString().slice(-5)}`,
+        name: defaultName,
+        category: (foundBi.vitrineCategory as any) || 'papelaria',
+        price: foundBi.precoVenda,
+        originalPrice: Number((foundBi.precoVenda * 1.25).toFixed(2)),
+        stock: foundBi.saldoEstoqueQtd,
+        hasSizes: false,
+        sizePricingMode: 'same',
+        sizes: [],
+        hasColors: false,
+        colors: [],
+        rating: 5.0,
+        reviewCount: 12,
+        images: initialPhotos,
+        description: foundBi.descricao || `Lindo mimo ${foundBi.produto} da Lavistore! Perfeito para presentear quem você ama com muito afeto, delicadeza e encanto. ✨💖`,
+        features: [
+          `Tam/Cor: ${foundBi.tamCor || 'Único'}`,
+          'Item selecionado com carinho pela Lavistore',
+          'Embalado com todo o cuidado e cheirinho doce especial',
+          'Pronta entrega em estoque real'
+        ],
+        tag: foundBi.vitrineTag || 'Novidade ✨',
+        dimensions: '',
+        imageFit: 'cover',
+        imagePosition: 'center',
+        imageScale: 100,
+        isNew: true,
+        isBestseller: false,
+        isFloralSpecial: false,
+        isPublished: true,
+        autoHideWhenOutOfStock: foundBi.autoHideWhenOutOfStock !== undefined ? foundBi.autoHideWhenOutOfStock : true,
+        biRecordId: foundBi.id,
+        originTamCor: foundBi.tamCor
       });
       setHasRestoredDraft(false);
     } else {
-      // Check if there is an existing draft saved in localStorage
+      // 4. Criação avulsa padrão
       let savedDraft: Partial<Product> | null = null;
       try {
         const raw = localStorage.getItem('lavistore_product_draft');
@@ -158,6 +291,8 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
           isNew: true,
           isBestseller: false,
           isFloralSpecial: false,
+          isPublished: true,
+          autoHideWhenOutOfStock: true,
         });
         setHasRestoredDraft(false);
       }
@@ -165,7 +300,23 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     setErrorMessage(null);
     setShowDeleteConfirm(false);
     setShowCloseConfirm(false);
-  }, [productToEdit, isOpen]);
+  }, [productToEdit, biRecord, isOpen]);
+
+  // Sincronizar dados da linha da Planilha Financeira BI para o formulário
+  const handleSyncFromSpreadsheet = () => {
+    if (!currentBiRecord) return;
+    setFormData(prev => ({
+      ...prev,
+      name: currentBiRecord.tamCor && currentBiRecord.tamCor.toLowerCase() !== 'único' && currentBiRecord.tamCor.toLowerCase() !== 'unico'
+        ? `${currentBiRecord.produto} - ${currentBiRecord.tamCor}`
+        : currentBiRecord.produto,
+      price: currentBiRecord.precoVenda,
+      stock: currentBiRecord.saldoEstoqueQtd,
+      description: currentBiRecord.descricao || prev.description,
+      category: (currentBiRecord.vitrineCategory as any) || prev.category,
+      tag: currentBiRecord.vitrineTag || prev.tag
+    }));
+  };
 
   // Auto-save draft to localStorage whenever user types something on a new product
   useEffect(() => {
@@ -515,7 +666,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
     const finalProduct: Product = {
       ...formData,
-      id: formData.id || `lav-${Date.now().toString().slice(-5)}`,
+      id: formData.id || (currentBiRecord?.vitrineProductId) || `lav-${Date.now().toString().slice(-5)}`,
       name: formData.name.trim(),
       category: formData.category || 'cadernos-planners',
       price: Number(formData.price),
@@ -542,6 +693,11 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
       imageFit: formData.imageFit || 'cover',
       imagePosition: formData.imagePosition || 'center',
       imageScale: formData.imageScale || 100,
+      // Vitrine & BI Integration
+      biRecordId: currentBiRecord?.id || formData.biRecordId,
+      originTamCor: currentBiRecord?.tamCor || formData.originTamCor,
+      isPublished: formData.isPublished !== undefined ? formData.isPublished : true,
+      autoHideWhenOutOfStock: formData.autoHideWhenOutOfStock !== undefined ? formData.autoHideWhenOutOfStock : true,
     };
 
     // Clean up draft on successful save
@@ -549,11 +705,63 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
       localStorage.removeItem('lavistore_product_draft');
     } catch {}
 
-    onSaveProduct(finalProduct);
+    if (currentBiRecord && onPublishBiRecord) {
+      onPublishBiRecord(currentBiRecord, finalProduct);
+    } else {
+      if (currentBiRecord) {
+        try {
+          const raw = localStorage.getItem('lavistore_bi_records');
+          if (raw) {
+            const list: BiProductCalculatedRecord[] = JSON.parse(raw);
+            const updatedList = list.map(item => {
+              if (item.id === currentBiRecord.id) {
+                return {
+                  ...item,
+                  publishedToVitrine: finalProduct.isPublished !== false,
+                  vitrineProductId: finalProduct.id,
+                  vitrineImageUrl: finalProduct.images[0],
+                  vitrineCategory: finalProduct.category,
+                  vitrineTag: finalProduct.tag
+                };
+              }
+              return item;
+            });
+            localStorage.setItem('lavistore_bi_records', JSON.stringify(updatedList));
+          }
+        } catch (err) {
+          console.warn('Erro ao sincronizar registro do BI:', err);
+        }
+      }
+      onSaveProduct(finalProduct);
+    }
     onClose();
   };
 
+  const handleUnpublish = () => {
+    if (currentBiRecord && onUnpublishBiRecord) {
+      onUnpublishBiRecord(currentBiRecord.id, formData.id);
+      onClose();
+    } else if (productToEdit) {
+      onSaveProduct({ ...productToEdit, isPublished: false });
+      onClose();
+    }
+  };
+
+  const handleViewLive = () => {
+    if (onViewLiveProduct && formData.id) {
+      onViewLiveProduct(formData as Product);
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
+
+  // Status de publicação atual na vitrine
+  const isPublishedOnVitrine = Boolean(
+    (currentBiRecord && currentBiRecord.publishedToVitrine) ||
+    (productToEdit && productToEdit.isPublished !== false) ||
+    formData.isPublished
+  );
 
   // Calculate discount percentage if original price is set
   const discountPercent = formData.originalPrice && formData.price && formData.originalPrice > formData.price
@@ -570,16 +778,27 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
         <div className="p-4 sm:p-5 border-b border-pink-200/80 bg-gradient-to-r from-pink-100/90 via-purple-50 to-amber-100/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 border-2 border-white shadow-xs flex items-center justify-center text-white font-bold">
-              <Sparkles className="w-5 h-5 text-white" />
+              {currentBiRecord ? <Store className="w-5 h-5 text-white" /> : <Sparkles className="w-5 h-5 text-white" />}
             </div>
             <div>
-              <h2 className="font-['Mali'] text-xl sm:text-2xl font-bold text-purple-950">
-                {isEditing ? 'Editar Mimo da Vitrine 🌸' : 'Cadastrar Novo Mimo na Vitrine 🌸'}
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-['Mali'] text-xl sm:text-2xl font-bold text-purple-950">
+                  {currentBiRecord 
+                    ? (isPublishedOnVitrine ? 'Atualizar Mimo na Vitrine 🌸' : 'Publicar Mimo na Vitrine 🌸')
+                    : (isEditing ? 'Editar Mimo da Vitrine 🌸' : 'Cadastrar Novo Mimo na Vitrine 🌸')}
+                </h2>
+                {currentBiRecord && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-pink-500 text-white border border-pink-400 shadow-2xs">
+                    Integração Direta com Planilha BI
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-purple-900 font-semibold">
-                {isEditing 
-                  ? `ID: ${formData.id} • Dados da Loja, Fotos, Preços, Cores e Tamanhos` 
-                  : 'Preencha as informações que os clientes verão na loja online'}
+                {currentBiRecord
+                  ? 'Replica os dados da planilha para a loja virtual com foto personalizada, estoque real e grades.'
+                  : (isEditing 
+                    ? `ID: ${formData.id} • Dados da Loja, Fotos, Preços, Cores e Tamanhos` 
+                    : 'Preencha as informações que os clientes verão na loja online')}
               </p>
             </div>
           </div>
@@ -702,6 +921,67 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
             <div className="bg-rose-50 border-2 border-rose-300 text-rose-800 p-3.5 rounded-2xl font-bold flex items-center gap-2 animate-in fade-in">
               <HelpCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* MIMO SELECIONADO DA PLANILHA PARA A VITRINE */}
+          {currentBiRecord && (
+            <div className="bg-gradient-to-r from-pink-50 via-purple-50 to-amber-50/80 p-4 sm:p-5 rounded-3xl border-2 border-pink-300 shadow-xs space-y-3 animate-in fade-in">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-pink-600" />
+                  <span className="text-[11px] font-extrabold uppercase tracking-wide text-pink-800">
+                    Mimo Selecionado da Planilha para a Vitrine:
+                  </span>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border flex items-center gap-1 ${
+                  currentBiRecord.saldoEstoqueQtd > 0
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-rose-100 text-rose-800 border-rose-300'
+                }`}>
+                  {currentBiRecord.saldoEstoqueQtd > 0 ? `✓ ${currentBiRecord.saldoEstoqueQtd} em estoque real` : '⚠️ Esgotado na planilha'}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-base sm:text-lg font-['Mali'] font-extrabold text-purple-950">
+                    {currentBiRecord.produto}
+                  </span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-lg bg-purple-100 text-purple-800 font-bold border border-purple-200">
+                    {currentBiRecord.tamCor || 'Único'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSyncFromSpreadsheet}
+                  title="Copiar dados recentes da linha da planilha para o formulário"
+                  className="px-3 py-1.5 text-[11px] font-bold bg-white hover:bg-pink-50 text-pink-700 border border-pink-300 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-pink-600" />
+                  <span>Sincronizar dados da Planilha</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-pink-200/80 text-[11px]">
+                <div className="bg-white/90 p-2.5 rounded-xl border border-pink-100 shadow-2xs">
+                  <span className="text-slate-400 block text-[10px]">Preço de Venda</span>
+                  <strong className="text-purple-950 font-bold text-xs">R$ {currentBiRecord.precoVenda.toFixed(2)}</strong>
+                </div>
+                <div className="bg-white/90 p-2.5 rounded-xl border border-pink-100 shadow-2xs">
+                  <span className="text-slate-400 block text-[10px]">Custo Unitário</span>
+                  <strong className="text-slate-700 font-bold text-xs">R$ {currentBiRecord.custoUnitario.toFixed(2)}</strong>
+                </div>
+                <div className="bg-white/90 p-2.5 rounded-xl border border-pink-100 shadow-2xs">
+                  <span className="text-slate-400 block text-[10px]">Saldo Estoque</span>
+                  <strong className="text-emerald-700 font-bold text-xs">{currentBiRecord.saldoEstoqueQtd} unidades</strong>
+                </div>
+                <div className="bg-white/90 p-2.5 rounded-xl border border-pink-100 shadow-2xs">
+                  <span className="text-slate-400 block text-[10px]">Apuração</span>
+                  <strong className="text-purple-900 font-bold text-xs">{currentBiRecord.mes}/{currentBiRecord.ano}</strong>
+                </div>
+              </div>
             </div>
           )}
 
@@ -973,6 +1253,34 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                 </div>
               ))}
             </div>
+
+            {/* Sugestão de Foto Inteligente com base no nome do mimo */}
+            {suggestedPhoto && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-gradient-to-r from-amber-50 via-pink-50 to-purple-50 border-2 border-pink-200 rounded-2xl shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-pink-600 shrink-0" />
+                  <span className="text-xs text-purple-950 font-bold">
+                    Foto sugerida para <span className="text-pink-600 capitalize">"{suggestedPhoto.keyword}"</span>:
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => {
+                      const imgs = prev.images || [];
+                      if (!imgs.includes(suggestedPhoto.url)) {
+                        return { ...prev, images: [suggestedPhoto.url, ...imgs] };
+                      }
+                      return prev;
+                    });
+                  }}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Aplicar Foto Sugerida</span>
+                </button>
+              </div>
+            )}
 
             {/* Inserir Mais Fotos - Área Destacada */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -1658,12 +1966,12 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
             </div>
           </div>
 
-          {/* Destaques Especiais */}
+          {/* Destaques Especiais & Configurações da Vitrine */}
           <div className="space-y-3 bg-pink-50/40 p-4 rounded-2xl border-2 border-pink-200">
             <span className="font-['Mali'] text-sm font-bold text-purple-950 block">
-              Destaques Especiais na Vitrine:
+              Destaques Especiais & Visibilidade na Vitrine:
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-3 border-b border-pink-200/60">
               <label className="flex items-center gap-2 cursor-pointer font-bold text-purple-950">
                 <input
                   type="checkbox"
@@ -1694,37 +2002,90 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                 <span>🌸 Coleção 3 Flores</span>
               </label>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <label className="flex items-center gap-2 cursor-pointer font-bold text-purple-950 text-xs">
+                <input
+                  type="checkbox"
+                  checked={formData.isPublished !== false}
+                  onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-400 border-pink-300"
+                />
+                <span>👁️ Visível na Vitrine para compra pelos clientes</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer font-bold text-purple-950 text-xs">
+                <input
+                  type="checkbox"
+                  checked={formData.autoHideWhenOutOfStock !== false}
+                  onChange={(e) => setFormData({ ...formData, autoHideWhenOutOfStock: e.target.checked })}
+                  className="w-4 h-4 rounded text-purple-600 focus:ring-purple-400 border-pink-300"
+                />
+                <span>📦 Ocultar automaticamente se o estoque zerar (0 un)</span>
+              </label>
+            </div>
           </div>
 
           {/* Footer Actions */}
           <div className="pt-4 border-t border-pink-200/80 flex flex-wrap items-center justify-between gap-3">
-            {isEditing && onDeleteProduct ? (
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="px-4 py-2.5 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Excluir Mimo</span>
-              </button>
-            ) : (
-              <div />
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Botão Despublicar (se já estiver publicado) */}
+              {isPublishedOnVitrine && (
+                <button
+                  type="button"
+                  onClick={handleUnpublish}
+                  className="px-3.5 py-2.5 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs flex items-center gap-1.5 transition-colors border border-amber-300 shadow-2xs cursor-pointer active:scale-95"
+                  title="Ocultar produto da vitrine sem perder os dados cadastrados"
+                >
+                  <Store className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Despublicar da Vitrine</span>
+                </button>
+              )}
+
+              {/* Botão Ver ao Vivo na Loja */}
+              {(isPublishedOnVitrine || productToEdit) && onViewLiveProduct && (
+                <button
+                  type="button"
+                  onClick={handleViewLive}
+                  className="px-3.5 py-2.5 rounded-2xl bg-pink-100 hover:bg-pink-200 text-pink-900 font-bold text-xs flex items-center gap-1.5 transition-colors border border-pink-300 shadow-2xs cursor-pointer active:scale-95"
+                  title="Abrir a página do mimo ao vivo na loja virtual"
+                >
+                  <Eye className="w-3.5 h-3.5 text-pink-700" />
+                  <span>Ver ao Vivo na Loja 👁️</span>
+                </button>
+              )}
+
+              {/* Botão Excluir Mimo */}
+              {isEditing && onDeleteProduct && !currentBiRecord && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3.5 py-2.5 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Excluir Mimo</span>
+                </button>
+              )}
+            </div>
 
             <div className="flex items-center gap-2.5 ml-auto">
               <button
                 type="button"
                 onClick={handleCloseAttempt}
-                className="px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                className="px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#F43F5E] via-[#FB923C] via-[#FACC15] to-[#06B6D4] hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-2 border-2 border-white/60 active:scale-95 transition-transform"
+                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#F43F5E] via-[#FB923C] via-[#FACC15] to-[#06B6D4] hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-2 border-2 border-white/60 active:scale-95 transition-transform cursor-pointer"
               >
                 <Check className="w-4 h-4" />
-                <span>{isEditing ? 'Salvar Alterações na Vitrine' : 'Cadastrar Mimo na Vitrine'}</span>
+                <span>
+                  {currentBiRecord
+                    ? (isPublishedOnVitrine ? 'Atualizar Mimo na Vitrine 🌸' : 'Salvar e Publicar na Vitrine 🌸')
+                    : (isEditing ? 'Salvar Alterações na Vitrine' : 'Cadastrar Mimo na Vitrine')}
+                </span>
               </button>
             </div>
           </div>
