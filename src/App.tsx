@@ -18,6 +18,8 @@ import { BrandPerks } from './components/BrandPerks';
 import { Footer } from './components/Footer';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { ReviewsSection } from './components/ReviewsSection';
+import { BossFightsModal } from './components/BossFightsModal';
+import { isSoundMuted, toggleSound } from './utils/soundSystem';
 
 import { PRODUCTS } from './data/products';
 import { CUSTOMER_REVIEWS } from './data/reviews';
@@ -26,7 +28,7 @@ import { Product, CartItem, ActiveTab, HeroConfig, HomePageConfig, FilterBarConf
 import { CATEGORIES as DEFAULT_CATEGORIES } from './data/categories';
 import storeState from './data/store_state.json';
 import { evaluateCoupon } from './utils/couponUtils';
-import { Sparkles, Flower2, Gift, ArrowRight, Edit3, ShoppingBag, Tag, Heart, Sun, Smile, Package, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Flower2, Gift, ArrowRight, Edit3, ShoppingBag, Tag, Heart, Sun, Smile, Package, CheckCircle2, Zap } from 'lucide-react';
 import { LavistoreLogo, TrioFlowersIcon } from './components/LavistoreLogo';
 import defaultHeroImg from './assets/images/lavistore_hero_1788110245812.jpg';
 import { HomeTextEditorModal } from './components/HomeTextEditorModal';
@@ -43,6 +45,8 @@ export default function App() {
   const [priceFilter, setPriceFilter] = useState('all');
   const [isCategoryEditorOpen, setIsCategoryEditorOpen] = useState(false);
   const [isReturnPolicyOpen, setIsReturnPolicyOpen] = useState(false);
+  const [isBossFightsOpen, setIsBossFightsOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(isSoundMuted());
 
   // Categories Customization State (Persisted in localStorage)
   const [categories, setCategories] = useState<Category[]>(() => {
@@ -106,9 +110,9 @@ export default function App() {
     }
     return (storeState.heroConfig as unknown as HeroConfig) || {
       image: defaultHeroImg,
-      badge: "Presentes & Mimos Criativos 🌸",
-      title: "Demonstre seu carinho com nossos mimos!",
-      subtitle: "Presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria."
+      badge: "Categoria Principal",
+      title: "Título Principal em Destaque da Sua Loja",
+      subtitle: "Digite aqui um breve resumo ou a história da sua empresa..."
     };
   });
 
@@ -504,7 +508,7 @@ export default function App() {
 
   const handleResetCoupons = () => {
     setCoupons(DEFAULT_COUPONS);
-    showToast('Cupons restaurados para o padrão original da Lavistore! 🔄');
+    showToast('Cupons restaurados para o padrão original da loja! 🔄');
   };
 
   // Cart Handlers
@@ -690,6 +694,9 @@ export default function App() {
           onOpenProduct={setSelectedProduct}
           config={homePageConfig}
           onOpenReturnPolicy={() => setIsReturnPolicyOpen(true)}
+          onOpenBossFights={() => setIsBossFightsOpen(true)}
+          isSoundMuted={isMuted}
+          onToggleSound={() => setIsMuted(toggleSound())}
         />
       )}
 
@@ -703,7 +710,7 @@ export default function App() {
               <AdminLogin
                 onLoginSuccess={() => {
                   setIsAdminAuthenticated(true);
-                  showToast('✨ Bem-vinda de volta à gerência da Lavistore!');
+                  showToast('✨ Bem-vinda de volta ao painel de gerência!');
                 }}
                 onBackToStore={() => navigateToStorefront('catalog')}
               />
@@ -741,9 +748,9 @@ export default function App() {
                   onResetHeroConfig={() => {
                     setHeroConfig({
                       image: defaultHeroImg,
-                      badge: "Presentes Criativos & Mimos com Amor 🌸",
-                      title: "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-                      subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+                      badge: "Categoria Principal",
+                      title: "Título Principal em Destaque da Sua Loja",
+                      subtitle: "Digite aqui um breve resumo ou a história da sua empresa...",
                       imageFit: 'cover',
                       imageScale: 100,
                       imagePosition: 'center',
@@ -800,6 +807,12 @@ export default function App() {
           <div className="space-y-10">
             {/* Hero Section */}
             <HeroBanner 
+              onShopNow={() => {
+                const catalogEl = document.getElementById('catalog-section');
+                if (catalogEl) {
+                  catalogEl.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
               setActiveTab={setActiveTab} 
               onSelectCategory={setSelectedCategory}
               heroImage={heroConfig.image}
@@ -837,26 +850,26 @@ export default function App() {
               />
 
               {/* Section Title & Subtitle */}
-              <div className="border-b border-amber-200/80 pb-4 space-y-2">
+              <div className="border-b border-cyan-500/25 pb-4 space-y-2 font-['Cinzel',serif]">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <Flower2 className="w-5 h-5 text-amber-500 fill-amber-300 shrink-0" />
-                    <h2 className={`font-['Mali'] text-purple-950 ${getFontSizeClass(homePageConfig.catalogTitle?.fontSize, '2xl')} ${getFontWeightClass(homePageConfig.catalogTitle?.isBold, true)}`}>
+                    <Zap className="w-5 h-5 text-cyan-400 shrink-0" />
+                    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-wide">
                       {selectedCategory === 'todos' 
-                        ? (homePageConfig.catalogTitle?.text || 'Nossos Mimos Encantados ✨')
+                        ? (homePageConfig.catalogTitle?.text || 'Arsenal de Relíquias & Drops ⚔️')
                         : (categories.find(c => c.id === selectedCategory)
                             ? `${categories.find(c => c.id === selectedCategory)?.icon} ${categories.find(c => c.id === selectedCategory)?.name}`
-                            : 'Mimos Selecionados')}
+                            : 'Relíquias Selecionadas')}
                     </h2>
-                    <span className="text-xs font-bold text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-full border border-amber-300 shadow-2xs">
-                      {filteredProducts.length} mimos
+                    <span className="text-xs font-bold text-cyan-300 bg-cyan-950/80 px-3 py-0.5 rounded-full border border-cyan-500/40 shadow-xs">
+                      {filteredProducts.length} itens
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
                     {searchQuery && (
-                      <p className="text-xs text-slate-500 font-medium">
-                        Buscando por: <strong className="text-purple-950 font-bold">"{searchQuery}"</strong>
+                      <p className="text-xs text-slate-400 font-medium font-['Plus_Jakarta_Sans',sans-serif]">
+                        Buscando por: <strong className="text-cyan-300 font-bold">"{searchQuery}"</strong>
                       </p>
                     )}
                   </div>
@@ -864,12 +877,12 @@ export default function App() {
 
                 {/* Catalog Subtitle */}
                 {selectedCategory === 'todos' ? (
-                  <p className={`font-['Comfortaa'] text-slate-600 ${getFontSizeClass(homePageConfig.catalogSubtitle?.fontSize, 'xs')} ${getFontWeightClass(homePageConfig.catalogSubtitle?.isBold, false)}`}>
-                    {homePageConfig.catalogSubtitle?.text || 'Mimos artesanais e cheirinho doce que transformam pequenos momentos em pura magia.'}
+                  <p className="text-slate-400 text-xs sm:text-sm font-medium font-['Plus_Jakarta_Sans',sans-serif]">
+                    {homePageConfig.catalogSubtitle?.text || 'Artefatos raros, miniaturas forjadas e itens oficiais inspecionados pelo Guardião da Unlocked Door.'}
                   </p>
                 ) : (
                   categories.find(c => c.id === selectedCategory)?.description ? (
-                    <p className="font-['Comfortaa'] text-slate-600 text-xs font-medium">
+                    <p className="text-slate-400 text-xs font-medium font-['Plus_Jakarta_Sans',sans-serif]">
                       {categories.find(c => c.id === selectedCategory)?.description}
                     </p>
                   ) : null
@@ -878,15 +891,15 @@ export default function App() {
 
               {/* Products Grid */}
               {filteredProducts.length === 0 ? (
-                <div className="bg-white/90 backdrop-blur-md rounded-3xl border-2 border-amber-200 p-12 text-center max-w-md mx-auto space-y-4 shadow-sm">
-                  <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-amber-500 mx-auto">
-                    <Flower2 className="w-8 h-8 fill-amber-200" />
+                <div className="bg-[#09101F] rounded-3xl border border-cyan-500/30 p-12 text-center max-w-md mx-auto space-y-4 shadow-[0_0_30px_rgba(0,0,0,0.6)] font-['Cinzel',serif]">
+                  <div className="w-16 h-16 rounded-full bg-cyan-950 flex items-center justify-center text-cyan-400 mx-auto border border-cyan-500/40">
+                    <Sparkles className="w-8 h-8" />
                   </div>
-                  <h3 className="font-['Mali'] text-lg font-bold text-purple-950">
-                    Nenhum mimo encontrado
+                  <h3 className="text-lg font-bold text-white">
+                    Nenhuma relíquia encontrada
                   </h3>
-                  <p className="text-xs text-slate-600 font-['Comfortaa'] leading-relaxed">
-                    Não encontramos produtos com os filtros selecionados. Que tal buscar outro termo ou limpar os filtros?
+                  <p className="text-xs text-slate-400 leading-relaxed font-['Plus_Jakarta_Sans',sans-serif]">
+                    Não encontramos itens com os filtros atuais do mapa. Que tal redefinir ou pesquisar outro drop?
                   </p>
                   <button
                     onClick={() => {
@@ -894,9 +907,9 @@ export default function App() {
                       setSearchQuery('');
                       setPriceFilter('all');
                     }}
-                    className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 text-purple-950 font-bold rounded-2xl text-xs shadow-md hover:from-amber-500 hover:to-amber-600 transition-colors border border-amber-300"
+                    className="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black rounded-2xl text-xs shadow-[0_0_20px_rgba(6,182,212,0.4)] cursor-pointer"
                   >
-                    Ver Todos os Produtos
+                    Ver Todo o Arsenal
                   </button>
                 </div>
               ) : (
@@ -915,22 +928,22 @@ export default function App() {
                 </div>
               )}
 
-              {/* Banner Call to Action for Custom Sacolinha Builder (Yellow Theme) */}
-              <div className="mt-12 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 rounded-3xl p-6 sm:p-10 text-purple-950 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden border-2 border-yellow-300">
-                <div className="space-y-2 text-center md:text-left z-10 drop-shadow-xs flex-1">
+              {/* Banner Call to Action for Custom Gamer Kit Forge */}
+              <div className="mt-12 bg-gradient-to-r from-[#060F22] via-[#091530] to-[#0A1B3D] rounded-3xl p-6 sm:p-10 text-white shadow-[0_0_40px_rgba(6,182,212,0.25)] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden border border-cyan-500/35 font-['Cinzel',serif]">
+                <div className="space-y-2 text-center md:text-left z-10 flex-1">
                   <div className="flex items-center justify-center md:justify-start gap-2">
-                    <span className={`inline-flex items-center gap-1.5 bg-amber-900/10 px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-xs border border-amber-900/20 text-purple-950 ${getFontSizeClass(homePageConfig.promoBadge?.fontSize, 'xs')} ${getFontWeightClass(homePageConfig.promoBadge?.isBold, true)}`}>
-                      <ShoppingBag className="w-3.5 h-3.5 text-amber-800" />
-                      <span>{homePageConfig.promoBadge?.text || 'Presenteie com Sacolinhas Amarelas ✨'}</span>
+                    <span className="inline-flex items-center gap-1.5 bg-cyan-950/80 px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-xs border border-cyan-500/40 text-cyan-300 text-xs font-bold">
+                      <ShoppingBag className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Forja de Kits Gamer Personalizados 🛡️</span>
                     </span>
                   </div>
 
-                  <h3 className={`font-['Mali'] text-purple-950 ${getFontSizeClass(homePageConfig.promoTitle?.fontSize, '2xl')} ${getFontWeightClass(homePageConfig.promoTitle?.isBold, true)}`}>
-                    {homePageConfig.promoTitle?.text || 'Quer montar uma sacolinha de presente personalizada?'}
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white font-['Cinzel_Decorative',serif]">
+                    Quer forjar um Kit de Aventureiro Exclusivo?
                   </h3>
 
-                  <p className={`font-['Comfortaa'] text-purple-900 max-w-lg leading-relaxed ${getFontSizeClass(homePageConfig.promoDescription?.fontSize, 'xs')} ${getFontWeightClass(homePageConfig.promoDescription?.isBold, false)}`}>
-                    {homePageConfig.promoDescription?.text || 'Nossas sacolinhas amarelas exclusivas com laço de cetim, mimos favoritos selecionados, cheirinho doce artesanal e dedicatória com 10% de desconto!'}
+                  <p className="text-slate-300 max-w-lg leading-relaxed text-xs sm:text-sm font-['Plus_Jakarta_Sans',sans-serif]">
+                    Selecione suas relíquias favoritas, dados forjados, caixa de colecionador com lacre do Rei Pálido e ganhe 10% OFF no pacote completo!
                   </p>
                 </div>
 
@@ -940,11 +953,11 @@ export default function App() {
                       setActiveTab('kit-builder');
                       window.scrollTo({ top: 350, behavior: 'smooth' });
                     }}
-                    className={`px-6 py-3.5 bg-purple-950 hover:bg-purple-900 text-yellow-300 rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 border-2 border-yellow-400 ${getFontSizeClass(homePageConfig.promoButton?.fontSize, 'xs')} ${getFontWeightClass(homePageConfig.promoButton?.isBold, true)}`}
+                    className="px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black rounded-2xl shadow-[0_0_25px_rgba(6,182,212,0.5)] transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer text-xs"
                   >
-                    <ShoppingBag className="w-4 h-4 text-yellow-300" />
-                    <span>{homePageConfig.promoButton?.text || 'Montar Sacolinha Agora'}</span>
-                    <ArrowRight className="w-4 h-4 text-yellow-300" />
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Forjar Kit Gamer Agora</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -1012,18 +1025,18 @@ export default function App() {
                 {/* Main Slogan & Mission */}
                 <div className="space-y-4 max-w-3xl mx-auto">
                   <h1 className="font-['Mali'] text-3xl sm:text-4xl md:text-5xl font-bold text-purple-950 leading-tight">
-                    {homePageConfig.aboutHeroTitle || 'A Lavistore nasce para fazer o mundo mais afetuoso, doce e colorido!'}
+                    {homePageConfig.aboutHeroTitle || 'Título Principal em Destaque da Sua Loja'}
                   </h1>
 
                   {/* Inspirational Quote Box in Warm Amber & Cream */}
                   <div className="inline-block bg-white/95 backdrop-blur-md py-3.5 px-6 sm:px-8 rounded-2xl border-2 border-amber-200/90 shadow-2xs">
                     <p className="font-['Comfortaa'] text-base sm:text-lg text-purple-900 font-bold leading-relaxed">
-                      "{homePageConfig.aboutQuote || homePageConfig.heroTitle?.text || 'Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!'}"
+                      "{homePageConfig.aboutQuote || homePageConfig.heroTitle?.text || 'Título Principal em Destaque da Sua Loja'}"
                     </p>
                   </div>
 
                   <p className="font-['Comfortaa'] text-sm sm:text-base text-slate-700 leading-relaxed max-w-2xl mx-auto font-medium">
-                    {homePageConfig.aboutStoryText || 'Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore — desde o traço desenhado à mão do nosso trio de florzinhas com centrinho amarelo ensolarado até o cheirinho doce borrifado nas caixas e sacolinhas amarelas — foi criado para espalhar sorrisos e momentos inesquecíveis!'}
+                    {homePageConfig.aboutStoryText || 'Digite aqui um breve resumo ou a história da sua empresa...'}
                   </p>
                 </div>
               </div>
@@ -1037,11 +1050,11 @@ export default function App() {
                 <div className="flex items-center justify-center gap-2">
                   <Flower2 className="w-5 h-5 text-amber-500 fill-amber-300" />
                   <h2 className="font-['Mali'] text-2xl sm:text-3xl font-bold text-purple-950">
-                    {homePageConfig.aboutFlowersSectionTitle || 'O Significado do Nosso Trio Floral'}
+                    {homePageConfig.aboutFlowersSectionTitle || 'Nossos Diferenciais & Destaques'}
                   </h2>
                 </div>
                 <p className="font-['Comfortaa'] text-xs sm:text-sm text-slate-600 font-medium">
-                  {homePageConfig.aboutFlowersSectionSubtitle || 'Inspiradas em traços livres de criança, cada florzinha traz uma energia especial de cuidado e carinho.'}
+                  {homePageConfig.aboutFlowersSectionSubtitle || 'Conheça os valores e compromissos que orientam nosso trabalho diário.'}
                 </p>
               </div>
 
@@ -1063,15 +1076,15 @@ export default function App() {
 
                   <div>
                     <h3 className="font-['Mali'] font-bold text-purple-950 text-xl">
-                      {homePageConfig.aboutFlower1Title || 'Flor Violeta'}
+                      {homePageConfig.aboutFlower1Title || 'Diferencial 01'}
                     </h3>
                     <p className="text-xs text-purple-800 font-bold uppercase tracking-wider">
-                      {homePageConfig.aboutFlower1Subtitle || 'Criatividade & Calma'}
+                      {homePageConfig.aboutFlower1Subtitle || 'Qualidade e Dedicação'}
                     </p>
                   </div>
 
                   <p className="text-xs sm:text-[13px] text-slate-700 font-['Comfortaa'] leading-relaxed font-medium">
-                    {homePageConfig.aboutFlower1Desc || 'Representa os momentos de imaginação, o foco sereno ao preencher um planner fofo e a liberdade para sonhar novos projetos com canetinhas coloridas.'}
+                    {homePageConfig.aboutFlower1Desc || 'Produtos e serviços pensados nos mínimos detalhes para a sua melhor experiência.'}
                   </p>
 
                   <div className="pt-2.5 flex items-center justify-between text-[11px] text-purple-950 font-bold border-t border-amber-100">
@@ -1099,15 +1112,15 @@ export default function App() {
 
                   <div>
                     <h3 className="font-['Mali'] font-bold text-purple-950 text-xl">
-                      {homePageConfig.aboutFlower2Title || 'Flor Turquesa'}
+                      {homePageConfig.aboutFlower2Title || 'Diferencial 02'}
                     </h3>
                     <p className="text-xs text-cyan-800 font-bold uppercase tracking-wider">
-                      {homePageConfig.aboutFlower2Subtitle || 'Alegria & Frescor'}
+                      {homePageConfig.aboutFlower2Subtitle || 'Agilidade e Confiança'}
                     </p>
                   </div>
 
                   <p className="text-xs sm:text-[13px] text-slate-700 font-['Comfortaa'] leading-relaxed font-medium">
-                    {homePageConfig.aboutFlower2Desc || 'Traz a vitalidade dos dias ensolarados, o frescor de estrear um caderno novinho e o entusiasmo contagiante de trocar bilhetinhos de carinho.'}
+                    {homePageConfig.aboutFlower2Desc || 'Processos rápidos, entrega pontual e comunicação clara do início ao fim.'}
                   </p>
 
                   <div className="pt-2.5 flex items-center justify-between text-[11px] text-purple-950 font-bold border-t border-amber-100">
@@ -1135,15 +1148,15 @@ export default function App() {
 
                   <div>
                     <h3 className="font-['Mali'] font-bold text-purple-950 text-xl">
-                      {homePageConfig.aboutFlower3Title || 'Flor Rosa'}
+                      {homePageConfig.aboutFlower3Title || 'Diferencial 03'}
                     </h3>
                     <p className="text-xs text-rose-800 font-bold uppercase tracking-wider">
-                      {homePageConfig.aboutFlower3Subtitle || 'Afeto & Doçura'}
+                      {homePageConfig.aboutFlower3Subtitle || 'Atendimento Humanizado'}
                     </p>
                   </div>
 
                   <p className="text-xs sm:text-[13px] text-slate-700 font-['Comfortaa'] leading-relaxed font-medium">
-                    {homePageConfig.aboutFlower3Desc || 'Simboliza o amor colocado em cada laço de fita, a fragrância doce borrifada nas caixas e a sensação acolhedora de um abraço carinhoso.'}
+                    {homePageConfig.aboutFlower3Desc || 'Cuidado em cada etapa do seu atendimento para garantir sua total satisfação.'}
                   </p>
 
                   <div className="pt-2.5 flex items-center justify-between text-[11px] text-purple-950 font-bold border-t border-amber-100">
@@ -1165,14 +1178,14 @@ export default function App() {
                   <div className="flex items-center justify-center md:justify-start gap-2">
                     <span className="inline-flex items-center gap-1.5 bg-purple-950/10 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-purple-950 border border-purple-950/20">
                       <Sun className="w-3.5 h-3.5 text-amber-900" />
-                      <span>{homePageConfig.aboutSolarBadge || 'O Miolo Amarelo Solar ☀️'}</span>
+                      <span>{homePageConfig.aboutSolarBadge || 'Destaque Institucional'}</span>
                     </span>
                   </div>
                   <h3 className="font-['Mali'] text-2xl sm:text-3xl font-bold text-purple-950">
-                    {homePageConfig.aboutSolarTitle || 'Traços Infantis Feitos com Amor & Energia Solar'}
+                    {homePageConfig.aboutSolarTitle || 'Compromisso com a Excelência'}
                   </h3>
                   <p className="font-['Comfortaa'] text-xs sm:text-sm text-purple-900 leading-relaxed max-w-2xl font-medium">
-                    {homePageConfig.aboutSolarDesc || 'O estilo de desenho de criança com sorrisinhos meigos e o miolo amarelo brilhante celebram a pureza, a imaginação e a alegria genuína. Cada sacolinha amarela carrega esse raio de sol até você!'}
+                    {homePageConfig.aboutSolarDesc || 'Nossa missão é entregar produtos de alto valor com máxima eficiência, transparência e respeito ao cliente.'}
                   </p>
                 </div>
                 <button
@@ -1183,7 +1196,7 @@ export default function App() {
                   className="px-6 py-3.5 bg-purple-950 hover:bg-purple-900 text-yellow-300 rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 border-2 border-yellow-400 text-xs font-bold shrink-0 cursor-pointer"
                 >
                   <ShoppingBag className="w-4 h-4 text-yellow-300" />
-                  <span>{homePageConfig.aboutSolarBtn || 'Conhecer Nossos Mimos'}</span>
+                  <span>{homePageConfig.aboutSolarBtn || 'Conhecer Nossos Produtos'}</span>
                 </button>
               </div>
 
@@ -1191,59 +1204,59 @@ export default function App() {
               <div className="space-y-6">
                 <div className="text-center space-y-1">
                   <h3 className="font-['Mali'] text-xl sm:text-2xl font-bold text-purple-950">
-                    {homePageConfig.aboutPillarsTitle || 'Nossos 4 Toques de Afeto em Cada Envio'}
+                    {homePageConfig.aboutPillarsTitle || 'Nossos Pilares de Atuação'}
                   </h3>
                   <p className="text-xs text-slate-600 font-['Comfortaa']">
-                    {homePageConfig.aboutPillarsSubtitle || 'Detalhes pensados com carinho para encantar todos os sentidos'}
+                    {homePageConfig.aboutPillarsSubtitle || 'Princípios fundamentais que sustentam tudo o que construímos'}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   <div className="p-5 bg-white/90 backdrop-blur-md rounded-3xl border-2 border-amber-200/80 shadow-sm hover:shadow-xl hover:border-amber-400 transition-all space-y-2">
                     <div className="w-10 h-10 rounded-2xl bg-amber-100/90 text-amber-900 border border-amber-300 flex items-center justify-center font-bold text-base shadow-2xs">
-                      {homePageConfig.aboutPillar1Icon || '🍯'}
+                      {homePageConfig.aboutPillar1Icon || '⭐'}
                     </div>
                     <h4 className="font-['Mali'] font-bold text-purple-950 text-base">
-                      {homePageConfig.aboutPillar1Title || 'Cheirinho Artesanal'}
+                      {homePageConfig.aboutPillar1Title || 'Qualidade Superior'}
                     </h4>
                     <p className="text-xs text-slate-600 font-['Comfortaa'] leading-relaxed font-medium">
-                      {homePageConfig.aboutPillar1Desc || 'Fragrância suave e doce com notas de baunilha e lavanda borrifada com carinho antes do envio.'}
+                      {homePageConfig.aboutPillar1Desc || 'Seleção rigorosa de matérias-primas e produtos com alto padrão de acabamento.'}
                     </p>
                   </div>
 
                   <div className="p-5 bg-white/90 backdrop-blur-md rounded-3xl border-2 border-amber-200/80 shadow-sm hover:shadow-xl hover:border-amber-400 transition-all space-y-2">
                     <div className="w-10 h-10 rounded-2xl bg-yellow-100/90 text-yellow-900 border border-yellow-300 flex items-center justify-center font-bold text-base shadow-2xs">
-                      {homePageConfig.aboutPillar2Icon || '🎀'}
+                      {homePageConfig.aboutPillar2Icon || '📦'}
                     </div>
                     <h4 className="font-['Mali'] font-bold text-purple-950 text-base">
-                      {homePageConfig.aboutPillar2Title || 'Sacolinhas Amarelas'}
+                      {homePageConfig.aboutPillar2Title || 'Embalagem Cuidadosa'}
                     </h4>
                     <p className="text-xs text-slate-600 font-['Comfortaa'] leading-relaxed font-medium">
-                      {homePageConfig.aboutPillar2Desc || 'Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para encantar antes mesmo de abrir.'}
+                      {homePageConfig.aboutPillar2Desc || 'Proteção máxima e cuidado em cada detalhe para que seu pedido chegue em perfeito estado.'}
                     </p>
                   </div>
 
                   <div className="p-5 bg-white/90 backdrop-blur-md rounded-3xl border-2 border-amber-200/80 shadow-sm hover:shadow-xl hover:border-amber-400 transition-all space-y-2">
                     <div className="w-10 h-10 rounded-2xl bg-rose-100/90 text-rose-900 border border-rose-300 flex items-center justify-center font-bold text-base shadow-2xs">
-                      {homePageConfig.aboutPillar3Icon || '💌'}
+                      {homePageConfig.aboutPillar3Icon || '💬'}
                     </div>
                     <h4 className="font-['Mali'] font-bold text-purple-950 text-base">
-                      {homePageConfig.aboutPillar3Title || 'Dedicatórias'}
+                      {homePageConfig.aboutPillar3Title || 'Suporte Dedicado'}
                     </h4>
                     <p className="text-xs text-slate-600 font-['Comfortaa'] leading-relaxed font-medium">
-                      {homePageConfig.aboutPillar3Desc || 'Cartinhas afetivas e bilhetinhos personalizados para emocionar e marcar memórias para sempre.'}
+                      {homePageConfig.aboutPillar3Desc || 'Equipe pronta para esclarecer dúvidas e resolver qualquer questão com rapidez.'}
                     </p>
                   </div>
 
                   <div className="p-5 bg-white/90 backdrop-blur-md rounded-3xl border-2 border-amber-200/80 shadow-sm hover:shadow-xl hover:border-amber-400 transition-all space-y-2">
                     <div className="w-10 h-10 rounded-2xl bg-cyan-100/90 text-cyan-900 border border-cyan-300 flex items-center justify-center font-bold text-base shadow-2xs">
-                      {homePageConfig.aboutPillar4Icon || '🌸'}
+                      {homePageConfig.aboutPillar4Icon || '🛡️'}
                     </div>
                     <h4 className="font-['Mali'] font-bold text-purple-950 text-base">
-                      {homePageConfig.aboutPillar4Title || 'Surpresas Florais'}
+                      {homePageConfig.aboutPillar4Title || 'Garantia de Satisfação'}
                     </h4>
                     <p className="text-xs text-slate-600 font-['Comfortaa'] leading-relaxed font-medium">
-                      {homePageConfig.aboutPillar4Desc || 'Adesivos colecionáveis das 3 florzinhas, marcadores de página e mimos extras em cada pedido.'}
+                      {homePageConfig.aboutPillar4Desc || 'Compromisso total com sua tranquilidade, agilidade e segurança em todas as compras.'}
                     </p>
                   </div>
                 </div>
@@ -1253,13 +1266,13 @@ export default function App() {
               <div className="bg-white/95 backdrop-blur-md rounded-3xl border-2 border-amber-200 p-8 sm:p-10 shadow-lg text-center space-y-4 max-w-2xl mx-auto">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold uppercase tracking-wider">
                   <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-300" />
-                  {homePageConfig.aboutCtaBadge || 'Pronta para Encantar?'}
+                  {homePageConfig.aboutCtaBadge || 'Pronto para Começar?'}
                 </span>
                 <h3 className="font-['Mali'] text-2xl sm:text-3xl font-bold text-purple-950">
-                  {homePageConfig.aboutCtaTitle || 'Venha conhecer nossos mimos e presentes'}
+                  {homePageConfig.aboutCtaTitle || 'Venha conhecer nossos produtos'}
                 </h3>
                 <p className="font-['Comfortaa'] text-xs sm:text-sm text-slate-600 leading-relaxed max-w-md mx-auto font-medium">
-                  {homePageConfig.aboutCtaDesc || 'Navegue pela nossa vitrine de papelaria fofa, monte sacolinhas personalizadas e espalhe sorrisos por onde passar!'}
+                  {homePageConfig.aboutCtaDesc || 'Navegue pelo nosso catálogo completo e encontre as melhores opções para você!'}
                 </p>
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
                   <button
@@ -1270,7 +1283,7 @@ export default function App() {
                     className="px-6 py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-all transform hover:scale-105 active:scale-95 border border-amber-300 flex items-center gap-2 cursor-pointer"
                   >
                     <Flower2 className="w-4 h-4 text-purple-950 fill-amber-300" />
-                    <span>{homePageConfig.aboutCtaBtnPrimary || 'Ver Todos os Mimos no Catálogo'}</span>
+                    <span>{homePageConfig.aboutCtaBtnPrimary || 'Ver Todos os Produtos no Catálogo'}</span>
                   </button>
                   <button
                     onClick={() => {
@@ -1280,7 +1293,7 @@ export default function App() {
                     className="px-5 py-3.5 bg-white hover:bg-amber-50 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm border-2 border-amber-200 shadow-xs transition-all flex items-center gap-2 cursor-pointer"
                   >
                     <Gift className="w-4 h-4 text-amber-600" />
-                    <span>{homePageConfig.aboutCtaBtnSecondary || 'Montar Sacolinha de Presente'}</span>
+                    <span>{homePageConfig.aboutCtaBtnSecondary || 'Fazer Pedido'}</span>
                   </button>
                 </div>
               </div>
@@ -1577,6 +1590,17 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Boss Fights & Loot D20 RPG Modal */}
+      <BossFightsModal
+        isOpen={isBossFightsOpen}
+        onClose={() => setIsBossFightsOpen(false)}
+        onApplyCoupon={(couponCode) => {
+          setAppliedCoupon(couponCode);
+          setIsCartOpen(true);
+          showToast(`⚔️ Loot desbloqueado! Cupom "${couponCode}" aplicado no seu inventário!`);
+        }}
+      />
 
     </div>
   );

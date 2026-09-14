@@ -148,7 +148,7 @@ export const CategoryEditorModal: React.FC<CategoryEditorModalProps> = ({
   };
 
   const handleResetDefaults = () => {
-    if (window.confirm('Deseja restaurar as categorias padrão da Lavistore?')) {
+    if (window.confirm('Deseja restaurar as categorias padrão da loja?')) {
       onResetToDefault();
       setLocalCategories(DEFAULT_CATEGORIES);
       showToast('Categorias padrão restauradas! 🔄');
@@ -271,7 +271,7 @@ export const CategoryEditorModal: React.FC<CategoryEditorModalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Canecas & Térmicas, Agendas..."
+                    placeholder="Digite o nome da categoria aqui"
                     value={newCatName}
                     onChange={(e) => setNewCatName(e.target.value)}
                     className="w-full px-3 py-1.5 bg-white border-2 border-amber-200 rounded-xl font-bold text-purple-950 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
@@ -283,7 +283,7 @@ export const CategoryEditorModal: React.FC<CategoryEditorModalProps> = ({
                   <label className="text-[10px] font-bold text-purple-950 block mb-1">Selo / Tag (Opcional):</label>
                   <input
                     type="text"
-                    placeholder="Ex: Lançamento ✨"
+                    placeholder="Digite o selo ou destaque aqui"
                     value={newCatBadge}
                     onChange={(e) => setNewCatBadge(e.target.value)}
                     className="w-full px-3 py-1.5 bg-white border border-amber-200 rounded-xl text-xs text-purple-950 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400"
@@ -388,7 +388,7 @@ export const CategoryEditorModal: React.FC<CategoryEditorModalProps> = ({
                       {/* Badge / Tag Input */}
                       <input
                         type="text"
-                        placeholder="Selo..."
+                        placeholder="Digite o selo aqui"
                         value={cat.badge || ''}
                         onChange={(e) => handleUpdateField(cat.id, 'badge', e.target.value)}
                         className="w-24 sm:w-28 px-2 py-1 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-purple-950 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-400 hidden sm:block"

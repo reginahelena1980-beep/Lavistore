@@ -48,7 +48,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
   };
 
   const handleReset = () => {
-    if (confirm('Deseja restaurar todos os textos da página "Sobre Nós" para o padrão original da Lavistore?')) {
+    if (confirm('Deseja restaurar todos os textos da página "Sobre Nós" para o padrão original?')) {
       const resetData: HomePageConfig = {
         ...formData,
         aboutHeroSlogan: DEFAULT_HOME_PAGE_CONFIG.aboutHeroSlogan,
@@ -110,10 +110,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
             Página "Sobre Nós" / Nossa História
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-2xl">
-            Edite todos os textos, slogans, significados das 3 florzinhas, toques de afeto e chamadas da página institucional.
-            <span className="block text-amber-800 font-bold mt-0.5 text-xs">
-              O logotipo da Lavistore permanece original e protegido, conforme as diretrizes da marca.
-            </span>
+            Edite todos os textos, slogans, significados das seções, toques de afeto e chamadas da página institucional.
           </p>
         </div>
 
@@ -246,7 +243,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   value={formData.aboutHeroSlogan || DEFAULT_HOME_PAGE_CONFIG.aboutHeroSlogan}
                   onChange={(e) => updateField('aboutHeroSlogan', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                  placeholder="Ex: A Lavistore nasce para fazer o mundo mais afetuoso, doce e colorido!"
+                  placeholder="Escreva o slogan principal da página Sobre Nós aqui"
                 />
               </div>
 
@@ -260,7 +257,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   value={formData.aboutHeroQuote || DEFAULT_HOME_PAGE_CONFIG.aboutHeroQuote}
                   onChange={(e) => updateField('aboutHeroQuote', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                  placeholder="Ex: Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!"
+                  placeholder="Escreva a frase de impacto ou missão da loja aqui"
                 />
               </div>
 
@@ -274,7 +271,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   value={formData.aboutHeroDescription || DEFAULT_HOME_PAGE_CONFIG.aboutHeroDescription}
                   onChange={(e) => updateField('aboutHeroDescription', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                  placeholder="Conte a história, os propósitos e o afeto colocado na loja..."
+                  placeholder="Escreva a história e apresentação institucional da loja aqui"
                 />
               </div>
             </div>
@@ -296,6 +293,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutTrioTitle || DEFAULT_HOME_PAGE_CONFIG.aboutTrioTitle}
                     onChange={(e) => updateField('aboutTrioTitle', e.target.value)}
+                    placeholder="Escreva o título da primeira seção institucional aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -305,6 +303,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutTrioSubtitle || DEFAULT_HOME_PAGE_CONFIG.aboutTrioSubtitle}
                     onChange={(e) => updateField('aboutTrioSubtitle', e.target.value)}
+                    placeholder="Escreva o subtítulo da primeira seção institucional aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -324,6 +323,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutFlower1Title || DEFAULT_HOME_PAGE_CONFIG.aboutFlower1Title}
                     onChange={(e) => updateField('aboutFlower1Title', e.target.value)}
+                    placeholder="Digite o título do item 1 aqui"
                     className="w-full px-3 py-2 bg-white border border-purple-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -333,6 +333,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutFlower1Subtitle || DEFAULT_HOME_PAGE_CONFIG.aboutFlower1Subtitle}
                     onChange={(e) => updateField('aboutFlower1Subtitle', e.target.value)}
+                    placeholder="Digite o subtítulo do item 1 aqui"
                     className="w-full px-3 py-2 bg-white border border-purple-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -343,6 +344,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   rows={2}
                   value={formData.aboutFlower1Desc || DEFAULT_HOME_PAGE_CONFIG.aboutFlower1Desc}
                   onChange={(e) => updateField('aboutFlower1Desc', e.target.value)}
+                  placeholder="Escreva a descrição detalhada do item 1 aqui"
                   className="w-full px-3 py-2 bg-white border border-purple-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
               </div>
@@ -361,6 +363,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutFlower2Title || DEFAULT_HOME_PAGE_CONFIG.aboutFlower2Title}
                     onChange={(e) => updateField('aboutFlower2Title', e.target.value)}
+                    placeholder="Digite o título do item 2 aqui"
                     className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-xl text-xs text-cyan-950 font-medium"
                   />
                 </div>
@@ -370,6 +373,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutFlower2Subtitle || DEFAULT_HOME_PAGE_CONFIG.aboutFlower2Subtitle}
                     onChange={(e) => updateField('aboutFlower2Subtitle', e.target.value)}
+                    placeholder="Digite o subtítulo do item 2 aqui"
                     className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-xl text-xs text-cyan-950 font-medium"
                   />
                 </div>
@@ -380,6 +384,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   rows={2}
                   value={formData.aboutFlower2Desc || DEFAULT_HOME_PAGE_CONFIG.aboutFlower2Desc}
                   onChange={(e) => updateField('aboutFlower2Desc', e.target.value)}
+                  placeholder="Escreva a descrição detalhada do item 2 aqui"
                   className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-xl text-xs text-cyan-950 font-medium"
                 />
               </div>
@@ -398,6 +403,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutFlower3Title || DEFAULT_HOME_PAGE_CONFIG.aboutFlower3Title}
                     onChange={(e) => updateField('aboutFlower3Title', e.target.value)}
+                    placeholder="Digite o título do item 3 aqui"
                     className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-xs text-rose-950 font-medium"
                   />
                 </div>
@@ -407,6 +413,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutFlower3Subtitle || DEFAULT_HOME_PAGE_CONFIG.aboutFlower3Subtitle}
                     onChange={(e) => updateField('aboutFlower3Subtitle', e.target.value)}
+                    placeholder="Digite o subtítulo do item 3 aqui"
                     className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-xs text-rose-950 font-medium"
                   />
                 </div>
@@ -417,6 +424,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   rows={2}
                   value={formData.aboutFlower3Desc || DEFAULT_HOME_PAGE_CONFIG.aboutFlower3Desc}
                   onChange={(e) => updateField('aboutFlower3Desc', e.target.value)}
+                  placeholder="Escreva a descrição detalhada do item 3 aqui"
                   className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-xs text-rose-950 font-medium"
                 />
               </div>
@@ -440,6 +448,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutSolarTag || DEFAULT_HOME_PAGE_CONFIG.aboutSolarTag}
                     onChange={(e) => updateField('aboutSolarTag', e.target.value)}
+                    placeholder="Digite a etiqueta ou selo em destaque aqui"
                     className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -449,6 +458,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutSolarBtnText || DEFAULT_HOME_PAGE_CONFIG.aboutSolarBtnText}
                     onChange={(e) => updateField('aboutSolarBtnText', e.target.value)}
+                    placeholder="Digite o texto do botão aqui"
                     className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -460,6 +470,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   type="text"
                   value={formData.aboutSolarTitle || DEFAULT_HOME_PAGE_CONFIG.aboutSolarTitle}
                   onChange={(e) => updateField('aboutSolarTitle', e.target.value)}
+                  placeholder="Digite o título em destaque aqui"
                   className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
               </div>
@@ -470,6 +481,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   rows={3}
                   value={formData.aboutSolarDesc || DEFAULT_HOME_PAGE_CONFIG.aboutSolarDesc}
                   onChange={(e) => updateField('aboutSolarDesc', e.target.value)}
+                  placeholder="Escreva a descrição em destaque aqui"
                   className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
               </div>
@@ -492,6 +504,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutPillarsTitle || DEFAULT_HOME_PAGE_CONFIG.aboutPillarsTitle}
                     onChange={(e) => updateField('aboutPillarsTitle', e.target.value)}
+                    placeholder="Digite o título dos pilares da loja aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -501,6 +514,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutPillarsSubtitle || DEFAULT_HOME_PAGE_CONFIG.aboutPillarsSubtitle}
                     onChange={(e) => updateField('aboutPillarsSubtitle', e.target.value)}
+                    placeholder="Digite o subtítulo dos pilares da loja aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -522,7 +536,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutPillar1Title || DEFAULT_HOME_PAGE_CONFIG.aboutPillar1Title}
                     onChange={(e) => updateField('aboutPillar1Title', e.target.value)}
-                    placeholder="Título do Toque 1"
+                    placeholder="Digite o título do pilar 1 aqui"
                     className="flex-1 px-3 py-2 bg-amber-50/40 border border-amber-200 rounded-xl text-xs font-bold text-purple-950"
                   />
                 </div>
@@ -530,7 +544,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   rows={2}
                   value={formData.aboutPillar1Desc || DEFAULT_HOME_PAGE_CONFIG.aboutPillar1Desc}
                   onChange={(e) => updateField('aboutPillar1Desc', e.target.value)}
-                  placeholder="Descrição do Toque 1"
+                  placeholder="Escreva a descrição do pilar 1 aqui"
                   className="w-full px-3 py-2 bg-amber-50/20 border border-amber-200 rounded-xl text-xs text-slate-700"
                 />
               </div>
@@ -549,7 +563,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutPillar2Title || DEFAULT_HOME_PAGE_CONFIG.aboutPillar2Title}
                     onChange={(e) => updateField('aboutPillar2Title', e.target.value)}
-                    placeholder="Título do Toque 2"
+                    placeholder="Digite o título do pilar 2 aqui"
                     className="flex-1 px-3 py-2 bg-yellow-50/40 border border-yellow-200 rounded-xl text-xs font-bold text-purple-950"
                   />
                 </div>
@@ -557,7 +571,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   rows={2}
                   value={formData.aboutPillar2Desc || DEFAULT_HOME_PAGE_CONFIG.aboutPillar2Desc}
                   onChange={(e) => updateField('aboutPillar2Desc', e.target.value)}
-                  placeholder="Descrição do Toque 2"
+                  placeholder="Escreva a descrição do pilar 2 aqui"
                   className="w-full px-3 py-2 bg-yellow-50/20 border border-yellow-200 rounded-xl text-xs text-slate-700"
                 />
               </div>
@@ -576,7 +590,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutPillar3Title || DEFAULT_HOME_PAGE_CONFIG.aboutPillar3Title}
                     onChange={(e) => updateField('aboutPillar3Title', e.target.value)}
-                    placeholder="Título do Toque 3"
+                    placeholder="Digite o título do pilar 3 aqui"
                     className="flex-1 px-3 py-2 bg-rose-50/40 border border-rose-200 rounded-xl text-xs font-bold text-purple-950"
                   />
                 </div>
@@ -584,7 +598,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   rows={2}
                   value={formData.aboutPillar3Desc || DEFAULT_HOME_PAGE_CONFIG.aboutPillar3Desc}
                   onChange={(e) => updateField('aboutPillar3Desc', e.target.value)}
-                  placeholder="Descrição do Toque 3"
+                  placeholder="Escreva a descrição do pilar 3 aqui"
                   className="w-full px-3 py-2 bg-rose-50/20 border border-rose-200 rounded-xl text-xs text-slate-700"
                 />
               </div>
@@ -603,7 +617,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutPillar4Title || DEFAULT_HOME_PAGE_CONFIG.aboutPillar4Title}
                     onChange={(e) => updateField('aboutPillar4Title', e.target.value)}
-                    placeholder="Título do Toque 4"
+                    placeholder="Digite o título do pilar 4 aqui"
                     className="flex-1 px-3 py-2 bg-cyan-50/40 border border-cyan-200 rounded-xl text-xs font-bold text-purple-950"
                   />
                 </div>
@@ -611,7 +625,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   rows={2}
                   value={formData.aboutPillar4Desc || DEFAULT_HOME_PAGE_CONFIG.aboutPillar4Desc}
                   onChange={(e) => updateField('aboutPillar4Desc', e.target.value)}
-                  placeholder="Descrição do Toque 4"
+                  placeholder="Escreva a descrição do pilar 4 aqui"
                   className="w-full px-3 py-2 bg-cyan-50/20 border border-cyan-200 rounded-xl text-xs text-slate-700"
                 />
               </div>
@@ -634,6 +648,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   type="text"
                   value={formData.aboutCtaBadge || DEFAULT_HOME_PAGE_CONFIG.aboutCtaBadge}
                   onChange={(e) => updateField('aboutCtaBadge', e.target.value)}
+                  placeholder="Digite o selo da chamada final aqui"
                   className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
               </div>
@@ -644,6 +659,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   type="text"
                   value={formData.aboutCtaTitle || DEFAULT_HOME_PAGE_CONFIG.aboutCtaTitle}
                   onChange={(e) => updateField('aboutCtaTitle', e.target.value)}
+                  placeholder="Digite o título da chamada final aqui"
                   className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
               </div>
@@ -654,6 +670,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   rows={2}
                   value={formData.aboutCtaDesc || DEFAULT_HOME_PAGE_CONFIG.aboutCtaDesc}
                   onChange={(e) => updateField('aboutCtaDesc', e.target.value)}
+                  placeholder="Escreva a descrição da chamada final aqui"
                   className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
               </div>
@@ -665,6 +682,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutCtaBtn1 || DEFAULT_HOME_PAGE_CONFIG.aboutCtaBtn1}
                     onChange={(e) => updateField('aboutCtaBtn1', e.target.value)}
+                    placeholder="Digite o texto do botão 1 aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -674,6 +692,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                     type="text"
                     value={formData.aboutCtaBtn2 || DEFAULT_HOME_PAGE_CONFIG.aboutCtaBtn2}
                     onChange={(e) => updateField('aboutCtaBtn2', e.target.value)}
+                    placeholder="Digite o texto do botão 2 aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>

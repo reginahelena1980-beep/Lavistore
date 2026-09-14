@@ -50,7 +50,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
   };
 
   const handleReset = () => {
-    if (confirm('Deseja restaurar as informações de contato, redes, rodapé e chat para o padrão original da Lavistore?')) {
+    if (confirm('Deseja restaurar as informações de contato, redes, rodapé e chat para o padrão original?')) {
       const resetData: HomePageConfig = {
         ...formData,
         whatsappNumber: DEFAULT_HOME_PAGE_CONFIG.whatsappNumber,
@@ -191,7 +191,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     value={formData.whatsappNumber || DEFAULT_HOME_PAGE_CONFIG.whatsappNumber}
                     onChange={(e) => updateField('whatsappNumber', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: (11) 98765-4321"
+                    placeholder="Digite o número de WhatsApp da loja aqui"
                   />
                   <span className="text-[10px] text-slate-500 block mt-0.5">
                     Este número é exibido no rodapé e utilizado para abrir conversas de atendimento.
@@ -208,7 +208,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     value={formData.contactEmail || DEFAULT_HOME_PAGE_CONFIG.contactEmail}
                     onChange={(e) => updateField('contactEmail', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: contato@lavistore.com.br"
+                    placeholder="Digite o e-mail de atendimento da loja aqui"
                   />
                 </div>
               </div>
@@ -224,7 +224,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     value={formData.businessHours || DEFAULT_HOME_PAGE_CONFIG.businessHours}
                     onChange={(e) => updateField('businessHours', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: Seg. a Sex.: 09h às 18h"
+                    placeholder="Digite o horário de funcionamento aqui"
                   />
                 </div>
 
@@ -238,7 +238,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     value={formData.responseTime || DEFAULT_HOME_PAGE_CONFIG.responseTime}
                     onChange={(e) => updateField('responseTime', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: Tempo médio de resposta: ~10 min"
+                    placeholder="Digite o tempo médio de resposta aqui"
                   />
                 </div>
               </div>
@@ -254,7 +254,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     value={formData.instagramHandle || DEFAULT_HOME_PAGE_CONFIG.instagramHandle}
                     onChange={(e) => updateField('instagramHandle', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: @lavistore.oficial"
+                    placeholder="Digite o @ do Instagram aqui"
                   />
                 </div>
 
@@ -268,7 +268,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     value={formData.instagramUrl || DEFAULT_HOME_PAGE_CONFIG.instagramUrl}
                     onChange={(e) => updateField('instagramUrl', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: https://instagram.com/lavistore.oficial"
+                    placeholder="Digite o link do Instagram aqui"
                   />
                 </div>
               </div>
@@ -292,7 +292,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     value={formData.orderNotificationEmail || DEFAULT_HOME_PAGE_CONFIG.orderNotificationEmail || ''}
                     onChange={(e) => updateField('orderNotificationEmail', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-pink-50/40 border-2 border-pink-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-pink-400 focus:outline-none"
-                    placeholder="Ex: reginahelena1980@gmail.com"
+                    placeholder="Digite o e-mail para receber notificações de vendas aqui"
                   />
                   <span className="text-[10px] text-slate-500 block mt-0.5">
                     Para este e-mail serão disparados os relatórios de pedidos gerados na loja com dados completos.
@@ -320,7 +320,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     value={formData.chatConciergeName || DEFAULT_HOME_PAGE_CONFIG.chatConciergeName}
                     onChange={(e) => updateField('chatConciergeName', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                    placeholder="Ex: Concierge Lavistore 🌸"
+                    placeholder="Digite o nome do atendente ou assistente virtual aqui"
                   />
                 </div>
 
@@ -331,7 +331,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     value={formData.chatConciergeRole || DEFAULT_HOME_PAGE_CONFIG.chatConciergeRole}
                     onChange={(e) => updateField('chatConciergeRole', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                    placeholder="Ex: Atendimento Online • Suporte a Presentes"
+                    placeholder="Digite o cargo ou status de atendimento aqui"
                   />
                 </div>
               </div>
@@ -343,7 +343,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   value={formData.chatWelcomeTitle || DEFAULT_HOME_PAGE_CONFIG.chatWelcomeTitle}
                   onChange={(e) => updateField('chatWelcomeTitle', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                  placeholder="Ex: Olá, bem-vinda à Lavistore! 🌷"
+                  placeholder="Digite a mensagem de boas-vindas do chat aqui"
                 />
               </div>
 
@@ -354,7 +354,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   value={formData.chatWelcomeBody || DEFAULT_HOME_PAGE_CONFIG.chatWelcomeBody}
                   onChange={(e) => updateField('chatWelcomeBody', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                  placeholder="Ex: Posso ajudar você a escolher um mimo perfeito, tirar dúvidas sobre o frete ou montar uma caixa personalizada?"
+                  placeholder="Digite o texto de apoio ou mensagem de auxílio aqui"
                 />
               </div>
 
@@ -365,7 +365,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   value={formData.chatButtonLabel || DEFAULT_HOME_PAGE_CONFIG.chatButtonLabel}
                   onChange={(e) => updateField('chatButtonLabel', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                  placeholder="Ex: Dúvidas? Fale Conosco"
+                  placeholder="Digite o texto do botão do chat aqui"
                 />
               </div>
             </div>
@@ -390,7 +390,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   value={formData.footerDescription || DEFAULT_HOME_PAGE_CONFIG.footerDescription}
                   onChange={(e) => updateField('footerDescription', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                  placeholder="Descrição institucional curta da Lavistore..."
+                  placeholder="Escreva a descrição institucional curta da loja aqui"
                 />
               </div>
 
@@ -403,7 +403,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   value={formData.companyLegalText || DEFAULT_HOME_PAGE_CONFIG.companyLegalText}
                   onChange={(e) => updateField('companyLegalText', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                  placeholder="Ex: © 2026 Lavistore Presentes e Mimos Criativos"
+                  placeholder="Digite a razão social, CNPJ e direitos autorais aqui"
                 />
               </div>
 
@@ -417,6 +417,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     type="text"
                     value={formData.sslSecurityText || DEFAULT_HOME_PAGE_CONFIG.sslSecurityText}
                     onChange={(e) => updateField('sslSecurityText', e.target.value)}
+                    placeholder="Digite o texto do selo de segurança aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -430,6 +431,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     type="text"
                     value={formData.pixDiscountText || DEFAULT_HOME_PAGE_CONFIG.pixDiscountText}
                     onChange={(e) => updateField('pixDiscountText', e.target.value)}
+                    placeholder="Digite o texto do desconto PIX aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -443,6 +445,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                     type="text"
                     value={formData.installmentText || DEFAULT_HOME_PAGE_CONFIG.installmentText}
                     onChange={(e) => updateField('installmentText', e.target.value)}
+                    placeholder="Digite o texto de parcelamento aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -457,7 +460,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   value={formData.securityFooterNote || DEFAULT_HOME_PAGE_CONFIG.securityFooterNote}
                   onChange={(e) => updateField('securityFooterNote', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                  placeholder="Ex: Todos os dados são criptografados e protegidos com tecnologia segura de ponta a ponta."
+                  placeholder="Digite a nota explicativa de segurança de dados aqui"
                 />
               </div>
 

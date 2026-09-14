@@ -26,7 +26,7 @@ export const GiftCardGenerator: React.FC = () => {
       name: 'Lavanda Imperial',
       bgClass: 'bg-gradient-to-br from-purple-50 via-purple-100/50 to-pink-50 border-purple-300 text-purple-950',
       badgeClass: 'bg-purple-200 text-purple-900',
-      stamp: '🌸 Lavistore Afeto'
+      stamp: '🌸 Carinho & Afeto'
     },
     sakura: {
       name: 'Sakura Rosé',
@@ -53,7 +53,7 @@ export const GiftCardGenerator: React.FC = () => {
   };
 
   const handleCopy = () => {
-    const fullText = `💌 Para: ${recipient}\n\n"${cardMessage}"\n\n🌸 De: ${sender} (Lavistore Presentes Fofos)`;
+    const fullText = `💌 Para: ${recipient}\n\n"${cardMessage}"\n\n🌸 De: ${sender} (Presente Especial)`;
     navigator.clipboard.writeText(fullText);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2500);
@@ -131,7 +131,7 @@ export const GiftCardGenerator: React.FC = () => {
                   type="text"
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
-                  placeholder="Nome do presenteado"
+                  placeholder="Digite o nome de quem vai receber aqui"
                   className="w-full px-3 py-2 bg-purple-50/60 border border-purple-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-400"
                 />
               </div>
@@ -142,7 +142,7 @@ export const GiftCardGenerator: React.FC = () => {
                   type="text"
                   value={sender}
                   onChange={(e) => setSender(e.target.value)}
-                  placeholder="Seu nome"
+                  placeholder="Digite o seu nome aqui"
                   className="w-full px-3 py-2 bg-purple-50/60 border border-purple-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-400"
                 />
               </div>
@@ -175,6 +175,7 @@ export const GiftCardGenerator: React.FC = () => {
                 rows={4}
                 value={cardMessage}
                 onChange={(e) => setCardMessage(e.target.value)}
+                placeholder="Escreva a mensagem especial do cartão aqui"
                 className="w-full p-3 bg-purple-50/60 border border-purple-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-400 font-['Quicksand'] font-medium"
               />
             </div>
@@ -243,12 +244,12 @@ export const GiftCardGenerator: React.FC = () => {
                       Com todo carinho,
                     </span>
                     <p className="font-['Playfair_Display'] text-base sm:text-lg font-bold text-pink-600">
-                      {sender || 'Lavistore'}
+                      {sender || 'Sua Loja'}
                     </p>
                   </div>
 
                   <div className="w-12 h-12 rounded-full border-2 border-dashed border-pink-400 flex flex-col items-center justify-center rotate-12 text-[6.5px] text-pink-600 font-extrabold uppercase text-center p-1 bg-white/70 shadow-xs">
-                    <span>LAVI</span>
+                    <span>MIMO</span>
                     <span>100% AMOR</span>
                   </div>
                 </div>

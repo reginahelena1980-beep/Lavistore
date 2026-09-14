@@ -63,7 +63,7 @@ export function serializeCart(items: CartItem[]): string {
       customMessage: item.customMessage,
       fallback: {
         id: item.product?.id || 'unknown',
-        name: item.product?.name || 'Mimo Lavistore',
+        name: item.product?.name || 'Produto da Loja',
         price: item.product?.price || 0,
         category: item.product?.category || 'geral',
         imageUrl: safeImg
@@ -127,8 +127,8 @@ export function deserializeCart(savedJson: string | null, catalogProducts: Produ
           rating: 5.0,
           reviewCount: 1,
           images: item.fallback.imageUrl ? [item.fallback.imageUrl] : ['https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80'],
-          description: 'Mimo artesanal Lavistore',
-          features: ['Embalagem perfumada com amor'],
+          description: 'Produto da loja selecionado para você.',
+          features: ['Embalagem segura e cuidadosa'],
           stock: 10
         };
 

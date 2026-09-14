@@ -184,7 +184,7 @@ export const FilterBarManager: React.FC<FilterBarManagerProps> = ({
             value={form.priceFilterTitle}
             onChange={(e) => setForm(prev => ({ ...prev, priceFilterTitle: e.target.value }))}
             className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-amber-200 bg-amber-50/50 focus:bg-white focus:ring-2 focus:ring-purple-400 outline-none"
-            placeholder="Ex: Filtro de valor:"
+            placeholder="Digite o rótulo do filtro de valor aqui"
           />
         </div>
 
@@ -244,7 +244,7 @@ export const FilterBarManager: React.FC<FilterBarManagerProps> = ({
                   value={range.label}
                   onChange={(e) => handleUpdatePriceRange(range.id, 'label', e.target.value)}
                   className="w-full text-xs font-bold px-2.5 py-1.5 rounded-lg border border-amber-200 bg-white focus:ring-2 focus:ring-purple-400 outline-none"
-                  placeholder="Ex: Até R$ 50"
+                  placeholder="Digite o texto do botão da faixa aqui"
                 />
               </div>
 
@@ -272,7 +272,7 @@ export const FilterBarManager: React.FC<FilterBarManagerProps> = ({
                     type="number"
                     min="0"
                     step="1"
-                    placeholder="Sem limite"
+                    placeholder="Digite o preço máximo (ou deixe sem limite)"
                     value={range.maxPrice === null ? '' : range.maxPrice}
                     onChange={(e) => {
                       const val = e.target.value.trim() === '' ? null : Number(e.target.value);
@@ -346,7 +346,7 @@ export const FilterBarManager: React.FC<FilterBarManagerProps> = ({
             value={form.sortFilterTitle}
             onChange={(e) => setForm(prev => ({ ...prev, sortFilterTitle: e.target.value }))}
             className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-cyan-200 bg-cyan-50/30 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none"
-            placeholder="Ex: Ordenar por:"
+            placeholder="Digite o rótulo de ordenação aqui"
           />
         </div>
 

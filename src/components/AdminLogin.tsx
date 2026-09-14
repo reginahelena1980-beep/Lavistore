@@ -75,7 +75,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               Acesso Administrativo
             </h1>
             <p className="text-xs text-slate-600 font-medium leading-relaxed">
-              Entre com a senha de gerência para visualizar pedidos, gerenciar produtos, estoque e configurações da Lavistore.
+              Entre com a senha de gerência para visualizar pedidos, gerenciar produtos, estoque e configurações da sua loja.
             </p>
           </div>
 
@@ -136,7 +136,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
 
           <div className="pt-2 text-center text-[11px] text-slate-500 border-t border-purple-100 flex items-center justify-center gap-1">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Lavistore Presentes • Painel Seguro de Controle</span>
+            <span>Painel Administrativo • Acesso Seguro de Controle</span>
           </div>
 
         </div>

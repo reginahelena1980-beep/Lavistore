@@ -140,7 +140,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleExportFullStore = () => {
     const fullBackup = {
       exportedAt: new Date().toISOString(),
-      storeName: 'Lavistore Presentes',
+      storeName: 'Sua Loja',
       products,
       heroConfig,
       homePageConfig,
@@ -153,7 +153,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `lavistore_loja_completa_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `backup_catalogo_loja_${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -170,9 +170,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Local state for Hero banner editor
   const [heroForm, setHeroForm] = useState<HeroConfig>({
     image: heroConfig?.image || defaultHeroImg,
-    badge: heroConfig?.badge || "Presentes Criativos & Mimos com Amor 🌸",
-    title: heroConfig?.title || "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-    subtitle: heroConfig?.subtitle || "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+    badge: heroConfig?.badge || "Categoria Principal",
+    title: heroConfig?.title || "Título Principal em Destaque da Sua Loja",
+    subtitle: heroConfig?.subtitle || "Digite aqui um breve resumo ou a história da sua empresa...",
     imageFit: heroConfig?.imageFit || 'cover',
     imageScale: heroConfig?.imageScale || 100,
     imagePosition: heroConfig?.imagePosition || 'center',
@@ -236,9 +236,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (heroConfig) {
       setHeroForm({
         image: heroConfig.image || defaultHeroImg,
-        badge: heroConfig.badge || "Presentes Criativos & Mimos com Amor 🌸",
-        title: heroConfig.title || "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-        subtitle: heroConfig.subtitle || "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+        badge: heroConfig.badge || "Categoria Principal",
+        title: heroConfig.title || "Título Principal em Destaque da Sua Loja",
+        subtitle: heroConfig.subtitle || "Digite aqui um breve resumo ou a história da sua empresa...",
         imageFit: heroConfig.imageFit || 'cover',
         imageScale: heroConfig.imageScale || 100,
         imagePosition: heroConfig.imagePosition || 'center',
@@ -310,9 +310,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
     setHeroForm({
       image: defaultHeroImg,
-      badge: "Presentes Criativos & Mimos com Amor 🌸",
-      title: "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-      subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+      badge: "Categoria Principal",
+      title: "Título Principal em Destaque da Sua Loja",
+      subtitle: "Digite aqui um breve resumo ou a história da sua empresa...",
       imageFit: 'cover',
       imageScale: 100,
       imagePosition: 'center',
@@ -400,7 +400,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             setTimeout(() => setCopiedNotification(null), 3000);
           }
         } else {
-          alert('Arquivo JSON inválido. Certifique-se de que é um backup do catálogo Lavistore.');
+          alert('Arquivo JSON inválido. Certifique-se de que é um backup do catálogo da loja.');
         }
       } catch (err) {
         alert('Erro ao ler arquivo JSON. Verifique o formato do arquivo.');
@@ -422,7 +422,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-200/90 border border-amber-300 text-purple-950 text-xs font-bold shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-300" />
-              <span>Painel do Administrador Lavistore</span>
+              <span>Painel do Administrador da Loja</span>
             </div>
             <h1 className="font-['Mali'] text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-950">
               Gerenciador Completo de Produtos 🌸
@@ -714,7 +714,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             if (onResetCategories) {
               onResetCategories();
             }
-            setCopiedNotification('Categorias restauradas para o padrão original da Lavistore!');
+            setCopiedNotification('Categorias restauradas para o padrão original da loja!');
             setTimeout(() => setCopiedNotification(null), 3000);
           }}
           onGoToStorefront={onGoToStorefront}
@@ -851,7 +851,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             if (onResetCoupons) {
               onResetCoupons();
             }
-            setCopiedNotification('Cupons restaurados para o padrão original da Lavistore!');
+            setCopiedNotification('Cupons restaurados para o padrão original da loja!');
             setTimeout(() => setCopiedNotification(null), 3000);
           }}
         />
@@ -941,7 +941,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           type="url"
                           value={imageUrlInput}
                           onChange={(e) => setImageUrlInput(e.target.value)}
-                          placeholder="https://exemplo.com/foto.jpg"
+                          placeholder="Cole o link da imagem aqui (https://...)"
                           className="flex-1 px-3 py-2 bg-amber-50/50 border-2 border-amber-200 rounded-xl text-xs text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
                         />
                         <button
@@ -1011,7 +1011,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         value={heroForm.badge}
                         onChange={(e) => setHeroForm(prev => ({ ...prev, badge: e.target.value }))}
                         className="w-full px-3 py-1.5 bg-amber-50/50 border-2 border-amber-200 rounded-xl text-xs font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                        placeholder="Ex: Presentes Criativos & Mimos com Amor 🌸"
+                        placeholder="Digite o selo ou tag da capa aqui"
                       />
                     </div>
 
@@ -1024,7 +1024,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         onChange={(e) => setHeroForm(prev => ({ ...prev, title: e.target.value }))}
                         rows={2}
                         className="w-full px-3 py-1.5 bg-amber-50/50 border-2 border-amber-200 rounded-xl text-xs font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
-                        placeholder="Ex: Faça a diferença no dia de quem você ama..."
+                        placeholder="Digite o título principal da capa aqui"
                       />
                     </div>
 
@@ -1037,7 +1037,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         onChange={(e) => setHeroForm(prev => ({ ...prev, subtitle: e.target.value }))}
                         rows={2}
                         className="w-full px-3 py-1.5 bg-amber-50/50 border-2 border-amber-200 rounded-xl text-xs font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
-                        placeholder="Ex: A Lavistore nasce da vontade de empreender..."
+                        placeholder="Escreva a descrição da loja aqui"
                       />
                     </div>
                   </div>
@@ -1406,7 +1406,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por nome, tag ou ID..."
+              placeholder="Digite o nome, tag ou ID para buscar..."
               className="w-full pl-10 pr-4 py-2.5 bg-amber-50/50 border-2 border-amber-200 rounded-2xl text-xs sm:text-sm font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
@@ -1712,7 +1712,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div className="bg-gradient-to-r from-amber-50 via-white to-pink-50 rounded-3xl p-6 border-2 border-amber-200/80 shadow-2xs space-y-2">
         <h3 className="font-['Mali'] text-base font-bold text-purple-950 flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-amber-500" />
-          <span>Dicas do Administrador Lavistore ✨</span>
+          <span>Dicas do Administrador ✨</span>
         </h3>
         <ul className="text-xs text-slate-700 font-medium space-y-1.5 list-disc list-inside leading-relaxed">
           <li><strong>Foto da Página Principal (Capa):</strong> Você pode trocar a foto do banner de entrada da loja clicando na aba <strong>"🖼️ Foto & Textos do Banner Principal (Capa)"</strong> logo acima e enviando qualquer imagem do seu computador ou celular.</li>
@@ -1793,12 +1793,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
               <div>
                 <h3 className="font-['Mali'] text-lg font-bold text-purple-950">Restaurar Catálogo Padrão?</h3>
-                <p className="text-xs text-slate-500 font-medium">Voltar aos produtos e fotos originais da Lavistore.</p>
+                <p className="text-xs text-slate-500 font-medium">Voltar aos produtos e fotos originais da loja.</p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Esta ação redefinirá todos os produtos para a lista inicial original da Lavistore. Se desejar, faça um <strong>Backup JSON</strong> antes.
+              Esta ação redefinirá todos os produtos para a lista inicial original da loja. Se desejar, faça um <strong>Backup JSON</strong> antes.
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">

@@ -322,7 +322,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'lavistore_modelo_planilha_bi.csv');
+    link.setAttribute('download', 'modelo_planilha_bi.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -344,7 +344,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `lavistore_bi_relatorio_${selectedYear}_${selectedMonth}.xlsx`);
+    link.setAttribute('download', `bi_relatorio_${selectedYear}_${selectedMonth}.xlsx`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -361,9 +361,9 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     setSelectedYear('all');
     setSelectedMonth('all');
     setSearchTerm('');
-    setUploadSuccess('Dados de exemplo da Lavistore carregados com sucesso (Meias de Panda, Canetas, Pulseiras, etc.)!');
+    setUploadSuccess('Dados de exemplo carregados com sucesso!');
     if (onNotify) {
-      onNotify('Exemplo com produtos reais da Lavistore carregado no BI! 🌸');
+      onNotify('Exemplo com produtos carregado no BI!');
     }
   };
 
@@ -472,8 +472,8 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       description: productData.description || updatedRecord.descricao,
       features: productData.features || [
         `Tam/Cor: ${updatedRecord.tamCor}`,
-        'Item selecionado com carinho pela Lavistore',
-        'Embalado com todo o cuidado e cheirinho doce especial',
+        'Item selecionado com rigoroso padrão de qualidade',
+        'Embalado com todo o cuidado para envio seguro',
         'Pronta entrega em estoque real'
       ],
       tag: productData.tag || 'Novidade ✨',
@@ -678,10 +678,10 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
               type="button"
               onClick={handleLoadSampleData}
               className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-purple-950 border border-amber-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Carregar produtos de teste da Lavistore (Meias de Panda, Canetas, Pulseiras, etc.)"
+              title="Carregar produtos de teste (dados de demonstração)"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-300" />
-              <span>Carregar Exemplo Lavistore</span>
+              <span>Carregar Exemplo</span>
             </button>
 
             {records.length > 0 && (
@@ -780,7 +780,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                         handleImportFromGoogleDrive();
                       }
                     }}
-                    placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs.../edit?usp=sharing"
+                    placeholder="Cole o link da planilha do Google Sheets aqui"
                     className="w-full pl-10 pr-9 py-3 rounded-xl border-2 border-emerald-300 bg-white text-xs sm:text-sm text-purple-950 font-medium placeholder:text-slate-400 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition-all"
                   />
                   {googleDriveUrl && (
@@ -998,7 +998,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Ex: Panda, caneta..."
+                placeholder="Digite o nome do produto ou variação para buscar..."
                 className="w-full pl-9 pr-3.5 py-2.5 bg-amber-50/60 border-2 border-amber-200 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -1202,7 +1202,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
               className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-purple-950 font-bold text-xs rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
-              <span>Carregar Dados de Exemplo Lavistore</span>
+              <span>Carregar Dados de Exemplo</span>
             </button>
           </div>
         ) : (
@@ -1510,7 +1510,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                   type="text"
                   value={rowForm.produto}
                   onChange={(e) => setRowForm({ ...rowForm, produto: e.target.value })}
-                  placeholder="Ex: Meias de Panda Fofas"
+                  placeholder="Digite o nome do produto aqui"
                   className="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-xl text-xs font-medium"
                   required
                 />
@@ -1523,7 +1523,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                     type="text"
                     value={rowForm.tamCor}
                     onChange={(e) => setRowForm({ ...rowForm, tamCor: e.target.value })}
-                    placeholder="Ex: Único / P&B"
+                    placeholder="Digite a variação de tamanho ou cor aqui"
                     className="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-xl text-xs"
                   />
                 </div>
@@ -1583,7 +1583,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                 <textarea
                   value={rowForm.descricao}
                   onChange={(e) => setRowForm({ ...rowForm, descricao: e.target.value })}
-                  placeholder="Detalhes adicionais, material ou fornecedor..."
+                  placeholder="Escreva os detalhes adicionais, material ou fornecedor aqui"
                   rows={2}
                   className="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-xl text-xs"
                 />
@@ -1673,7 +1673,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Todos os {records.length} produtos apurados serão removidos. Você poderá enviar uma nova planilha a qualquer momento ou carregar os dados modelo da Lavistore.
+              Todos os {records.length} produtos apurados serão removidos. Você poderá enviar uma nova planilha a qualquer momento ou carregar os dados modelo de demonstração.
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">

@@ -9,17 +9,19 @@ import {
   Truck, 
   Tag, 
   ArrowRight, 
-  Flower2,
   Sparkles,
   Loader2,
   Check,
   MapPin,
-  ExternalLink
+  Shield,
+  Zap,
+  Gamepad2
 } from 'lucide-react';
 import { CartItem, ShippingOption, Coupon } from '../types';
 import { evaluateCoupon } from '../utils/couponUtils';
 import { DEFAULT_COUPONS } from '../data/coupons';
 import { calculateMelhorEnvioShipping, formatCep, isValidCep } from '../services/shippingService';
+import { playClickSound, playLootSound } from '../utils/soundSystem';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -64,7 +66,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [shippingError, setShippingError] = useState<string | null>(null);
   const [shippingNotice, setShippingNotice] = useState<string | null>(null);
 
-  // Sincroniza CEP externo
   useEffect(() => {
     if (externalCep && externalCep !== localCep) {
       setLocalCep(externalCep);
@@ -85,25 +86,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const amountToFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
   const freeShippingProgress = Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100);
 
-  // Avaliação do cupom
   const couponEval = evaluateCoupon(appliedCoupon, subtotal, 0, availableCoupons);
   const isFreeShippingCoupon = couponEval.isFreeShipping;
   const isGiftCoupon = couponEval.isGift || appliedCoupon?.toUpperCase() === 'BRINDE';
   const isFreeShippingEligible = isFreeShippingCoupon || isGiftCoupon || subtotal >= FREE_SHIPPING_THRESHOLD;
 
-  // Valor do frete considerado
   const rawShippingCost = selectedShippingOption ? selectedShippingOption.price : 0;
   const effectiveShippingCost = isFreeShippingEligible ? 0 : rawShippingCost;
 
   const finalTotal = isGiftCoupon ? 0 : Math.max(0, subtotal - discountAmount + effectiveShippingCost);
 
-  // Aplicar Cupom
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponInput.trim()) return;
 
     const evalResult = evaluateCoupon(couponInput, subtotal, 0, availableCoupons);
     if (evalResult.isValid) {
+      playLootSound();
       setAppliedCoupon(evalResult.code);
       setCouponMessage({ text: evalResult.message, isError: false });
       setCouponInput('');
@@ -112,7 +111,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   };
 
-  // Calcular Frete com a API do Melhor Envio
   const handleCalculateShipping = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!isValidCep(localCep)) {
@@ -121,7 +119,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
 
     if (items.length === 0) {
-      setShippingError('Sua sacola está vazia.');
+      setShippingError('Seu inventário está vazio.');
       return;
     }
 
@@ -137,7 +135,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       const result = await calculateMelhorEnvioShipping(localCep, items);
       if (result.options && result.options.length > 0) {
         setShippingOptions(result.options);
-        // Seleciona a primeira opção mais em conta se nenhuma estiver selecionada
         if (!selectedShippingOption || !result.options.some(o => o.id === selectedShippingOption.id)) {
           const cheapest = [...result.options].sort((a, b) => a.price - b.price)[0];
           if (setSelectedShippingOption) {
@@ -148,7 +145,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           setShippingNotice(result.message || 'Cotação calculada para este CEP.');
         }
       } else {
-        setShippingError('Nenhuma opção de frete disponível para este CEP no momento.');
+        setShippingError('Nenhuma opção de rota disponível para este CEP.');
       }
     } catch (err: any) {
       setShippingError(err.message || 'Não foi possível cotar o frete no momento.');
@@ -158,57 +155,60 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden font-['Comfortaa']">
+    <div className="fixed inset-0 z-50 overflow-hidden font-['Cinzel',serif]">
       {/* Backdrop */}
       <div 
         onClick={onClose}
-        className="absolute inset-0 bg-purple-950/50 backdrop-blur-xs transition-opacity animate-in fade-in" 
+        className="absolute inset-0 bg-black/80 backdrop-blur-xs transition-opacity animate-in fade-in" 
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col border-l border-purple-100 animate-in slide-in-from-right duration-300">
+        <div className="w-screen max-w-md bg-[#09101F] text-slate-100 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col border-l border-cyan-500/30 animate-in slide-in-from-right duration-300">
           
           {/* Drawer Header */}
-          <div className="p-4 sm:p-5 border-b border-purple-100 flex items-center justify-between bg-gradient-to-r from-purple-50 via-pink-50 to-purple-50">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center">
+          <div className="p-4 sm:p-5 border-b border-cyan-500/25 flex items-center justify-between bg-[#060B17]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-cyan-950 text-cyan-400 flex items-center justify-center border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
                 <ShoppingBag className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-['Playfair_Display'] font-bold text-base text-purple-950">Sua Sacola de Mimos</h3>
-                <span className="text-xs text-purple-600 font-medium">({items.length} {items.length === 1 ? 'item' : 'itens'})</span>
+                <h3 className="font-bold text-base text-white">Inventário de Drops</h3>
+                <span className="text-xs text-cyan-400 font-medium">({items.length} {items.length === 1 ? 'relíquia' : 'relíquias'})</span>
               </div>
             </div>
 
             <button
               id="btn-close-cart-drawer"
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-purple-100 text-purple-900 transition-colors cursor-pointer"
+              onClick={() => {
+                playClickSound();
+                onClose();
+              }}
+              className="p-2 rounded-full hover:bg-cyan-950 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Free Shipping Progress Meter */}
-          <div className="p-3.5 bg-purple-50/70 border-b border-purple-100 space-y-1.5">
+          <div className="p-3.5 bg-[#050A14] border-b border-cyan-500/20 space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1 font-semibold text-purple-900">
-                <Truck className="w-3.5 h-3.5 text-pink-500" />
+              <span className="flex items-center gap-1 font-semibold text-slate-200">
+                <Truck className="w-3.5 h-3.5 text-cyan-400" />
                 {isFreeShippingCoupon ? (
-                  <strong className="text-emerald-700">Cupom FRETEGRATIS Ativo! 🚚🎉</strong>
+                  <strong className="text-emerald-400">Cupom Frete Grátis Ativo! 🚚✨</strong>
                 ) : amountToFreeShipping === 0 ? (
-                  <strong className="text-emerald-700">Parabéns! Você ganhou Frete Grátis! 🎉</strong>
+                  <strong className="text-emerald-400">Teletransporte Gratuito Ativado! 🛡️</strong>
                 ) : (
-                  <span>Faltam <strong>R$ {amountToFreeShipping.toFixed(2)}</strong> para Frete Grátis</span>
+                  <span>Faltam <strong>R$ {amountToFreeShipping.toFixed(2)}</strong> para Teletransporte Grátis</span>
                 )}
               </span>
-              <span className="text-[11px] font-bold text-pink-600">
+              <span className="text-[11px] font-bold text-cyan-400">
                 {isFreeShippingCoupon ? '100%' : `${Math.round(freeShippingProgress)}%`}
               </span>
             </div>
-            <div className="w-full h-2 bg-purple-200/80 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-cyan-500/20">
               <div 
-                className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-pink-400 rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]"
                 style={{ width: isFreeShippingCoupon ? '100%' : `${freeShippingProgress}%` }}
               />
             </div>
@@ -218,20 +218,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
             {items.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
-                <div className="w-20 h-20 rounded-full bg-purple-50 flex items-center justify-center text-pink-400 border border-purple-100">
-                  <Flower2 className="w-10 h-10 fill-pink-100 text-pink-400" />
+                <div className="w-20 h-20 rounded-full bg-[#060B17] flex items-center justify-center text-cyan-400 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+                  <Gamepad2 className="w-10 h-10" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="font-['Playfair_Display'] text-lg font-bold text-purple-950">Sua sacola está vazia</h4>
-                  <p className="text-xs text-slate-500 max-w-xs">
-                    Que tal escolher alguns mimos delicados ou montar uma caixinha personalizada?
+                  <h4 className="text-lg font-bold text-white">Seu inventário está vazio</h4>
+                  <p className="text-xs text-slate-400 max-w-xs font-['Plus_Jakarta_Sans',sans-serif]">
+                    Desbrave a vitrine da Unlocked Door e colete relíquias épicas para a sua guilda!
                   </p>
                 </div>
                 <button
-                  onClick={onClose}
-                  className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold text-xs shadow-md cursor-pointer"
+                  onClick={() => {
+                    playClickSound();
+                    onClose();
+                  }}
+                  className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-xs shadow-[0_0_20px_rgba(6,182,212,0.5)] cursor-pointer"
                 >
-                  Explorar a Loja 🌸
+                  Desbravar a Vitrine ⚔️
                 </button>
               </div>
             ) : (
@@ -241,27 +244,30 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   return (
                     <div 
                       key={`${item.product.id}-${item.selectedColor || 'def'}-${item.selectedSize || 'def'}-${index}`}
-                      className="p-3 bg-purple-50/40 rounded-2xl border border-purple-100/90 flex gap-3 relative hover:border-pink-200 transition-colors"
+                      className="p-3 bg-[#060B17] rounded-2xl border border-cyan-500/25 flex gap-3 relative hover:border-cyan-400/60 transition-colors"
                     >
                       {/* Thumbnail */}
                       <img
                         src={item.product.images[0]}
                         alt={item.product.name}
                         referrerPolicy="no-referrer"
-                        className="w-18 h-18 sm:w-20 sm:h-20 object-cover rounded-xl border border-purple-100 shrink-0"
+                        className="w-18 h-18 sm:w-20 sm:h-20 object-cover rounded-xl border border-cyan-500/30 shrink-0 bg-slate-950"
                       />
 
                       {/* Details */}
                       <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
                           <div className="flex justify-between items-start gap-1">
-                            <h4 className="text-xs font-bold text-purple-950 truncate max-w-[180px]">
+                            <h4 className="text-xs font-bold text-white truncate max-w-[180px]">
                               {item.product.name}
                             </h4>
                             <button
-                              onClick={() => onRemoveItem(item.product.id, item.selectedColor, item.selectedSize)}
-                              className="text-purple-400 hover:text-rose-500 p-1 transition-colors cursor-pointer"
-                              title="Remover produto"
+                              onClick={() => {
+                                playClickSound();
+                                onRemoveItem(item.product.id, item.selectedColor, item.selectedSize);
+                              }}
+                              className="text-slate-500 hover:text-rose-400 p-1 transition-colors cursor-pointer"
+                              title="Remover relíquia"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -270,46 +276,52 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           {/* Variants Badges */}
                           <div className="flex flex-wrap gap-1 mt-1">
                             {item.selectedSize && (
-                              <span className="text-[10px] font-bold text-pink-700 bg-pink-100/80 px-2 py-0.5 rounded-md border border-pink-200">
+                              <span className="text-[10px] font-bold text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded-md border border-cyan-500/40">
                                 Tam: <strong>{item.selectedSize}</strong>
                               </span>
                             )}
                             {item.selectedColor && (
-                              <span className="text-[10px] text-purple-800 bg-purple-100/80 px-2 py-0.5 rounded-md border border-purple-200">
+                              <span className="text-[10px] text-slate-300 bg-[#0A1224] px-2 py-0.5 rounded-md border border-cyan-500/30">
                                 Cor: <strong>{item.selectedColor}</strong>
                               </span>
                             )}
                           </div>
 
                           {item.isGiftWrapped && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-pink-700 bg-pink-100 px-1.5 py-0.5 rounded-md mt-1">
-                              <Gift className="w-2.5 h-2.5" />
-                              <span>Embalagem Presente (+R$ 5,90)</span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-300 bg-cyan-950 px-1.5 py-0.5 rounded-md mt-1 border border-cyan-500/30">
+                              <Gift className="w-2.5 h-2.5 text-cyan-400" />
+                              <span>Embalagem Mística (+R$ 5,90)</span>
                             </span>
                           )}
                         </div>
 
                         {/* Quantity & Unit Price */}
-                        <div className="flex items-center justify-between pt-2 mt-1 border-t border-purple-100/60">
-                          <div className="flex items-center border border-purple-200 rounded-xl bg-white p-0.5">
+                        <div className="flex items-center justify-between pt-2 mt-1 border-t border-cyan-500/20">
+                          <div className="flex items-center border border-cyan-500/30 rounded-xl bg-[#09101F] p-0.5">
                             <button
-                              onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1, item.selectedColor, item.selectedSize)}
-                              className="w-6 h-6 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 font-bold flex items-center justify-center text-xs cursor-pointer"
+                              onClick={() => {
+                                playClickSound();
+                                onUpdateQuantity(item.product.id, item.quantity - 1, item.selectedColor, item.selectedSize);
+                              }}
+                              className="w-6 h-6 rounded-lg bg-[#0C1527] hover:bg-cyan-950 text-slate-200 font-bold flex items-center justify-center text-xs cursor-pointer"
                             >
                               <Minus className="w-2.5 h-2.5" />
                             </button>
-                            <span className="w-6 text-center text-xs font-bold text-purple-950">
+                            <span className="w-6 text-center text-xs font-bold text-cyan-300">
                               {item.quantity}
                             </span>
                             <button
-                              onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1, item.selectedColor, item.selectedSize)}
-                              className="w-6 h-6 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 font-bold flex items-center justify-center text-xs cursor-pointer"
+                              onClick={() => {
+                                playClickSound();
+                                onUpdateQuantity(item.product.id, item.quantity + 1, item.selectedColor, item.selectedSize);
+                              }}
+                              className="w-6 h-6 rounded-lg bg-[#0C1527] hover:bg-cyan-950 text-slate-200 font-bold flex items-center justify-center text-xs cursor-pointer"
                             >
                               <Plus className="w-2.5 h-2.5" />
                             </button>
                           </div>
 
-                          <span className="text-xs sm:text-sm font-extrabold text-pink-600">
+                          <span className="text-xs sm:text-sm font-extrabold text-cyan-400">
                             R$ {((itemUnitPrice + (item.isGiftWrapped ? 5.90 : 0)) * item.quantity).toFixed(2)}
                           </span>
                         </div>
@@ -319,13 +331,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 })}
 
                 {/* Seção de Frete Real - API Melhor Envio */}
-                <div className="p-3.5 bg-gradient-to-br from-purple-50 to-pink-50/50 rounded-2xl border border-purple-100/90 space-y-2.5">
+                <div className="p-3.5 bg-[#060B17] rounded-2xl border border-cyan-500/25 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5 text-pink-500" />
-                      <span>Calcular Frete (Melhor Envio):</span>
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Calcular Rota de Envio (Melhor Envio):</span>
                     </span>
-                    <span className="text-[10px] text-purple-600 font-medium flex items-center gap-0.5">
+                    <span className="text-[10px] text-cyan-400 font-medium flex items-center gap-0.5">
                       <MapPin className="w-3 h-3" />
                       Correios & Jadlog
                     </span>
@@ -338,17 +350,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       onChange={(e) => setLocalCep(formatCep(e.target.value))}
                       placeholder="00000-000"
                       maxLength={9}
-                      className="flex-1 px-3 py-1.5 bg-white border border-purple-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-400 text-center font-bold tracking-wider"
+                      className="flex-1 px-3 py-1.5 bg-[#09101F] border border-cyan-500/30 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-400 text-center font-bold tracking-wider"
                     />
                     <button
                       type="submit"
                       disabled={isLoadingShipping}
-                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 disabled:opacity-50 cursor-pointer transition-colors shadow-xs"
+                      className="px-3 py-1.5 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-bold flex items-center gap-1 disabled:opacity-50 cursor-pointer transition-colors shadow-xs"
                     >
                       {isLoadingShipping ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Cotando...</span>
+                          <span>Calculando...</span>
                         </>
                       ) : (
                         <span>Calcular</span>
@@ -357,79 +369,45 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </form>
 
                   {shippingError && (
-                    <p className="text-[11px] text-rose-600 font-medium">
-                      {shippingError}
-                    </p>
+                    <p className="text-[11px] text-rose-400 font-medium">{shippingError}</p>
                   )}
 
                   {shippingNotice && (
-                    <p className="text-[10px] text-purple-700 bg-purple-100/60 p-1.5 rounded-lg border border-purple-200">
-                      💡 {shippingNotice}
-                    </p>
+                    <p className="text-[10px] text-cyan-400/80">{shippingNotice}</p>
                   )}
 
-                  {/* Lista de Opções de Frete Retornadas pela API */}
                   {shippingOptions.length > 0 && (
                     <div className="space-y-1.5 pt-1">
-                      <p className="text-[10px] font-bold text-purple-900 uppercase tracking-wide">
-                        Opções disponíveis para o seu CEP:
-                      </p>
-                      <div className="space-y-1.5">
-                        {shippingOptions.map(option => {
-                          const isSelected = selectedShippingOption?.id === option.id;
-                          const finalOptionPrice = isFreeShippingEligible ? 0 : option.price;
-
-                          return (
-                            <div
-                              key={option.id}
-                              onClick={() => setSelectedShippingOption && setSelectedShippingOption(option)}
-                              className={`p-2 rounded-xl border text-xs cursor-pointer flex items-center justify-between transition-all ${
-                                isSelected
-                                  ? 'border-purple-600 bg-white ring-1 ring-purple-400 shadow-xs'
-                                  : 'border-purple-200 bg-white/70 hover:bg-white'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="radio"
-                                  name="cart_shipping_option"
-                                  checked={isSelected}
-                                  onChange={() => setSelectedShippingOption && setSelectedShippingOption(option)}
-                                  className="accent-purple-600 cursor-pointer"
-                                />
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-bold text-purple-950 text-xs">{option.name}</span>
-                                    <span className="text-[9px] px-1.5 py-0.2 bg-purple-100 text-purple-700 rounded-md font-semibold">
-                                      {option.carrier}
-                                    </span>
-                                  </div>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    Prazo: {option.deadline}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="text-right">
-                                {isFreeShippingEligible ? (
-                                  <div>
-                                    <span className="text-[10px] line-through text-slate-400 block">
-                                      R$ {option.price.toFixed(2)}
-                                    </span>
-                                    <span className="font-extrabold text-emerald-600 text-xs">
-                                      GRÁTIS 🚚
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="font-extrabold text-pink-600 text-xs">
-                                    R$ {option.price.toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
+                      {shippingOptions.map((opt) => (
+                        <label
+                          key={opt.id}
+                          className={`flex items-center justify-between p-2 rounded-xl border text-xs cursor-pointer transition-all ${
+                            selectedShippingOption?.id === opt.id
+                              ? 'border-cyan-400 bg-cyan-950/60 text-white'
+                              : 'border-cyan-500/20 bg-[#09101F] text-slate-300 hover:border-cyan-500/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="shippingOption"
+                              checked={selectedShippingOption?.id === opt.id}
+                              onChange={() => {
+                                playClickSound();
+                                setSelectedShippingOption && setSelectedShippingOption(opt);
+                              }}
+                              className="text-cyan-500 focus:ring-cyan-400 cursor-pointer accent-cyan-500"
+                            />
+                            <div>
+                              <span className="font-bold text-xs">{opt.name}</span>
+                              <span className="text-[10px] text-slate-400 ml-1.5">({opt.deliveryTime})</span>
                             </div>
-                          );
-                        })}
-                      </div>
+                          </div>
+                          <span className="font-bold text-cyan-300">
+                            {isFreeShippingEligible ? 'GRÁTIS' : `R$ ${opt.price.toFixed(2)}`}
+                          </span>
+                        </label>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -437,137 +415,80 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             )}
           </div>
 
-          {/* Footer & Checkout Area */}
+          {/* Drawer Footer / Checkout Summary */}
           {items.length > 0 && (
-            <div className="p-4 sm:p-5 bg-white border-t border-purple-100 space-y-3.5">
+            <div className="p-4 sm:p-5 border-t border-cyan-500/25 bg-[#060B17] space-y-4">
               
-              {/* Formulário de Cupom de Desconto */}
-              <div className="space-y-1.5">
+              {/* Cupom de Desconto */}
+              <div className="space-y-2">
                 <form onSubmit={handleApplyCoupon} className="flex gap-2">
                   <div className="relative flex-1">
+                    <Tag className="w-3.5 h-3.5 text-cyan-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={couponInput}
-                      onChange={(e) => setCouponInput(e.target.value)}
-                      placeholder="Cupom (ex: FRETEGRATIS, LAVI10)"
-                      className="w-full pl-8 pr-3 py-1.5 bg-purple-50/70 border border-purple-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-400 uppercase font-semibold"
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      placeholder="Digite o código do cupom aqui"
+                      className="w-full pl-8 pr-3 py-2 bg-[#09101F] border border-cyan-500/30 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-400 font-bold"
                     />
-                    <Tag className="w-3.5 h-3.5 text-purple-400 absolute left-2.5 top-2.5" />
                   </div>
                   <button
                     type="submit"
-                    className="px-3.5 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-900 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-bold cursor-pointer transition-colors"
                   >
                     Aplicar
                   </button>
                 </form>
 
                 {couponMessage && (
-                  <p className={`text-[11px] font-medium ${couponMessage.isError ? 'text-rose-600' : 'text-emerald-700'}`}>
+                  <p className={`text-[11px] font-medium ${couponMessage.isError ? 'text-rose-400' : 'text-emerald-400'}`}>
                     {couponMessage.text}
                   </p>
                 )}
 
-                {/* Opções Rápidas de Cupons (incluindo a opção de Cupom BRINDE) */}
-                <div className="pt-1 space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold block">
-                    Sugestões & Cupons Ativos:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {/* Botão de Destaque para a Opção de Cupom BRINDE */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isGiftCoupon) {
-                          setAppliedCoupon(null);
-                          setCouponInput('');
-                          setCouponMessage({ text: 'Cupom removido.', isError: false });
-                        } else {
-                          setAppliedCoupon('BRINDE');
-                          const evalResult = evaluateCoupon('BRINDE', subtotal, 0, availableCoupons);
-                          setCouponMessage({ text: evalResult.message, isError: false });
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all flex items-center gap-1 cursor-pointer ${
-                        isGiftCoupon
-                          ? 'bg-pink-600 text-white border-pink-700 shadow-xs'
-                          : 'bg-gradient-to-r from-pink-100 via-purple-100 to-amber-100 hover:from-pink-200 hover:to-amber-200 text-purple-950 border-pink-300 shadow-2xs'
-                      }`}
-                      title="Clique para selecionar o cupom BRINDE (Zera toda a compra!)"
-                    >
-                      <Gift className="w-3.5 h-3.5 text-pink-600" />
-                      <span>{isGiftCoupon ? '✓ Cupom BRINDE Ativo' : '🎁 Cupom BRINDE (Zera Compra)'}</span>
-                    </button>
-
-                    {/* Outros cupons ativos disponíveis */}
-                    {availableCoupons && availableCoupons
-                      .filter(c => c.isActive && c.code.toUpperCase() !== 'BRINDE')
-                      .slice(0, 3)
-                      .map(c => {
-                        const isSelected = appliedCoupon?.toUpperCase() === c.code.toUpperCase();
-                        return (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setAppliedCoupon(null);
-                                setCouponInput('');
-                                setCouponMessage({ text: 'Cupom removido.', isError: false });
-                              } else {
-                                setAppliedCoupon(c.code);
-                                const evalResult = evaluateCoupon(c.code, subtotal, 0, availableCoupons);
-                                setCouponMessage({ text: evalResult.message, isError: false });
-                              }
-                            }}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                              isSelected
-                                ? 'bg-purple-950 text-amber-300 border-purple-950 shadow-2xs'
-                                : 'bg-purple-50/80 hover:bg-purple-100 text-purple-900 border-purple-200'
-                            }`}
-                          >
-                            🎟️ {c.code}
-                          </button>
-                        );
-                      })}
-                  </div>
+                {/* Badges de Cupons Rápidos */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-slate-400">Drops rápidos:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playLootSound();
+                      setAppliedCoupon('UNLOCKED10');
+                      setCouponMessage({ text: 'Cupom UNLOCKED10 aplicado! 10% OFF ⚔️', isError: false });
+                    }}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold border border-cyan-500/40 bg-cyan-950 text-cyan-300 hover:bg-cyan-900 cursor-pointer"
+                  >
+                    🎟️ UNLOCKED10
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playLootSound();
+                      setAppliedCoupon('BOSS20');
+                      setCouponMessage({ text: 'Cupom BOSS20 aplicado! 20% OFF 🐉', isError: false });
+                    }}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold border border-cyan-500/40 bg-cyan-950 text-cyan-300 hover:bg-cyan-900 cursor-pointer"
+                  >
+                    🐉 BOSS20
+                  </button>
                 </div>
               </div>
 
-              {/* Mensagem especial quando o Cupom BRINDE está ativo */}
-              {isGiftCoupon && (
-                <div className="p-2.5 bg-gradient-to-r from-pink-50 via-purple-50 to-amber-50 rounded-xl border border-pink-300 text-xs text-pink-950 font-bold flex items-center justify-center gap-1.5 shadow-2xs animate-in fade-in">
-                  <Gift className="w-4 h-4 text-pink-600 shrink-0" />
-                  <span>Cupom BRINDE Selecionado: Valor da compra zerado para R$ 0,00! 🌸</span>
-                </div>
-              )}
-
               {/* Detalhamento de Valores */}
-              <div className="space-y-1.5 text-xs text-slate-600 border-t border-purple-100 pt-3">
+              <div className="space-y-1.5 text-xs text-slate-300 border-t border-cyan-500/20 pt-3">
                 <div className="flex justify-between">
-                  <span>Subtotal dos itens:</span>
+                  <span>Subtotal das relíquias:</span>
                   <span>R$ {subtotal.toFixed(2)}</span>
                 </div>
 
-                {/* Cupom Aplicado */}
                 {appliedCoupon && (
-                  <div className={`flex justify-between items-center font-semibold px-2.5 py-1.5 rounded-lg border ${
-                    isGiftCoupon
-                      ? 'bg-pink-100/90 text-pink-950 border-pink-300 shadow-2xs'
-                      : 'bg-pink-50/70 text-pink-600 border-pink-200'
-                  }`}>
+                  <div className="flex justify-between items-center font-semibold px-2.5 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/70 text-cyan-300">
                     <span className="flex items-center gap-1.5">
-                      {isGiftCoupon ? <Gift className="w-3.5 h-3.5 text-pink-600" /> : <Tag className="w-3.5 h-3.5 text-pink-500" />}
+                      <Tag className="w-3.5 h-3.5 text-cyan-400" />
                       <span>Cupom ({appliedCoupon}):</span>
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={isGiftCoupon ? 'font-bold text-pink-900' : ''}>
-                        {isGiftCoupon
-                          ? `- R$ ${subtotal.toFixed(2)} (100% OFF Brinde)`
-                          : isFreeShippingCoupon 
-                          ? 'Frete Grátis 🚚' 
-                          : `- R$ ${discountAmount.toFixed(2)}`}
-                      </span>
+                      <span>- R$ {discountAmount.toFixed(2)}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -575,8 +496,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           setCouponInput('');
                           setCouponMessage({ text: 'Cupom removido.', isError: false });
                         }}
-                        className="text-[10px] text-rose-500 hover:text-rose-700 underline font-bold cursor-pointer"
-                        title="Remover cupom"
+                        className="text-[10px] text-rose-400 hover:text-rose-300 underline font-bold cursor-pointer"
                       >
                         Remover
                       </button>
@@ -587,41 +507,33 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* Frete */}
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-1">
-                    <Truck className="w-3.5 h-3.5 text-purple-500" />
+                    <Truck className="w-3.5 h-3.5 text-cyan-400" />
                     <span>
                       Frete {selectedShippingOption ? `(${selectedShippingOption.name})` : ''}:
                     </span>
                   </span>
                   <div>
                     {isFreeShippingEligible ? (
-                      <div className="text-right">
-                        {rawShippingCost > 0 && (
-                          <span className="text-[10px] line-through text-slate-400 mr-1.5">
-                            R$ {rawShippingCost.toFixed(2)}
-                          </span>
-                        )}
-                        <span className="text-emerald-600 font-bold">
-                          R$ 0,00 {isGiftCoupon ? '(Cortesia Brinde) 🎁' : isFreeShippingCoupon ? '(Cupom) 🎁' : 'GRÁTIS 🚚'}
-                        </span>
-                      </div>
+                      <span className="text-emerald-400 font-bold">
+                        GRÁTIS 🚚
+                      </span>
                     ) : selectedShippingOption ? (
-                      <span className="font-semibold text-slate-800">
+                      <span className="font-semibold text-white">
                         R$ {selectedShippingOption.price.toFixed(2)}
                       </span>
                     ) : (
-                      <span className="text-purple-600 italic">
+                      <span className="text-cyan-400 italic">
                         Calcule acima ou no checkout
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Total da Sacola */}
-                <div className="flex justify-between items-baseline pt-2 border-t border-purple-100 text-sm">
-                  <span className="font-bold text-purple-950">Total da Sacola:</span>
-                  <span className={`text-xl font-extrabold ${isGiftCoupon ? 'text-emerald-700' : 'text-pink-600'}`}>
+                {/* Total */}
+                <div className="flex justify-between items-baseline pt-2 border-t border-cyan-500/20 text-sm">
+                  <span className="font-bold text-white">Total do Inventário:</span>
+                  <span className="text-xl font-extrabold text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.6)]">
                     R$ {finalTotal.toFixed(2)}
-                    {isGiftCoupon && ' (Grátis! 🎁)'}
                   </span>
                 </div>
               </div>
@@ -629,16 +541,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               {/* Botão Finalizar */}
               <button
                 id="btn-drawer-checkout"
-                onClick={onProceedToCheckout}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 hover:from-purple-700 hover:to-pink-600 text-white font-bold text-sm shadow-lg shadow-purple-200 flex items-center justify-center gap-2 transition-all transform active:scale-98 cursor-pointer"
+                onClick={() => {
+                  playLootSound();
+                  onProceedToCheckout();
+                }}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm shadow-[0_0_25px_rgba(6,182,212,0.5)] flex items-center justify-center gap-2 transition-all transform active:scale-98 cursor-pointer"
               >
-                <span>Finalizar Pedido</span>
+                <span>Forjar Pedido & Concluir</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              <div className="text-center text-[10px] text-purple-700/80 font-medium flex items-center justify-center gap-2">
-                <Sparkles className="w-3 h-3 text-amber-500" />
-                <span>API Melhor Envio Conectada • Entrega Garantida</span>
+              <div className="text-center text-[10px] text-slate-400 font-medium flex items-center justify-center gap-2">
+                <Sparkles className="w-3 h-3 text-cyan-400" />
+                <span>Melhor Envio Conectado • Garantia do Guardião (7 dias CDC)</span>
               </div>
             </div>
           )}

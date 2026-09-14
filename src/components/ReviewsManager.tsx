@@ -258,7 +258,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                 value={configData.reviewsBadge?.text || ''}
                 onChange={(e) => updateConfigField('reviewsBadge', { text: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                placeholder="Ex: Clientes Encantadas"
+                placeholder="Digite o selo da seção aqui"
               />
             </div>
 
@@ -284,7 +284,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                 value={configData.reviewsTitle?.text || ''}
                 onChange={(e) => updateConfigField('reviewsTitle', { text: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                placeholder="Ex: O que dizem sobre nossas sacolinhas & mimos"
+                placeholder="Digite o título principal da seção aqui"
               />
             </div>
 
@@ -310,7 +310,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                 value={configData.reviewsSubtitle?.text || ''}
                 onChange={(e) => updateConfigField('reviewsSubtitle', { text: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                placeholder="Ex: Mais de 1.200 pedidos entregues com amor, papel de seda e o cheirinho inesquecível da Lavistore."
+                placeholder="Escreva a descrição ou subtítulo dos depoimentos aqui"
               />
             </div>
 
@@ -325,7 +325,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                 value={configData.reviewsRatingSummary || '4.9 / 5.0 (Mais de 1.800 avaliações 5 estrelas)'}
                 onChange={(e) => setConfigData(prev => ({ ...prev, reviewsRatingSummary: e.target.value }))}
                 className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                placeholder="Ex: 4.9 / 5.0 (Mais de 1.800 avaliações 5 estrelas)"
+                placeholder="Digite o texto de resumo de avaliação aqui"
               />
             </div>
 
@@ -388,7 +388,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                     required
                     value={editingReviewForm.author || ''}
                     onChange={(e) => setEditingReviewForm(prev => ({ ...prev, author: e.target.value }))}
-                    placeholder="Ex: Mariana Silva"
+                    placeholder="Digite o nome da cliente aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -399,7 +399,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                     type="text"
                     value={editingReviewForm.city || ''}
                     onChange={(e) => setEditingReviewForm(prev => ({ ...prev, city: e.target.value }))}
-                    placeholder="Ex: São Paulo, SP"
+                    placeholder="Digite a cidade e estado aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -410,7 +410,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                     type="text"
                     value={editingReviewForm.date || ''}
                     onChange={(e) => setEditingReviewForm(prev => ({ ...prev, date: e.target.value }))}
-                    placeholder="Ex: Há 2 dias"
+                    placeholder="Digite a data ou período aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -423,7 +423,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                     type="text"
                     value={editingReviewForm.productName || ''}
                     onChange={(e) => setEditingReviewForm(prev => ({ ...prev, productName: e.target.value }))}
-                    placeholder="Ex: Caderno Argolado Jardim Lilás"
+                    placeholder="Digite o nome do produto avaliado aqui"
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
                 </div>
@@ -459,7 +459,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                   required
                   value={editingReviewForm.comment || ''}
                   onChange={(e) => setEditingReviewForm(prev => ({ ...prev, comment: e.target.value }))}
-                  placeholder="Escreva a experiência encantadora da cliente com o produto ou unboxing..."
+                  placeholder="Escreva o depoimento da cliente aqui"
                   className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
                 />
               </div>

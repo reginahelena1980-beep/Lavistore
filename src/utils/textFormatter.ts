@@ -38,48 +38,48 @@ export const getFontWeightClass = (isBold?: boolean, defaultBold: boolean = fals
 
 export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   // Top Announcement Bar
-  announcementText: 'Frete Grátis para todo o Brasil • Cupom 10% OFF: ',
-  announcementCoupon: 'LAVI10',
+  announcementText: 'Escreva o aviso da barra de destaque aqui (ex: Frete Grátis acima de R$ 149)',
+  announcementCoupon: 'SEUCUPOM',
   showAnnouncement: true,
 
   // Hero section
   heroBadge: {
-    text: 'Presentes & Mimos Criativos 🌸',
+    text: 'Escreva a tag ou selo superior aqui',
     fontSize: 'xs',
     isBold: true
   },
   heroTitle: {
-    text: 'Demonstre seu carinho com nossos mimos!',
+    text: 'Escreva o título principal de destaque aqui',
     fontSize: '4xl',
     isBold: true
   },
   heroSubtitle: {
-    text: 'A Lavistore nasce da vontade de transformar pequenos momentos em pura alegria! Presentes criativos, cheirinho doce artesanal e papelaria fofa com acabamento impecável.',
+    text: 'Escreva a descrição da loja aqui',
     fontSize: 'base',
     isBold: false
   },
   heroBtnPrimary: {
-    text: 'Explorar nossos produtos',
+    text: 'Escreva o texto do botão principal aqui',
     fontSize: 'sm',
     isBold: true
   },
   heroBtnSecondary: {
-    text: 'Monte sua Sacolinha de Presente',
+    text: 'Escreva o texto do botão secundário aqui',
     fontSize: 'sm',
     isBold: true
   },
   heroTrust1: {
-    text: 'Embalagens Exclusivas',
+    text: 'Escreva o diferencial 1 aqui',
     fontSize: 'xs',
     isBold: true
   },
   heroTrust2: {
-    text: 'Feito com Amor',
+    text: 'Escreva o diferencial 2 aqui',
     fontSize: 'xs',
     isBold: true
   },
   heroTrust3: {
-    text: 'Carinho em cada mimo!',
+    text: 'Escreva o diferencial 3 aqui',
     fontSize: 'xs',
     isBold: true
   },
@@ -87,183 +87,183 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   // Brand perks
   perk1Icon: '🛍️',
   perk1Title: {
-    text: 'Mimos Florais em Cada Sacolinha Amarela',
+    text: 'Escreva o título da vantagem 1 aqui',
     fontSize: 'base',
     isBold: true
   },
   perk1Desc: {
-    text: 'Você sempre ganha adesivos das 3 florzinhas, marcadores fofos e mini surpresas.',
+    text: 'Escreva a descrição da vantagem 1 aqui',
     fontSize: 'xs',
     isBold: false
   },
   perk2Icon: '🍯',
   perk2Title: {
-    text: 'Cheirinho Floral & Doce',
+    text: 'Escreva o título da vantagem 2 aqui',
     fontSize: 'base',
     isBold: true
   },
   perk2Desc: {
-    text: 'Cada sacolinha amarela é borrifada artesanalmente com nossa fragrância suave de lavanda e baunilha.',
+    text: 'Escreva a descrição da vantagem 2 aqui',
     fontSize: 'xs',
     isBold: false
   },
   perk3Icon: '🚚',
   perk3Title: {
-    text: 'Frete Grátis Especial',
+    text: 'Escreva o título da vantagem 3 aqui',
     fontSize: 'base',
     isBold: true
   },
   perk3Desc: {
-    text: 'Envio gratuito para todo o Brasil em compras a partir de R$ 149 com rastreamento detalhado.',
+    text: 'Escreva a descrição da vantagem 3 aqui',
     fontSize: 'xs',
     isBold: false
   },
   perk4Icon: '🌸',
   perk4Title: {
-    text: 'Feito com Amor & Afeto',
+    text: 'Escreva o título da vantagem 4 aqui',
     fontSize: 'base',
     isBold: true
   },
   perk4Desc: {
-    text: 'Produtos de papelaria selecionados a dedo com gramatura nobre e sacolinhas amarelas exclusivas.',
+    text: 'Escreva a descrição da vantagem 4 aqui',
     fontSize: 'xs',
     isBold: false
   },
 
   // Catalog
   catalogTitle: {
-    text: 'Nossos Mimos Encantados ✨',
+    text: 'Escreva o título da vitrine de produtos aqui',
     fontSize: '2xl',
     isBold: true
   },
   catalogSubtitle: {
-    text: 'Encontre os mimos perfeitos com estoque atualizado em tempo real.',
+    text: 'Escreva a descrição ou subtítulo da vitrine aqui',
     fontSize: 'sm',
     isBold: false
   },
 
   // Custom Sacolinha Promo Banner
   promoBadge: {
-    text: 'Presenteie com Criatividade',
+    text: 'Escreva o selo do banner promocional aqui',
     fontSize: 'xs',
     isBold: true
   },
   promoTitle: {
-    text: 'Quer montar uma sacolinha de presente personalizada?',
+    text: 'Escreva o título da chamada promocional aqui',
     fontSize: '3xl',
     isBold: true
   },
   promoDescription: {
-    text: 'Escolha a sacolinha amarela exclusiva, selecione os mimos favoritos, adicione uma dedicatória e ganhe 10% de desconto no combo!',
+    text: 'Escreva a descrição da promoção ou serviço especial aqui',
     fontSize: 'sm',
     isBold: false
   },
   promoButton: {
-    text: 'Montar Sacolinha Agora',
+    text: 'Escreva o texto do botão de ação aqui',
     fontSize: 'sm',
     isBold: true
   },
 
   // Reviews
   reviewsBadge: {
-    text: 'Clientes Encantadas',
+    text: 'Escreva o selo da seção de avaliações aqui',
     fontSize: 'xs',
     isBold: true
   },
   reviewsTitle: {
-    text: 'O que dizem sobre nossas sacolinhas & mimos',
+    text: 'Escreva o título da seção de avaliações aqui',
     fontSize: '3xl',
     isBold: true
   },
   reviewsSubtitle: {
-    text: 'Mais de 1.200 pedidos entregues com amor, papel de seda e o cheirinho inesquecível da Lavistore.',
+    text: 'Escreva a descrição ou introdução das avaliações aqui',
     fontSize: 'base',
     isBold: false
   },
-  reviewsRatingSummary: '4.9 / 5.0 (Mais de 1.800 avaliações 5 estrelas)',
+  reviewsRatingSummary: 'Escreva o resumo de avaliação aqui (Ex: 4.9 / 5.0 estrelas)',
 
   // Newsletter & Footer
   newsletterBadge: {
-    text: 'Clube de Mimos Lavistore',
+    text: 'Escreva o selo da newsletter aqui',
     fontSize: 'xs',
     isBold: true
   },
   newsletterTitle: {
-    text: 'Ganhe 10% OFF na sua primeira compra! 🌸',
+    text: 'Escreva o título de convite da newsletter aqui',
     fontSize: '2xl',
     isBold: true
   },
   newsletterSubtitle: {
-    text: 'Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.',
+    text: 'Escreva o subtítulo ou benefício da newsletter aqui',
     fontSize: 'sm',
     isBold: false
   },
   newsletterDesc: {
-    text: 'Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.',
+    text: 'Escreva a descrição ou benefício da newsletter aqui',
     fontSize: 'sm',
     isBold: false
   },
-  footerDescription: 'Loja virtual brasileira focada em presentes criativos, papelaria fofa, mimos delicados e caixas afetivas inspiradas no trio de flores: violeta, turquesa e rosa.',
-  companyLegalText: '© 2026 Lavistore Presentes e Mimos Criativos',
-  sslSecurityText: 'SSL 256 Bits',
-  pixDiscountText: 'PIX 5% OFF',
-  installmentText: 'Até 12x',
-  securityFooterNote: 'Todos os dados são criptografados e protegidos com tecnologia segura de ponta a ponta.',
+  footerDescription: 'Escreva a descrição da loja aqui',
+  companyLegalText: 'Escreva a razão social, CNPJ e direitos autorais aqui',
+  sslSecurityText: 'Certificado de Segurança SSL',
+  pixDiscountText: 'Desconto no PIX',
+  installmentText: 'Parcelamento no Cartão',
+  securityFooterNote: 'Escreva a nota de segurança e privacidade do rodapé aqui',
 
   // Contact Info
-  whatsappNumber: '(11) 98765-4321',
-  contactEmail: 'contato@lavistore.com.br',
-  orderNotificationEmail: 'reginahelena1980@gmail.com',
+  whatsappNumber: 'Digite o WhatsApp da loja com DDD aqui',
+  contactEmail: 'Digite o e-mail oficial de atendimento aqui',
+  orderNotificationEmail: 'Digite o e-mail para receber notificações de vendas aqui',
   pagSeguroPaymentUrl: '',
-  businessHours: 'Seg. a Sex.: 09h às 18h',
-  responseTime: 'Tempo médio de resposta: ~10 min',
-  instagramHandle: '@lavistore.oficial',
-  instagramUrl: 'https://instagram.com/lavistore.oficial',
+  businessHours: 'Digite os horários de atendimento da loja aqui',
+  responseTime: 'Digite o tempo estimado de resposta aqui',
+  instagramHandle: 'Digite o @ do Instagram aqui',
+  instagramUrl: 'Cole o link do perfil do Instagram aqui',
 
   // Floating WhatsApp Chat Concierge
-  chatConciergeName: 'Concierge Lavistore 🌸',
-  chatConciergeRole: 'Atendimento Online • Suporte a Presentes',
-  chatWelcomeTitle: 'Olá, bem-vinda à Lavistore! 🌷',
-  chatWelcomeBody: 'Posso ajudar você a escolher um mimo perfeito, tirar dúvidas sobre o frete ou montar uma caixa personalizada?',
-  chatButtonLabel: 'Dúvidas? Fale Conosco',
+  chatConciergeName: 'Digite o nome do atendente ou concierge aqui',
+  chatConciergeRole: 'Digite o cargo ou status de atendimento aqui',
+  chatWelcomeTitle: 'Escreva a mensagem de boas-vindas do chat aqui',
+  chatWelcomeBody: 'Escreva a pergunta inicial ou instrução para o cliente aqui',
+  chatButtonLabel: 'Digite o texto do botão de atendimento aqui',
 
   // About Page ("Sobre Nós")
-  aboutHeroSlogan: 'A Lavistore nasce para fazer o mundo mais afetuoso, doce e colorido!',
-  aboutHeroQuote: 'Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!',
-  aboutHeroDescription: 'Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore — desde o traço desenhado à mão do nosso trio de florzinhas com centrinho amarelo ensolarado até o cheirinho doce borrifado nas caixas e sacolinhas amarelas — foi criado para espalhar sorrisos e momentos inesquecíveis!',
-  aboutTrioTitle: 'O Significado do Nosso Trio Floral',
-  aboutTrioSubtitle: 'Inspiradas em traços livres de criança, cada florzinha traz uma energia especial de cuidado e carinho.',
-  aboutFlower1Title: 'Flor Violeta',
-  aboutFlower1Subtitle: 'Criatividade & Calma',
-  aboutFlower1Desc: 'Representa os momentos de imaginação, o foco sereno ao preencher um planner fofo e a liberdade para sonhar novos projetos com canetinhas coloridas.',
-  aboutFlower2Title: 'Flor Turquesa',
-  aboutFlower2Subtitle: 'Alegria & Frescor',
-  aboutFlower2Desc: 'Traz a vitalidade dos dias ensolarados, o frescor de estrear um caderno novinho e o entusiasmo contagiante de trocar bilhetinhos de carinho.',
-  aboutFlower3Title: 'Flor Rosa',
-  aboutFlower3Subtitle: 'Afeto & Doçura',
-  aboutFlower3Desc: 'Simboliza o amor colocado em cada laço de fita, a fragrância doce borrifada nas caixas e a sensação acolhedora de um abraço carinhoso.',
-  aboutSolarTag: 'O Miolo Amarelo Solar ☀️',
-  aboutSolarTitle: 'Traços Infantis Feitos com Amor & Energia Solar',
-  aboutSolarDesc: 'O estilo de desenho de criança com sorrisinhos meigos e o miolo amarelo brilhante celebram a pureza, a imaginação e a alegria genuína. Cada sacolinha amarela carrega esse raio de sol até você!',
-  aboutSolarBtnText: 'Conhecer Nossos Mimos',
-  aboutPillarsTitle: 'Nossos 4 Toques de Afeto em Cada Envio',
-  aboutPillarsSubtitle: 'Detalhes pensados com carinho para encantar todos os sentidos',
-  aboutPillar1Icon: '🍯',
-  aboutPillar1Title: 'Cheirinho Artesanal',
-  aboutPillar1Desc: 'Fragrância suave e doce com notas de baunilha e lavanda borrifada com carinho antes do envio.',
-  aboutPillar2Icon: '🎀',
-  aboutPillar2Title: 'Sacolinhas Amarelas',
-  aboutPillar2Desc: 'Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para encantar antes mesmo de abrir.',
+  aboutHeroSlogan: 'Escreva o slogan principal da página Sobre Nós aqui',
+  aboutHeroQuote: 'Escreva a frase de impacto ou missão da loja aqui',
+  aboutHeroDescription: 'Escreva a história e apresentação institucional da loja aqui',
+  aboutTrioTitle: 'Escreva o título da primeira seção institucional aqui',
+  aboutTrioSubtitle: 'Escreva o subtítulo da primeira seção institucional aqui',
+  aboutFlower1Title: 'Digite o título do item 1 aqui',
+  aboutFlower1Subtitle: 'Digite o subtítulo do item 1 aqui',
+  aboutFlower1Desc: 'Escreva a descrição detalhada do item 1 aqui',
+  aboutFlower2Title: 'Digite o título do item 2 aqui',
+  aboutFlower2Subtitle: 'Digite o subtítulo do item 2 aqui',
+  aboutFlower2Desc: 'Escreva a descrição detalhada do item 2 aqui',
+  aboutFlower3Title: 'Digite o título do item 3 aqui',
+  aboutFlower3Subtitle: 'Digite o subtítulo do item 3 aqui',
+  aboutFlower3Desc: 'Escreva a descrição detalhada do item 3 aqui',
+  aboutSolarTag: 'Digite a etiqueta ou selo em destaque aqui',
+  aboutSolarTitle: 'Digite o título em destaque aqui',
+  aboutSolarDesc: 'Escreva a descrição em destaque aqui',
+  aboutSolarBtnText: 'Digite o texto do botão aqui',
+  aboutPillarsTitle: 'Digite o título dos pilares da loja aqui',
+  aboutPillarsSubtitle: 'Digite o subtítulo dos pilares da loja aqui',
+  aboutPillar1Icon: '⭐',
+  aboutPillar1Title: 'Digite o título do pilar 1 aqui',
+  aboutPillar1Desc: 'Escreva a descrição do pilar 1 aqui',
+  aboutPillar2Icon: '🎁',
+  aboutPillar2Title: 'Digite o título do pilar 2 aqui',
+  aboutPillar2Desc: 'Escreva a descrição do pilar 2 aqui',
   aboutPillar3Icon: '💌',
-  aboutPillar3Title: 'Dedicatórias Fofas',
-  aboutPillar3Desc: 'Cartinhas afetivas e bilhetinhos personalizados para emocionar e marcar memórias para sempre.',
-  aboutPillar4Icon: '🌸',
-  aboutPillar4Title: 'Surpresas Florais',
-  aboutPillar4Desc: 'Adesivos colecionáveis das 3 florzinhas, marcadores de página e mimos extras em cada pedido.',
-  aboutCtaBadge: 'Pronta para Encantar?',
-  aboutCtaTitle: 'Venha conhecer nossos mimos e presentes',
-  aboutCtaDesc: 'Navegue pela nossa vitrine de papelaria fofa, monte sacolinhas personalizadas e espalhe sorrisos por onde passar!',
-  aboutCtaBtn1: 'Ver Todos os Mimos no Catálogo',
-  aboutCtaBtn2: 'Montar Sacolinha de Presente',
+  aboutPillar3Title: 'Digite o título do pilar 3 aqui',
+  aboutPillar3Desc: 'Escreva a descrição do pilar 3 aqui',
+  aboutPillar4Icon: '✨',
+  aboutPillar4Title: 'Digite o título do pilar 4 aqui',
+  aboutPillar4Desc: 'Escreva a descrição do pilar 4 aqui',
+  aboutCtaBadge: 'Digite o selo da chamada final aqui',
+  aboutCtaTitle: 'Digite o título da chamada final aqui',
+  aboutCtaDesc: 'Escreva a descrição da chamada final aqui',
+  aboutCtaBtn1: 'Digite o texto do botão 1 aqui',
+  aboutCtaBtn2: 'Digite o texto do botão 2 aqui',
   ...((storeState?.homePageConfig as unknown as Partial<HomePageConfig>) || {})
 };

@@ -689,13 +689,13 @@ export function exportRecordsToXlsx(records: BiProductCalculatedRecord[]): Uint8
 
   const worksheet = XLSX.utils.json_to_sheet(exportData);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório BI Lavistore');
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório BI');
   const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
   return new Uint8Array(buffer);
 }
 
 /**
- * Registros de exemplo pré-carregados da Lavistore (Meias de Panda, Canetas, Pulseiras, etc.)
+ * Registros de exemplo pré-carregados da loja
  */
 export const DEFAULT_BI_SAMPLE_RECORDS: BiProductCalculatedRecord[] = [
   calculateBiRow({

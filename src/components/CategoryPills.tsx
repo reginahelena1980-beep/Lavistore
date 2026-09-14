@@ -1,6 +1,7 @@
 import React from 'react';
-import { Sparkles, SlidersHorizontal } from 'lucide-react';
+import { Sparkles, SlidersHorizontal, Compass } from 'lucide-react';
 import { FilterBarConfig, Category } from '../types';
+import { playClickSound } from '../utils/soundSystem';
 
 interface CategoryPillsProps {
   sortBy: string;
@@ -23,17 +24,16 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
   onSelectCategory,
   config
 }) => {
-  // If both are disabled, return null
   const showPriceFilter = config?.showPriceFilter ?? true;
   const showSortFilter = config?.showSortFilter ?? true;
 
   const enabledPriceRanges = (config?.priceRanges || [
-    { id: 'under50', label: 'Até R$ 50', enabled: true, colorTheme: 'amber' },
-    { id: 'under100', label: 'R$ 50 a R$ 100', enabled: true, colorTheme: 'orange' },
-    { id: 'above100', label: 'Acima de R$ 100', enabled: true, colorTheme: 'cyan' },
+    { id: 'under50', label: 'Até R$ 50', enabled: true, colorTheme: 'cyan' },
+    { id: 'under100', label: 'R$ 50 a R$ 100', enabled: true, colorTheme: 'blue' },
+    { id: 'above100', label: 'Acima de R$ 100', enabled: true, colorTheme: 'purple' },
   ]).filter(r => r.enabled);
 
-  const priceFilterTitle = config?.priceFilterTitle || 'Filtro de valor:';
+  const priceFilterTitle = config?.priceFilterTitle || 'Faixa de Ouro:';
   const sortFilterTitle = config?.sortFilterTitle || 'Ordenar:';
 
   const enabledSortOptions = config?.enabledSortOptions || {
@@ -44,39 +44,9 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
     nameAsc: true,
   };
 
-  const getColorClasses = (colorTheme: string | undefined, isSelected: boolean) => {
-    switch (colorTheme) {
-      case 'rose':
-        return isSelected
-          ? 'bg-rose-500 text-white shadow-xs'
-          : 'bg-rose-50/80 text-rose-900 hover:bg-rose-100 border border-rose-200/60';
-      case 'orange':
-        return isSelected
-          ? 'bg-orange-500 text-white shadow-xs'
-          : 'bg-orange-50/80 text-orange-950 hover:bg-orange-100 border border-orange-200/60';
-      case 'cyan':
-        return isSelected
-          ? 'bg-cyan-600 text-white shadow-xs'
-          : 'bg-cyan-50/80 text-cyan-950 hover:bg-cyan-100 border border-cyan-200/60';
-      case 'purple':
-        return isSelected
-          ? 'bg-purple-600 text-white shadow-xs'
-          : 'bg-purple-50/80 text-purple-950 hover:bg-purple-100 border border-purple-200/60';
-      case 'emerald':
-        return isSelected
-          ? 'bg-emerald-600 text-white shadow-xs'
-          : 'bg-emerald-50/80 text-emerald-950 hover:bg-emerald-100 border border-emerald-200/60';
-      case 'amber':
-      default:
-        return isSelected
-          ? 'bg-amber-500 text-white shadow-xs'
-          : 'bg-amber-50/80 text-amber-950 hover:bg-amber-100 border border-amber-200/60';
-    }
-  };
-
   return (
-    <div className="space-y-4">
-      {/* Category Pills Row - Quick navigation across all registered categories */}
+    <div className="space-y-4 font-['Cinzel',serif]">
+      {/* Category Pills Row */}
       {categories && categories.length > 0 && onSelectCategory && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           {categories.map((cat) => {
@@ -85,18 +55,21 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => onSelectCategory(cat.id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                onClick={() => {
+                  playClickSound();
+                  onSelectCategory(cat.id);
+                }}
+                className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
                   isSelected
-                    ? 'bg-purple-950 text-amber-300 shadow-sm scale-102 border-2 border-purple-900'
-                    : 'bg-white/90 text-purple-950 hover:bg-amber-100/70 border border-amber-200/80 shadow-2xs'
+                    ? 'bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.5)] scale-102 border-2 border-cyan-300 font-black'
+                    : 'bg-[#0A1224] text-slate-300 hover:text-cyan-300 hover:bg-[#0E1A33] border border-cyan-500/30'
                 }`}
               >
                 <span>{cat.icon}</span>
                 <span>{cat.name}</span>
                 {cat.badge && (
-                  <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
-                    isSelected ? 'bg-amber-300 text-purple-950' : 'bg-amber-100 text-purple-950 border border-amber-200'
+                  <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase ${
+                    isSelected ? 'bg-slate-950 text-cyan-300' : 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
                   }`}>
                     {cat.badge}
                   </span>
@@ -109,37 +82,44 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
 
       {/* Filter and Sort Toolbar */}
       {(showPriceFilter || showSortFilter) && (
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-white/90 text-xs sm:text-sm shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-[#080E1C]/90 backdrop-blur-md p-3.5 rounded-2xl border border-cyan-500/25 text-xs shadow-lg">
           
           {/* Price Range Filter Pills */}
           {showPriceFilter && (
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-purple-900 font-semibold flex items-center gap-1 text-xs">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-cyan-300 font-bold flex items-center gap-1 text-xs">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
                 <span>{priceFilterTitle}</span>
               </span>
 
               {/* "Todos" default option */}
               <button
-                onClick={() => setPriceFilter('all')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                onClick={() => {
+                  playClickSound();
+                  setPriceFilter('all');
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                   priceFilter === 'all'
-                    ? 'bg-rose-500 text-white shadow-xs'
-                    : 'bg-rose-50/80 text-rose-900 hover:bg-rose-100 border border-rose-200/60'
+                    ? 'bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(6,182,212,0.4)]'
+                    : 'bg-[#0C1527] text-slate-300 hover:text-cyan-300 border border-cyan-500/20'
                 }`}
               >
-                Todos
+                Todas
               </button>
 
-              {/* Configured & Enabled Ranges */}
+              {/* Configured Ranges */}
               {enabledPriceRanges.map(range => (
                 <button
                   key={range.id}
-                  onClick={() => setPriceFilter(range.id)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${getColorClasses(
-                    range.colorTheme,
+                  onClick={() => {
+                    playClickSound();
+                    setPriceFilter(range.id);
+                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                     priceFilter === range.id
-                  )}`}
+                      ? 'bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(6,182,212,0.4)]'
+                      : 'bg-[#0C1527] text-slate-300 hover:text-cyan-300 border border-cyan-500/20'
+                  }`}
                 >
                   {range.label}
                 </button>
@@ -150,17 +130,20 @@ export const CategoryPills: React.FC<CategoryPillsProps> = ({
           {/* Sort Selector Dropdown */}
           {showSortFilter && (
             <div className="flex items-center gap-2 ml-auto">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-600" />
-              <span className="text-xs text-purple-900 font-semibold">{sortFilterTitle}</span>
+              <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-xs text-slate-300 font-semibold">{sortFilterTitle}</span>
               <select
                 id="select-sort-by"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => {
+                  playClickSound();
+                  setSortBy(e.target.value);
+                }}
                 aria-label="Ordenar produtos"
-                className="bg-white/90 border border-purple-100 rounded-xl px-2.5 py-1 text-xs text-purple-950 font-medium focus:outline-none focus:ring-2 focus:ring-pink-400 cursor-pointer shadow-2xs"
+                className="bg-[#0C1527] border border-cyan-500/30 rounded-xl px-3 py-1 text-xs text-cyan-300 font-bold focus:outline-none focus:ring-1 focus:ring-cyan-400 cursor-pointer shadow-xs"
               >
                 {enabledSortOptions.featured && (
-                  <option value="featured">Destaques & Novidades</option>
+                  <option value="featured">Destaques & Drops</option>
                 )}
                 {enabledSortOptions.rating && (
                   <option value="rating">Mais Bem Avaliados ⭐</option>

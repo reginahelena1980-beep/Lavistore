@@ -234,7 +234,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por cliente, pedido..."
+            placeholder="Digite o nome do cliente ou pedido para buscar..."
             className="w-full pl-9 pr-4 py-2 bg-purple-50/50 border border-purple-200 rounded-xl text-xs text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
           <Search className="w-4 h-4 text-purple-400 absolute left-3 top-2.5 pointer-events-none" />
@@ -518,7 +518,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
                       <div className="divide-y divide-purple-100">
                         {Array.isArray(order.items) && order.items.map((item: any, idx: number) => {
                           const prod = item.product || item;
-                          const name = prod.name || item.name || 'Produto Lavistore';
+                          const name = prod.name || item.name || 'Produto da Loja';
                           const unitP = Number(item.sizePrice || prod.price || 0);
                           const qty = Number(item.quantity || 1);
                           const img = prod.images?.[0] || prod.image;

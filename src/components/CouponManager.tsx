@@ -181,7 +181,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
   const handleConfirmReset = () => {
     onResetCoupons();
     setShowResetConfirmModal(false);
-    showToast('🔄 Cupons restaurados para o padrão original da Lavistore!');
+    showToast('🔄 Cupons restaurados para o padrão original da loja!');
   };
 
   const handleCopyCode = (code: string) => {
@@ -499,7 +499,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
                     required
                     value={formCode}
                     onChange={(e) => setFormCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
-                    placeholder="Ex: FRETEGRATIS, MIMO15, PRIMAVERA"
+                    placeholder="Digite o código do cupom aqui"
                     className="w-full px-3.5 py-2.5 rounded-xl border-2 border-amber-200 focus:border-amber-400 focus:outline-hidden font-mono font-bold text-purple-950 text-sm tracking-wider uppercase"
                   />
                 </div>
@@ -620,7 +620,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
                         step="1"
                         value={formMinOrderValue}
                         onChange={(e) => setFormMinOrderValue(e.target.value)}
-                        placeholder="0 = Sem mínimo"
+                        placeholder="Digite o valor mínimo do pedido aqui"
                         className="w-full px-3.5 py-2.5 rounded-xl border-2 border-amber-200 focus:border-amber-400 focus:outline-hidden text-slate-700 text-sm"
                       />
                       <span className="absolute right-3.5 top-2.5 text-xs text-slate-400">
@@ -644,7 +644,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
                       step="1"
                       value={formMinOrderValue}
                       onChange={(e) => setFormMinOrderValue(e.target.value)}
-                      placeholder="Ex: 100 para Frete Grátis a partir de R$ 100"
+                      placeholder="Digite o valor mínimo para frete grátis aqui"
                       className="w-full px-3.5 py-2.5 rounded-xl border-2 border-amber-200 focus:border-amber-400 focus:outline-hidden text-slate-700 text-sm"
                     />
                     <span className="absolute right-3.5 top-2.5 text-xs text-slate-400">
@@ -666,7 +666,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
                   type="text"
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Ex: Frete Grátis para todo o Brasil em compras hoje!"
+                  placeholder="Escreva a mensagem de desconto do cupom aqui"
                   className="w-full px-3.5 py-2.5 rounded-xl border-2 border-amber-200 focus:border-amber-400 focus:outline-hidden text-xs text-slate-700"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
@@ -767,7 +767,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
                 Restaurar Cupons Originais?
               </h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Isso restaurará os cupons padrões da Lavistore: <strong className="text-purple-950 font-mono">FRETEGRATIS, LAVI10, FLORZINHA e PRIMEIRACOMPRA</strong>.
+                Isso restaurará os cupons padrões da loja: <strong className="text-purple-950 font-mono">FRETEGRATIS, DESCONTO10, BEMVINDO e PRIMEIRACOMPRA</strong>.
               </p>
             </div>
 

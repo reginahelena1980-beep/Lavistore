@@ -8,13 +8,14 @@ import {
   Check, 
   ShieldCheck, 
   Sparkles, 
-  Flower2, 
   Share2,
   Ruler,
   Palette,
-  AlertCircle
+  AlertCircle,
+  Zap
 } from 'lucide-react';
 import { Product } from '../types';
+import { playEquipSound, playClickSound } from '../utils/soundSystem';
 
 interface ProductModalProps {
   product: Product | null;
@@ -96,21 +97,25 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     if (navigator.clipboard) {
       navigator.clipboard.writeText(window.location.href);
       setCopiedLink(true);
+      playClickSound();
       setTimeout(() => setCopiedLink(false), 2500);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-purple-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div 
-        className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-purple-100 relative text-slate-800"
+        className="bg-[#09101F] rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-[0_0_50px_rgba(6,182,212,0.3)] border border-cyan-500/40 relative text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           id="btn-close-product-modal"
-          onClick={onClose}
-          className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white/90 hover:bg-purple-100 text-purple-900 flex items-center justify-center shadow-md transition-all duration-200"
+          onClick={() => {
+            playClickSound();
+            onClose();
+          }}
+          className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-[#050A14]/90 hover:bg-[#0E172C] text-slate-300 hover:text-cyan-300 border border-cyan-500/30 flex items-center justify-center shadow-md transition-all duration-200 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -119,8 +124,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           
           {/* Left Column: Image Gallery */}
           <div className="md:col-span-6 space-y-4">
-            <div className={`relative aspect-square rounded-2xl overflow-hidden border border-purple-100 shadow-inner ${
-              product.imageFit === 'contain' ? 'bg-gradient-to-br from-purple-50 via-amber-50/50 to-pink-50 flex items-center justify-center p-3' : 'bg-purple-50'
+            <div className={`relative aspect-square rounded-2xl overflow-hidden border border-cyan-500/30 shadow-inner ${
+              product.imageFit === 'contain' ? 'bg-[#040813] flex items-center justify-center p-3' : 'bg-[#050914]'
             }`}>
               <img
                 src={product.images[activeImageIdx] || product.images[0]}
@@ -140,8 +145,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 className="w-full h-full transition-transform duration-300"
               />
               {product.tag && (
-                <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs text-purple-900 text-xs font-bold px-3 py-1 rounded-full shadow-xs border border-purple-100 flex items-center gap-1.5">
-                  <Flower2 className="w-3.5 h-3.5 text-pink-500 fill-pink-300" />
+                <span className="absolute top-3 left-3 bg-[#050A14]/90 backdrop-blur-xs text-cyan-300 text-xs font-bold px-3 py-1 rounded-full shadow-md border border-cyan-400/40 flex items-center gap-1.5 font-['Cinzel',serif]">
+                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
                   <span>{product.tag}</span>
                 </span>
               )}
@@ -153,9 +158,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 {product.images.map((img, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setActiveImageIdx(idx)}
-                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
-                      activeImageIdx === idx ? 'border-pink-500 scale-105 shadow-xs' : 'border-purple-100 opacity-70 hover:opacity-100'
+                    onClick={() => {
+                      playClickSound();
+                      setActiveImageIdx(idx);
+                    }}
+                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                      activeImageIdx === idx ? 'border-cyan-400 scale-105 shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'border-cyan-500/20 opacity-60 hover:opacity-100'
                     }`}
                   >
                     <img src={img} alt="Thumbnail" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
@@ -165,24 +173,24 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             )}
 
             {/* Brand Perks Pill */}
-            <div className="bg-purple-50/70 rounded-2xl p-3.5 border border-purple-100 space-y-2 text-xs text-purple-900">
+            <div className="bg-[#050A15] rounded-2xl p-3.5 border border-cyan-500/25 space-y-2 text-xs text-slate-300 font-['Cinzel',serif]">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span className="font-semibold">Embalagem especial perfumada.</span>
+                <Sparkles className="w-4 h-4 text-cyan-400" />
+                <span className="font-semibold text-cyan-200">Embalagem especial com Selo do Rei Pálido.</span>
               </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  <span>Garantia de 7 dias (CDC) ou seu dinheiro de volta.</span>
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Garantia & Proteção do Guardião (CDC 7 dias).</span>
                 </div>
                 {onOpenReturnPolicy && (
                   <button
                     type="button"
                     id="btn-product-open-return-policy"
                     onClick={onOpenReturnPolicy}
-                    className="text-pink-600 hover:text-pink-700 font-bold underline underline-offset-2 text-[11px] cursor-pointer"
+                    className="text-cyan-400 hover:text-cyan-300 font-bold underline underline-offset-2 text-[11px] cursor-pointer"
                   >
-                    Ver política de troca
+                    Ver política de garantia
                   </button>
                 )}
               </div>
@@ -194,30 +202,33 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             <div>
               {/* Reviews & Actions */}
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-1.5 text-amber-500 text-xs">
+                <div className="flex items-center gap-1.5 text-amber-400 text-xs">
                   <div className="flex">
                     {[...Array(5)].map((_, i) => (
                       <Star 
                         key={i} 
-                        className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} 
+                        className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-600'}`} 
                       />
                     ))}
                   </div>
-                  <span className="font-bold text-slate-800">{product.rating}</span>
-                  <span className="text-slate-500">({product.reviewCount} avaliações reais)</span>
+                  <span className="font-bold text-slate-200">{product.rating}</span>
+                  <span className="text-slate-400">({product.reviewCount} avaliações reais)</span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleShare}
-                    className="p-2 rounded-full hover:bg-purple-50 text-purple-700 transition-colors"
+                    className="p-2 rounded-full hover:bg-cyan-950/60 text-slate-300 hover:text-cyan-300 transition-colors cursor-pointer"
                     title="Compartilhar"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => onToggleFavorite(product)}
-                    className="p-2 rounded-full hover:bg-pink-50 text-pink-600 transition-colors"
+                    onClick={() => {
+                      playClickSound();
+                      onToggleFavorite(product);
+                    }}
+                    className="p-2 rounded-full hover:bg-cyan-950/60 text-slate-300 hover:text-pink-400 transition-colors cursor-pointer"
                     title="Favoritar"
                   >
                     <Heart className={`w-4 h-4 ${isFavorite ? 'fill-pink-500 text-pink-500' : ''}`} />
@@ -226,29 +237,29 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </div>
 
               {copiedLink && (
-                <div className="bg-pink-100 text-pink-800 text-xs py-1 px-3 rounded-lg mb-2 text-center animate-in fade-in">
-                  Link copiado com sucesso! 🌸
+                <div className="bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-xs py-1 px-3 rounded-lg mb-2 text-center animate-in fade-in">
+                  Link copiado com sucesso! 🧭
                 </div>
               )}
 
               {/* Title */}
               <div className="space-y-2">
-                <h2 className="font-['Mali'] text-xl sm:text-2xl font-bold text-purple-950 leading-snug">
+                <h2 className="font-['Cinzel',serif] text-xl sm:text-2xl font-bold text-white leading-snug">
                   {product.name}
                 </h2>
               </div>
 
               {/* Pricing */}
               <div className="mt-3 flex items-baseline gap-3 flex-wrap">
-                <span className="text-2xl sm:text-3xl font-extrabold text-pink-600">
+                <span className="text-2xl sm:text-3xl font-extrabold text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.6)] font-['Cinzel',serif]">
                   R$ {effectivePrice.toFixed(2)}
                 </span>
                 {product.originalPrice && (
-                  <span className="text-sm text-slate-400 line-through">
+                  <span className="text-sm text-slate-500 line-through">
                     R$ {product.originalPrice.toFixed(2)}
                   </span>
                 )}
-                <span className="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-semibold text-cyan-300 bg-cyan-950/70 border border-cyan-500/30 px-2.5 py-0.5 rounded-full">
                   em até 3x de R$ {(effectivePrice / 3).toFixed(2)} sem juros
                 </span>
               </div>
@@ -256,19 +267,19 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               {/* Stock status */}
               <div className="mt-2 text-xs font-medium flex items-center gap-1.5">
                 {isOutOfStock ? (
-                  <div className="flex items-center gap-1.5 text-rose-600 font-bold bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+                  <div className="flex items-center gap-1.5 text-rose-300 font-bold bg-rose-950/70 px-2.5 py-1 rounded-lg border border-rose-500/40 font-['Cinzel',serif]">
                     <span className="w-2 h-2 rounded-full bg-rose-500" />
                     <span>Esgotado</span>
                   </div>
                 ) : isAdminMode ? (
-                  <div className="flex items-center gap-1.5 text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="flex items-center gap-1.5 text-emerald-300 bg-emerald-950/70 px-2.5 py-1 rounded-lg border border-emerald-500/40">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span>Em estoque: {effectiveStock} un. disponíveis{activeSizeVariant ? ` (${activeSizeVariant.label})` : ''}</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50/50 px-2.5 py-1 rounded-lg border border-emerald-100">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span>Disponível para envio imediato</span>
+                  <div className="flex items-center gap-1.5 text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span>Disponível no inventário para envio imediato</span>
                   </div>
                 )}
               </div>
@@ -277,28 +288,28 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               {hasSizeOption && product.sizes && product.sizes.length > 0 && (
                 <div className={`mt-4 p-3.5 rounded-2xl transition-all space-y-2.5 ${
                   validationAttempted && !isSizeSelected
-                    ? 'border-2 border-rose-400 bg-rose-50/70 ring-2 ring-rose-200/70 shadow-sm'
-                    : 'border border-pink-200 bg-pink-50/50'
+                    ? 'border-2 border-rose-500 bg-rose-950/40 ring-2 ring-rose-500/40 shadow-sm'
+                    : 'border border-cyan-500/30 bg-[#060B17]'
                 }`}>
                   <div className="flex items-center justify-between flex-wrap gap-1.5">
-                    <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5 flex-wrap">
-                      <Ruler className="w-4 h-4 text-pink-600 shrink-0" />
+                    <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5 flex-wrap font-['Cinzel',serif]">
+                      <Ruler className="w-4 h-4 text-cyan-400 shrink-0" />
                       <span>Selecione o Tamanho / Medida:</span>
                       {activeSizeVariant ? (
-                        <span className="text-pink-600 font-extrabold ml-1 bg-pink-100 px-2 py-0.5 rounded-lg border border-pink-200">
+                        <span className="text-cyan-300 font-extrabold ml-1 bg-cyan-950 px-2 py-0.5 rounded-lg border border-cyan-500/40">
                           {activeSizeVariant.label}
                         </span>
                       ) : (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all ${
                           validationAttempted && !isSizeSelected
-                            ? 'bg-rose-100 text-rose-700 border-rose-300 animate-pulse'
-                            : 'bg-amber-100 text-amber-800 border-amber-300'
+                            ? 'bg-rose-950 text-rose-300 border-rose-500 animate-pulse'
+                            : 'bg-amber-950 text-amber-300 border-amber-500/50'
                         }`}>
                           * Obrigatório escolher
                         </span>
                       )}
                     </label>
-                    <span className="text-[8px] text-purple-600 font-semibold bg-white px-2 py-0.5 rounded-full border border-pink-200">
+                    <span className="text-[9px] text-cyan-400 font-semibold bg-[#0A1224] px-2 py-0.5 rounded-full border border-cyan-500/30">
                       {product.sizes.length} opções disponíveis
                     </span>
                   </div>
@@ -313,28 +324,29 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                           type="button"
                           disabled={isSoldOut}
                           onClick={() => {
+                            playClickSound();
                             setSelectedSizeId(sz.id);
                             setQuantity(1);
                           }}
                           className={`relative px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center min-w-[70px] cursor-pointer ${
                             isSelected
-                              ? 'bg-pink-500 text-white shadow-md ring-2 ring-pink-300 scale-105 border-transparent'
+                              ? 'bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.5)] scale-105 border-cyan-300'
                               : isSoldOut
-                                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60 line-through'
-                                : 'bg-white hover:bg-pink-100/70 text-purple-950 border border-purple-200 hover:border-pink-300 shadow-2xs'
+                                ? 'bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed opacity-50 line-through'
+                                : 'bg-[#0C1527] hover:bg-cyan-950 text-slate-200 border border-cyan-500/30 hover:border-cyan-400 shadow-2xs'
                           }`}
                         >
                           <span>{sz.label}</span>
                           {product.sizePricingMode === 'custom' && sz.price && sz.price !== product.price && (
-                            <span className={`text-[8px] ${isSelected ? 'text-pink-100' : 'text-rose-600 font-black'}`}>
+                            <span className={`text-[8px] ${isSelected ? 'text-slate-900 font-black' : 'text-cyan-400 font-black'}`}>
                               R$ {sz.price.toFixed(2)}
                             </span>
                           )}
                           {isSoldOut && (
-                            <span className="text-[7px] font-normal text-slate-400">Esgotado</span>
+                            <span className="text-[7px] font-normal text-slate-500">Esgotado</span>
                           )}
                           {!isSoldOut && sz.stock <= 3 && isAdminMode && (
-                            <span className={`text-[7px] font-extrabold ${isSelected ? 'text-amber-200' : 'text-amber-600'}`}>
+                            <span className={`text-[7px] font-extrabold ${isSelected ? 'text-slate-900' : 'text-amber-400'}`}>
                               Resta {sz.stock}
                             </span>
                           )}
@@ -346,7 +358,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               )}
 
               {/* Description */}
-              <p className="mt-4 text-xs sm:text-sm text-slate-600 leading-relaxed font-['Quicksand'] font-medium">
+              <p className="mt-4 text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
                 {product.description}
               </p>
 
@@ -354,28 +366,28 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               {hasColorOption && product.colors && product.colors.length > 0 && (
                 <div className={`mt-4 space-y-2.5 p-3.5 rounded-2xl transition-all shadow-2xs ${
                   validationAttempted && !isColorSelected
-                    ? 'border-2 border-rose-400 bg-rose-50/70 ring-2 ring-rose-200/70 shadow-sm'
-                    : 'border border-pink-200/80 bg-gradient-to-br from-amber-50/40 via-white to-pink-50/40'
+                    ? 'border-2 border-rose-500 bg-rose-950/40 ring-2 ring-rose-500/40 shadow-sm'
+                    : 'border border-cyan-500/30 bg-[#060B17]'
                 }`}>
                   <div className="flex items-center justify-between flex-wrap gap-1.5">
-                    <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5 flex-wrap">
-                      <Palette className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                    <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5 flex-wrap font-['Cinzel',serif]">
+                      <Palette className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                       <span>Grade de Cores / Estampas:</span>
                       {selectedColor ? (
-                        <span className="font-extrabold text-xs text-pink-600 bg-pink-100/90 px-2.5 py-0.5 rounded-lg border border-pink-200 shadow-2xs ml-1">
+                        <span className="font-extrabold text-xs text-cyan-300 bg-cyan-950 px-2.5 py-0.5 rounded-lg border border-cyan-500/40 shadow-2xs ml-1">
                           {selectedColor}
                         </span>
                       ) : (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all ${
                           validationAttempted && !isColorSelected
-                            ? 'bg-rose-100 text-rose-700 border-rose-300 animate-pulse'
-                            : 'bg-amber-100 text-amber-800 border-amber-300'
+                            ? 'bg-rose-950 text-rose-300 border-rose-500 animate-pulse'
+                            : 'bg-amber-950 text-amber-300 border-amber-500/50'
                         }`}>
                           * Obrigatório escolher
                         </span>
                       )}
                     </label>
-                    <span className="text-[8px] text-purple-600 font-semibold bg-white px-2 py-0.5 rounded-full border border-pink-200">
+                    <span className="text-[9px] text-cyan-400 font-semibold bg-[#0A1224] px-2 py-0.5 rounded-full border border-cyan-500/30">
                       {product.colors.length} {product.colors.length === 1 ? 'opção' : 'opções'}
                     </span>
                   </div>
@@ -387,16 +399,18 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         <button
                           key={c.id || c.name}
                           type="button"
-                          onClick={() => setSelectedColor(c.name)}
+                          onClick={() => {
+                            playClickSound();
+                            setSelectedColor(c.name);
+                          }}
                           className={`group relative p-2 rounded-xl border text-xs font-medium transition-all flex items-center gap-2.5 text-left cursor-pointer ${
                             isSelected
-                              ? 'border-pink-500 bg-pink-50/90 text-pink-950 ring-2 ring-pink-300 shadow-xs'
-                              : 'border-purple-100 bg-white hover:bg-pink-50/40 hover:border-pink-200 text-slate-700 shadow-2xs'
+                              ? 'border-cyan-400 bg-cyan-950/70 text-cyan-200 ring-2 ring-cyan-400/60 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                              : 'border-cyan-500/20 bg-[#0B1426] hover:bg-cyan-950/40 text-slate-300'
                           }`}
                         >
-                          {/* Color Image or Swatch */}
                           {c.imageUrl ? (
-                            <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-purple-200 shrink-0 bg-slate-100 shadow-2xs">
+                            <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-cyan-500/30 shrink-0 bg-slate-900 shadow-2xs">
                               <img
                                 src={c.imageUrl}
                                 alt={c.name}
@@ -406,7 +420,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                             </div>
                           ) : (
                             <div 
-                              className={`w-7 h-7 rounded-lg border border-purple-200 shrink-0 shadow-2xs flex items-center justify-center ${c.bgClass || 'bg-pink-200'}`}
+                              className={`w-7 h-7 rounded-lg border border-cyan-500/40 shrink-0 shadow-2xs flex items-center justify-center ${c.bgClass || 'bg-cyan-600'}`}
                               style={c.hex ? { backgroundColor: c.hex } : undefined}
                             >
                               {isSelected && <Check className="w-3.5 h-3.5 text-white drop-shadow-xs" />}
@@ -414,18 +428,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                           )}
 
                           <div className="flex-1 min-w-0">
-                            <span className={`block font-bold text-xs truncate ${isSelected ? 'text-pink-950' : 'text-purple-950'}`}>
+                            <span className={`block font-bold text-xs truncate ${isSelected ? 'text-cyan-200' : 'text-slate-200'}`}>
                               {c.name}
                             </span>
-                            {c.imageUrl ? (
-                              <span className="text-[9px] text-slate-400 block font-normal">Foto da cor</span>
-                            ) : c.hex ? (
-                              <span className="text-[9px] text-slate-400 block font-mono uppercase">{c.hex}</span>
-                            ) : null}
                           </div>
 
                           {isSelected && (
-                            <div className="w-2 h-2 rounded-full bg-pink-500 shrink-0 shadow-2xs" />
+                            <div className="w-2 h-2 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
                           )}
                         </button>
                       );
@@ -436,17 +445,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
               {/* Features List */}
               <div className="mt-4 space-y-1.5">
-                <p className="text-xs font-bold text-purple-900">Destaques do produto:</p>
-                <ul className="space-y-1 text-xs text-slate-600">
+                <p className="text-xs font-bold text-cyan-300 font-['Cinzel',serif]">Destaques da relíquia:</p>
+                <ul className="space-y-1 text-xs text-slate-300">
                   {product.features.map((feat, i) => (
                     <li key={i} className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                       <span>{feat}</span>
                     </li>
                   ))}
                   {product.dimensions && (
-                    <li className="flex items-center gap-2 text-purple-800 font-medium">
-                      <span className="text-pink-500">📏</span>
+                    <li className="flex items-center gap-2 text-cyan-200 font-medium">
+                      <span className="text-cyan-400">📏</span>
                       <span>Dimensões: {product.dimensions}</span>
                     </li>
                   )}
@@ -454,12 +463,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </div>
 
               {/* Gift Wrapping Option Checkbox */}
-              <div className="mt-4 p-3 bg-pink-50/70 rounded-2xl border border-pink-200 flex items-center justify-between">
+              <div className="mt-4 p-3 bg-[#060B17] rounded-2xl border border-cyan-500/30 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <Gift className="w-5 h-5 text-pink-500" />
+                  <Gift className="w-5 h-5 text-cyan-400" />
                   <div>
-                    <p className="text-xs font-bold text-pink-950">Embalagem para Presente Floral?</p>
-                    <p className="text-[11px] text-pink-700">Inclui laço de cetim, papel de seda e cartãozinho</p>
+                    <p className="text-xs font-bold text-slate-100 font-['Cinzel',serif]">Embalagem Mística de Presente?</p>
+                    <p className="text-[11px] text-slate-400">Inclui lacre de cera, selo do Rei Pálido e cartão de aventureiro</p>
                   </div>
                 </div>
                 <input
@@ -467,13 +476,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   id="checkbox-gift-wrap"
                   checked={isGiftWrapped}
                   onChange={(e) => setIsGiftWrapped(e.target.checked)}
-                  className="w-5 h-5 text-pink-500 rounded-md border-pink-300 focus:ring-pink-400 cursor-pointer accent-pink-500"
+                  className="w-5 h-5 text-cyan-500 rounded-md border-cyan-500/40 focus:ring-cyan-400 cursor-pointer accent-cyan-500"
                 />
               </div>
+
               {/* Validation Warning Alert */}
               {validationAttempted && !canProceed && (
-                <div className="mt-3 p-3 bg-rose-50 border border-rose-300 rounded-2xl flex items-center gap-2.5 text-rose-800 text-xs font-bold animate-in fade-in shadow-xs">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <div className="mt-3 p-3 bg-rose-950/80 border border-rose-500 rounded-2xl flex items-center gap-2.5 text-rose-200 text-xs font-bold animate-in fade-in shadow-xs">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                   <span>
                     {!isSizeSelected && !isColorSelected
                       ? 'Por favor, selecione um tamanho e uma cor para continuar com a compra.'
@@ -486,22 +496,28 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             </div>
 
             {/* Action Bar: Quantity & Add to Cart */}
-            <div className="pt-4 border-t border-purple-100 flex items-center gap-3">
-              <div className="flex items-center border border-purple-200 rounded-2xl bg-purple-50/50 p-1">
+            <div className="pt-4 border-t border-cyan-500/20 flex items-center gap-3">
+              <div className="flex items-center border border-cyan-500/30 rounded-2xl bg-[#060B17] p-1">
                 <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  onClick={() => {
+                    playClickSound();
+                    setQuantity(Math.max(1, quantity - 1));
+                  }}
                   disabled={isOutOfStock || !canProceed}
-                  className="w-8 h-8 rounded-xl bg-white hover:bg-purple-100 text-purple-900 font-bold flex items-center justify-center transition-colors disabled:opacity-50"
+                  className="w-8 h-8 rounded-xl bg-[#0D162B] hover:bg-cyan-950 text-slate-200 font-bold flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   -
                 </button>
-                <span className="w-8 text-center font-bold text-sm text-purple-950">
+                <span className="w-8 text-center font-bold text-sm text-cyan-300 font-['Cinzel',serif]">
                   {quantity}
                 </span>
                 <button
-                  onClick={() => setQuantity(Math.min(effectiveStock, quantity + 1))}
+                  onClick={() => {
+                    playClickSound();
+                    setQuantity(Math.min(effectiveStock, quantity + 1));
+                  }}
                   disabled={isOutOfStock || !canProceed}
-                  className="w-8 h-8 rounded-xl bg-white hover:bg-purple-100 text-purple-900 font-bold flex items-center justify-center transition-colors disabled:opacity-50"
+                  className="w-8 h-8 rounded-xl bg-[#0D162B] hover:bg-cyan-950 text-slate-200 font-bold flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   +
                 </button>
@@ -517,6 +533,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   }
                   if (isOutOfStock) return;
 
+                  playEquipSound();
                   onAddToCart(
                     product, 
                     quantity, 
@@ -527,15 +544,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   );
                   onClose();
                 }}
-                className={`flex-1 py-3.5 px-6 rounded-2xl font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition-all duration-300 transform active:scale-98 cursor-pointer ${
+                className={`flex-1 py-3.5 px-6 rounded-2xl font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition-all duration-300 transform active:scale-98 cursor-pointer font-['Cinzel',serif] ${
                   isOutOfStock
-                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                    ? 'bg-slate-900 text-slate-500 border border-slate-800 cursor-not-allowed shadow-none'
                     : !canProceed
-                      ? 'bg-gradient-to-r from-amber-400 via-pink-500 to-purple-600 hover:from-amber-500 hover:to-pink-600 text-white shadow-pink-200'
-                      : 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 hover:from-purple-700 hover:to-pink-600 text-white shadow-purple-200'
+                      ? 'bg-gradient-to-r from-amber-500 via-cyan-500 to-blue-600 text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.4)]'
+                      : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(6,182,212,0.6)] font-black'
                 }`}
               >
-                <ShoppingBag className="w-5 h-5 text-white" />
+                <ShoppingBag className="w-5 h-5" />
                 <span>
                   {isOutOfStock 
                     ? (product.hasSizes ? 'Tamanho Esgotado' : 'Esgotado') 
@@ -545,7 +562,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                           : !isSizeSelected
                             ? 'Selecione o Tamanho'
                             : 'Selecione a Cor')
-                      : `Adicionar à Sacola • R$ ${(effectivePrice * quantity + (isGiftWrapped ? 5.90 : 0)).toFixed(2)}`}
+                      : `Adicionar ao Inventário • R$ ${(effectivePrice * quantity + (isGiftWrapped ? 5.90 : 0)).toFixed(2)}`}
                 </span>
               </button>
             </div>

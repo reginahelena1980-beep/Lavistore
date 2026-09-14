@@ -45,7 +45,7 @@ export const ReturnPolicyModal: React.FC<ReturnPolicyModalProps> = ({
 
   const rawWhatsapp = config?.whatsappNumber?.replace(/\D/g, '') || '5511987654321';
   const whatsappUrl = `https://wa.me/${rawWhatsapp}?text=${encodeURIComponent(
-    'Olá! Gostaria de informações para solicitar uma troca ou devolução de um pedido da Lavistore. 🌸'
+    'Olá! Gostaria de informações para solicitar uma troca ou devolução de um pedido. 🌸'
   )}`;
 
   return (
@@ -204,7 +204,7 @@ export const ReturnPolicyModal: React.FC<ReturnPolicyModalProps> = ({
             <ul className="space-y-2 list-disc list-inside leading-relaxed text-slate-600">
               <li>O produto não deve apresentar indícios de uso indevido, avarias provocadas por acidentes ou violação de lacres originais.</li>
               <li>Deve ser devolvido com sua embalagem e todos os acessórios, laços ou mimos que o acompanharam originalmente.</li>
-              <li>Em caso de defeito de fabricação ou danos causados pelo frete, a Lavistore garante a troca por item idêntico, substituição por outro produto de mesmo valor ou reembolso total conforme sua preferência.</li>
+              <li>Em caso de defeito de fabricação ou danos causados pelo frete, a loja garante a troca por item idêntico, substituição por outro produto de mesmo valor ou reembolso total conforme sua preferência.</li>
             </ul>
           </div>
 
@@ -214,7 +214,7 @@ export const ReturnPolicyModal: React.FC<ReturnPolicyModalProps> = ({
             <div>
               <p className="font-bold">Nosso compromisso de encantamento:</p>
               <p className="text-[11px] text-amber-900 leading-relaxed mt-0.5">
-                Queremos que sua experiência com a Lavistore seja sempre doce e acolhedora. Se tiver qualquer dúvida, nosso suporte humanizado está pronto para atender você com todo o carinho!
+                Queremos que sua experiência seja sempre doce e acolhedora. Se tiver qualquer dúvida, nosso suporte humanizado está pronto para atender você com todo o carinho!
               </p>
             </div>
           </div>

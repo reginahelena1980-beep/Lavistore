@@ -186,9 +186,9 @@
     }
   ],
   "heroConfig": {
-    "badge": "Presentes & Mimos Criativos 🌸",
-    "title": "Demonstre seu carinho com nossos mimos!",
-    "subtitle": "Presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+    "badge": "Escreva a tag ou selo superior aqui",
+    "title": "Escreva o título principal de destaque aqui",
+    "subtitle": "Escreva a descrição da loja aqui",
     "imageFit": "cover",
     "imageScale": 100,
     "imagePosition": "center",
@@ -197,8 +197,8 @@
     "bannerHeight": "medium"
   },
   "homePageConfig": {
-    "announcementText": "Frete Grátis para todo o Brasil para compras acima de R$ 150.00",
-    "announcementCoupon": "TORRI",
+    "announcementText": "Escreva o aviso da barra de destaque aqui (ex: Frete Grátis acima de R$ 149)",
+    "announcementCoupon": "SEUCUPOM",
     "showAnnouncement": true
   }
 }
