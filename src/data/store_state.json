@@ -1,5 +1,7 @@
 {
-  "updatedAt": "2026-09-07T17:45:00.000Z",
+  "updatedAt": "2026-09-14T18:14:54.890Z",
+  "adminPassword": "1234",
+  "adminPasswordChanged": false,
   "products": [
     {
       "id": "lav-74750",
@@ -7,7 +9,7 @@
       "category": "floral-special",
       "price": 15,
       "originalPrice": 19.9,
-      "rating": 5.0,
+      "rating": 5,
       "reviewCount": 28,
       "stock": 20,
       "isFloralSpecial": true,
@@ -30,7 +32,7 @@
       "category": "floral-special",
       "price": 15,
       "originalPrice": 19.9,
-      "rating": 5.0,
+      "rating": 5,
       "reviewCount": 19,
       "stock": 20,
       "isFloralSpecial": true,
@@ -53,7 +55,7 @@
       "category": "floral-special",
       "price": 15,
       "originalPrice": 19.9,
-      "rating": 5.0,
+      "rating": 5,
       "reviewCount": 35,
       "stock": 20,
       "isFloralSpecial": true,
@@ -75,8 +77,8 @@
       "name": "Meia 3/4 Panda Listrada Algodão Confort",
       "category": "acessorios-mimos",
       "price": 15,
-      "originalPrice": 22.0,
-      "rating": 5.0,
+      "originalPrice": 22,
+      "rating": 5,
       "reviewCount": 42,
       "stock": 20,
       "badge": "Mais Amada 🐼",
@@ -186,9 +188,9 @@
     }
   ],
   "heroConfig": {
-    "badge": "Escreva a tag ou selo superior aqui",
-    "title": "Escreva o título principal de destaque aqui",
-    "subtitle": "Escreva a descrição da loja aqui",
+    "badge": "Presentes & Mimos Criativos 🌸",
+    "title": "Demonstre seu carinho com nossos mimos!",
+    "subtitle": "Presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
     "imageFit": "cover",
     "imageScale": 100,
     "imagePosition": "center",
@@ -197,8 +199,9 @@
     "bannerHeight": "medium"
   },
   "homePageConfig": {
-    "announcementText": "Escreva o aviso da barra de destaque aqui (ex: Frete Grátis acima de R$ 149)",
-    "announcementCoupon": "SEUCUPOM",
+    "announcementText": "Frete Grátis para todo o Brasil para compras acima de R$ 150.00",
+    "announcementCoupon": "TORRI",
     "showAnnouncement": true
-  }
+  },
+  "adminPasswordChangedAt": "2026-09-14T18:14:54.890Z"
 }

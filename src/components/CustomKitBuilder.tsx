@@ -101,7 +101,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
         <div className="text-center max-w-2xl mx-auto mb-8 space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-200/90 text-amber-950 text-xs font-bold uppercase tracking-wider border border-amber-300 shadow-2xs">
             <ShoppingBag className="w-3.5 h-3.5 text-amber-700" />
-            <span>Experiência Exclusiva</span>
+            <span>Experiência Exclusiva Lavistore</span>
           </div>
           <h2 className="font-['Mali'] text-2xl sm:text-4xl font-bold text-purple-950">
             Monte sua Sacolinha Amarela de Presente
@@ -387,7 +387,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                       type="text"
                       value={recipient}
                       onChange={(e) => setRecipient(e.target.value)}
-                      placeholder="Digite o nome de quem vai receber aqui"
+                      placeholder="Ex: Beatriz / Melhor Amiga"
                       className="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                   </div>
@@ -397,7 +397,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                       type="text"
                       value={sender}
                       onChange={(e) => setSender(e.target.value)}
-                      placeholder="Digite o seu nome aqui"
+                      placeholder="Ex: Com amor, Mariana"
                       className="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                   </div>
@@ -411,7 +411,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     className="w-full p-3 bg-amber-50/50 border border-amber-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 leading-relaxed font-['Comfortaa'] font-medium"
-                    placeholder="Escreva a mensagem especial do cartão aqui"
+                    placeholder="Escreva algo do fundo do coração..."
                   />
                 </div>
 

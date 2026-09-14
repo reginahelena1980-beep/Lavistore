@@ -1,7 +1,6 @@
 import React from 'react';
-import { X, Heart, ShoppingBag, Trash2, Sparkles, BookmarkCheck } from 'lucide-react';
+import { X, Heart, ShoppingBag, Trash2, Flower2 } from 'lucide-react';
 import { Product } from '../types';
-import { playClickSound, playEquipSound } from '../utils/soundSystem';
 
 interface FavoritesDrawerProps {
   isOpen: boolean;
@@ -23,33 +22,30 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden font-['Cinzel',serif]">
+    <div className="fixed inset-0 z-50 overflow-hidden">
       <div 
         onClick={onClose}
-        className="absolute inset-0 bg-black/80 backdrop-blur-xs transition-opacity animate-in fade-in" 
+        className="absolute inset-0 bg-purple-950/50 backdrop-blur-xs transition-opacity animate-in fade-in" 
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-[#09101F] text-slate-100 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col border-l border-cyan-500/30 animate-in slide-in-from-right duration-300">
+        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col border-l border-purple-100 animate-in slide-in-from-right duration-300">
           
           {/* Header */}
-          <div className="p-4 sm:p-5 border-b border-cyan-500/25 flex items-center justify-between bg-[#060B17]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-pink-950/70 text-pink-400 flex items-center justify-center border border-pink-500/40 shadow-[0_0_10px_rgba(236,72,153,0.3)]">
+          <div className="p-4 sm:p-5 border-b border-purple-100 flex items-center justify-between bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center">
                 <Heart className="w-4 h-4 fill-pink-500 text-pink-500" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-white">Lista de Desejos & Relíquias</h3>
-                <span className="text-xs text-cyan-400 font-medium">({favorites.length} {favorites.length === 1 ? 'item salvo' : 'itens salvos'})</span>
+                <h3 className="font-['Playfair_Display'] font-bold text-base text-purple-950">Seus Mimos Favoritos</h3>
+                <span className="text-xs text-purple-600 font-medium">({favorites.length} {favorites.length === 1 ? 'salvo' : 'salvos'})</span>
               </div>
             </div>
 
             <button
-              onClick={() => {
-                playClickSound();
-                onClose();
-              }}
-              className="p-2 rounded-full hover:bg-cyan-950 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-purple-100 text-purple-900 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -59,44 +55,42 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
             {favorites.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
-                <div className="w-16 h-16 rounded-full bg-[#060B17] flex items-center justify-center text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
-                  <BookmarkCheck className="w-8 h-8" />
+                <div className="w-16 h-16 rounded-full bg-pink-50 flex items-center justify-center text-pink-400">
+                  <Flower2 className="w-8 h-8 fill-pink-100 text-pink-400" />
                 </div>
-                <h4 className="text-lg font-bold text-white">Nenhuma relíquia guardada</h4>
-                <p className="text-xs text-slate-400 max-w-xs font-['Plus_Jakarta_Sans',sans-serif]">
-                  Marque com coração as armas, dados e colecionáveis que você deseja forjar depois!
+                <h4 className="font-['Playfair_Display'] text-lg font-bold text-purple-950">Lista de Desejos Vazia</h4>
+                <p className="text-xs text-slate-500 max-w-xs">
+                  Clique no coraçãozinho nos produtos que você amar para guardá-los aqui! 🌸
                 </p>
               </div>
             ) : (
               favorites.map((product) => (
                 <div
                   key={product.id}
-                  className="p-3 bg-[#060B17] rounded-2xl border border-cyan-500/25 flex items-center gap-3 hover:border-cyan-400/60 transition-colors"
+                  className="p-3 bg-purple-50/40 rounded-2xl border border-purple-100 flex items-center gap-3 hover:border-pink-200 transition-colors"
                 >
                   <img
                     src={product.images[0]}
                     alt={product.name}
                     referrerPolicy="no-referrer"
                     onClick={() => {
-                      playClickSound();
                       onOpenProduct(product);
                       onClose();
                     }}
-                    className="w-16 h-16 object-cover rounded-xl border border-cyan-500/30 cursor-pointer bg-slate-950 shrink-0"
+                    className="w-16 h-16 object-cover rounded-xl border border-purple-100 cursor-pointer"
                   />
 
                   <div className="flex-1 min-w-0">
                     <h4 
                       onClick={() => {
-                        playClickSound();
                         onOpenProduct(product);
                         onClose();
                       }}
-                      className="text-xs font-bold text-white truncate cursor-pointer hover:text-cyan-300"
+                      className="text-xs font-bold text-purple-950 truncate cursor-pointer hover:text-pink-600"
                     >
                       {product.name}
                     </h4>
-                    <span className="text-xs font-bold text-cyan-400 block mt-0.5">
+                    <span className="text-xs font-bold text-pink-600 block mt-0.5">
                       R$ {product.price.toFixed(2)}
                     </span>
                     <div className="flex items-center gap-2 mt-2">
@@ -111,19 +105,19 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
                             onClick={() => {
                               if (product.stock > 0) {
                                 if (hasOptions) {
-                                  playClickSound();
                                   onOpenProduct(product);
                                   onClose();
                                 } else {
-                                  playEquipSound();
                                   onAddToCart(product);
                                 }
                               }
                             }}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer ${
                               product.stock <= 0
-                                ? 'bg-slate-900 text-slate-500 border border-slate-800 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                                : hasOptions
+                                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white'
+                                  : 'bg-purple-600 hover:bg-purple-700 text-white'
                             }`}
                           >
                             <ShoppingBag className="w-3 h-3" />
@@ -131,19 +125,16 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
                               {product.stock <= 0 
                                 ? 'Esgotado' 
                                 : hasOptions 
-                                  ? 'Ver Opções' 
-                                  : 'Equipar Item'}
+                                  ? 'Escolher Opções' 
+                                  : 'Mover p/ Sacola'}
                             </span>
                           </button>
                         );
                       })()}
                       <button
-                        onClick={() => {
-                          playClickSound();
-                          onRemoveFavorite(product);
-                        }}
-                        className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
-                        title="Remover dos desejos"
+                        onClick={() => onRemoveFavorite(product)}
+                        className="text-slate-400 hover:text-rose-500 p-1"
+                        title="Remover dos favoritos"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

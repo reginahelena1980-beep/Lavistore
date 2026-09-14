@@ -80,7 +80,7 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
   };
 
   const handleReset = () => {
-    if (confirm('Deseja restaurar todos os textos e fontes da Página Inicial para o padrão original?')) {
+    if (confirm('Deseja restaurar todos os textos e fontes da Página Inicial para o padrão original da Lavistore?')) {
       setFormData(DEFAULT_HOME_PAGE_CONFIG);
       onResetDefaults();
       setSavedToast(true);
@@ -133,7 +133,7 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             value={item.text}
             onChange={(e) => updateField(fieldKey, { text: e.target.value })}
             className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-            placeholder={defaultFallback || "Escreva a descrição da loja aqui"}
+            placeholder="Digite o texto personalizado..."
           />
         ) : (
           <input
@@ -141,7 +141,7 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             value={item.text}
             onChange={(e) => updateField(fieldKey, { text: e.target.value })}
             className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-            placeholder={defaultFallback || "Escreva o texto deste campo aqui"}
+            placeholder="Digite o texto personalizado..."
           />
         )}
 
@@ -193,7 +193,7 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             Edição de Textos, Tamanho de Fontes & Negrito 📝
           </h2>
           <p className="text-xs sm:text-sm text-purple-900 max-w-2xl font-medium leading-relaxed">
-            Aqui você tem controle total para personalizar todas as frases, títulos, botões e selos da página inicial da sua loja, ajustando o tamanho exato da tipografia e escolhendo se fica em <strong>Negrito</strong> ou Normal.
+            Aqui você tem controle total para personalizar todas as frases, títulos, botões e selos da página inicial da Lavistore, ajustando o tamanho exato da tipografia e escolhendo se fica em <strong>Negrito</strong> ou Normal.
           </p>
         </div>
 
@@ -352,7 +352,7 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                   value={formData.announcementText !== undefined && formData.announcementText !== null ? formData.announcementText : ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, announcementText: e.target.value }))}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:outline-none focus:ring-2 focus:ring-purple-400"
-                  placeholder="Escreva o aviso da barra de destaque aqui (ex: Frete Grátis acima de R$ 149)"
+                  placeholder="Ex: Frete Grátis para compras acima de R$ 149,90"
                 />
               </div>
 
@@ -383,7 +383,7 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                     value={formData.announcementCoupon !== undefined && formData.announcementCoupon !== null ? formData.announcementCoupon : ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, announcementCoupon: e.target.value.toUpperCase() }))}
                     className="w-full pl-3.5 pr-9 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-bold uppercase focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    placeholder="Digite o código do cupom aqui (ou deixe em branco)"
+                    placeholder="Deixe em branco para NÃO exibir cupom"
                   />
                   {formData.announcementCoupon ? (
                     <button
@@ -459,19 +459,19 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             </h3>
 
             <div className="space-y-4">
-              {renderFieldEditor('heroBadge', 'Selo do Topo', 'Pequeno texto no topo com a paleta de 4 cores.', false, 'Escreva a tag ou selo superior aqui')}
-              {renderFieldEditor('heroTitle', 'Título Principal do Banner', 'Grande chamada de impacto para acolher a cliente.', true, 'Escreva o título principal de destaque aqui')}
-              {renderFieldEditor('heroSubtitle', 'Subtítulo Explicativo', 'Parágrafo acolhedor que apresenta a proposta e história da loja.', true, 'Escreva a descrição da loja aqui')}
+              {renderFieldEditor('heroBadge', 'Selo do Topo', 'Pequeno texto no topo com a paleta de 4 cores.', false, 'Presentes Criativos & Mimos com Amor 🌸')}
+              {renderFieldEditor('heroTitle', 'Título Principal do Banner', 'Grande chamada de impacto para acolher a cliente.', true, 'Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!')}
+              {renderFieldEditor('heroSubtitle', 'Subtítulo Explicativo', 'Parágrafo acolhedor que conta sobre a essência da Lavistore.', true, 'A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.')}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {renderFieldEditor('heroBtnPrimary', 'Botão Principal (Gradiente)', 'Texto do botão de explorar lançamentos.', false, 'Escreva o texto do botão principal aqui')}
-                {renderFieldEditor('heroBtnSecondary', 'Botão Secundário (Amarelo)', 'Texto do botão de kit / sacolinha.', false, 'Escreva o texto do botão secundário aqui')}
+                {renderFieldEditor('heroBtnPrimary', 'Botão Principal (Gradiente)', 'Texto do botão de explorar lançamentos.', false, 'Explorar Lançamentos Florais')}
+                {renderFieldEditor('heroBtnSecondary', 'Botão Secundário (Amarelo)', 'Texto do botão de kit / sacolinha.', false, 'Monte sua Sacolinha de Presente')}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderFieldEditor('heroTrust1', 'Destaque 1 (Cheirinho)', 'Frase de confiança 1 no rodapé do banner.', false, 'Escreva o diferencial 1 aqui')}
-                {renderFieldEditor('heroTrust2', 'Destaque 2 (Brinde)', 'Frase de confiança 2 no rodapé do banner.', false, 'Escreva o diferencial 2 aqui')}
-                {renderFieldEditor('heroTrust3', 'Destaque 3 (Artesanal)', 'Frase de confiança 3 no rodapé do banner.', false, 'Escreva o diferencial 3 aqui')}
+                {renderFieldEditor('heroTrust1', 'Destaque 1 (Cheirinho)', 'Frase de confiança 1 no rodapé do banner.', false, 'Embalagens com Cheirinho Doce')}
+                {renderFieldEditor('heroTrust2', 'Destaque 2 (Brinde)', 'Frase de confiança 2 no rodapé do banner.', false, 'Brinde Floral em Todos os Pedidos')}
+                {renderFieldEditor('heroTrust3', 'Destaque 3 (Artesanal)', 'Frase de confiança 3 no rodapé do banner.', false, 'Acabamento Artesanal com Amor')}
               </div>
             </div>
           </div>
@@ -495,10 +495,10 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                     className="w-9 h-9 text-center bg-white border border-amber-300 rounded-lg text-sm"
                     title="Ícone / Emoji da Vantagem 1"
                   />
-                  <span className="text-xs font-bold text-purple-950">Vantagem 1</span>
+                  <span className="text-xs font-bold text-purple-950">Vantagem 1 (Mimos na Sacolinha)</span>
                 </div>
-                {renderFieldEditor('perk1Title', 'Vantagem 1 - Título', 'Título da primeira vantagem.', false, 'Escreva o título da vantagem 1 aqui')}
-                {renderFieldEditor('perk1Desc', 'Vantagem 1 - Descrição', 'Descrição da primeira vantagem.', true, 'Escreva a descrição da vantagem 1 aqui')}
+                {renderFieldEditor('perk1Title', 'Vantagem 1 - Título', 'Título da primeira vantagem.', false, 'Mimos Florais em Cada Sacolinha Amarela')}
+                {renderFieldEditor('perk1Desc', 'Vantagem 1 - Descrição', 'Descrição dos adesivos e brindes.', true, 'Você sempre ganha adesivos das 3 florzinhas, marcadores fofos e mini surpresas.')}
               </div>
 
               <div className="space-y-3 p-4 bg-amber-50/50 rounded-2xl border border-amber-200">
@@ -510,10 +510,10 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                     className="w-9 h-9 text-center bg-white border border-amber-300 rounded-lg text-sm"
                     title="Ícone / Emoji da Vantagem 2"
                   />
-                  <span className="text-xs font-bold text-purple-950">Vantagem 2</span>
+                  <span className="text-xs font-bold text-purple-950">Vantagem 2 (Cheirinho Floral & Doce)</span>
                 </div>
-                {renderFieldEditor('perk2Title', 'Vantagem 2 - Título', 'Título da segunda vantagem.', false, 'Escreva o título da vantagem 2 aqui')}
-                {renderFieldEditor('perk2Desc', 'Vantagem 2 - Descrição', 'Descrição da segunda vantagem.', true, 'Escreva a descrição da vantagem 2 aqui')}
+                {renderFieldEditor('perk2Title', 'Vantagem 2 - Título', 'Título do perfume artesanal.', false, 'Cheirinho Floral & Doce')}
+                {renderFieldEditor('perk2Desc', 'Vantagem 2 - Descrição', 'Descrição da fragrância suave.', true, 'Cada sacolinha amarela é borrifada artesanalmente com nossa fragrância suave de lavanda e baunilha.')}
               </div>
 
               <div className="space-y-3 p-4 bg-amber-50/50 rounded-2xl border border-amber-200">
@@ -525,10 +525,10 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                     className="w-9 h-9 text-center bg-white border border-amber-300 rounded-lg text-sm"
                     title="Ícone / Emoji da Vantagem 3"
                   />
-                  <span className="text-xs font-bold text-purple-950">Vantagem 3</span>
+                  <span className="text-xs font-bold text-purple-950">Vantagem 3 (Frete Grátis)</span>
                 </div>
-                {renderFieldEditor('perk3Title', 'Vantagem 3 - Título', 'Título de envio gratuito.', false, 'Escreva o título da vantagem 3 aqui')}
-                {renderFieldEditor('perk3Desc', 'Vantagem 3 - Descrição', 'Regras de envio e valor mínimo.', true, 'Escreva a descrição da vantagem 3 aqui')}
+                {renderFieldEditor('perk3Title', 'Vantagem 3 - Título', 'Título de envio gratuito.', false, 'Frete Grátis Especial')}
+                {renderFieldEditor('perk3Desc', 'Vantagem 3 - Descrição', 'Regras de envio e valor mínimo.', true, 'Envio gratuito para todo o Brasil em compras a partir de R$ 149 com rastreamento detalhado.')}
               </div>
 
               <div className="space-y-3 p-4 bg-amber-50/50 rounded-2xl border border-amber-200">
@@ -540,10 +540,10 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                     className="w-9 h-9 text-center bg-white border border-amber-300 rounded-lg text-sm"
                     title="Ícone / Emoji da Vantagem 4"
                   />
-                  <span className="text-xs font-bold text-purple-950">Vantagem 4</span>
+                  <span className="text-xs font-bold text-purple-950">Vantagem 4 (Feito com Amor)</span>
                 </div>
-                {renderFieldEditor('perk4Title', 'Vantagem 4 - Título', 'Título da quarta vantagem.', false, 'Escreva o título da vantagem 4 aqui')}
-                {renderFieldEditor('perk4Desc', 'Vantagem 4 - Descrição', 'Descrição da quarta vantagem.', true, 'Escreva a descrição da vantagem 4 aqui')}
+                {renderFieldEditor('perk4Title', 'Vantagem 4 - Título', 'Título do carinho artesanal.', false, 'Feito com Amor & Afeto')}
+                {renderFieldEditor('perk4Desc', 'Vantagem 4 - Descrição', 'Qualidade de gramatura e papelaria.', true, 'Produtos de papelaria selecionados a dedo com gramatura nobre e sacolinhas amarelas exclusivas.')}
               </div>
             </div>
           </div>
@@ -558,8 +558,8 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             </h3>
 
             <div className="space-y-4">
-              {renderFieldEditor('catalogTitle', 'Título da Seção de Produtos', 'Título exibido acima do catálogo.', false, 'Escreva o título da vitrine de produtos aqui')}
-              {renderFieldEditor('catalogSubtitle', 'Subtítulo da Seção de Produtos', 'Texto explicativo sobre filtros e estoque.', true, 'Escreva a descrição ou subtítulo da vitrine aqui')}
+              {renderFieldEditor('catalogTitle', 'Título da Seção de Produtos', 'Título exibido acima do catálogo.', false, 'Nossos Mimos Encantados ✨')}
+              {renderFieldEditor('catalogSubtitle', 'Subtítulo da Seção de Produtos', 'Texto explicativo sobre filtros e estoque.', true, 'Encontre os mimos perfeitos com estoque atualizado em tempo real.')}
             </div>
           </div>
         )}
@@ -573,10 +573,10 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             </h3>
 
             <div className="space-y-4">
-              {renderFieldEditor('promoBadge', 'Selo do Banner', 'Pequeno texto superior do banner colorido.', false, 'Escreva o selo do banner promocional aqui')}
-              {renderFieldEditor('promoTitle', 'Título da Chamada de Sacolinha', 'Chamada para montar a sacolinha personalizada.', true, 'Escreva o título da chamada promocional aqui')}
-              {renderFieldEditor('promoDescription', 'Descrição da Promoção', 'Detalhes da sacolinha amarela, mimos e desconto.', true, 'Escreva a descrição da promoção ou serviço especial aqui')}
-              {renderFieldEditor('promoButton', 'Texto do Botão CTA', 'Botão de ação rápida para ir ao montador.', false, 'Escreva o texto do botão de ação aqui')}
+              {renderFieldEditor('promoBadge', 'Selo do Banner', 'Pequeno texto superior do banner colorido.', false, 'Presenteie com Criatividade')}
+              {renderFieldEditor('promoTitle', 'Título da Chamada de Sacolinha', 'Chamada para montar a sacolinha personalizada.', true, 'Quer montar uma sacolinha de presente personalizada?')}
+              {renderFieldEditor('promoDescription', 'Descrição da Promoção', 'Detalhes da sacolinha amarela, mimos e desconto.', true, 'Escolha a sacolinha amarela exclusiva, selecione os mimos favoritos, adicione uma dedicatória e ganhe 10% de desconto no combo!')}
+              {renderFieldEditor('promoButton', 'Texto do Botão CTA', 'Botão de ação rápida para ir ao montador.', false, 'Montar Sacolinha Agora')}
             </div>
           </div>
         )}
@@ -590,9 +590,9 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             </h3>
 
             <div className="space-y-4">
-              {renderFieldEditor('newsletterBadge', 'Selo do Clube', 'Selo superior da caixa da newsletter.', false, 'Escreva o selo da newsletter aqui')}
-              {renderFieldEditor('newsletterTitle', 'Título do Desconto da Newsletter', 'Oferta de 10% OFF no primeiro pedido.', false, 'Escreva o título de convite da newsletter aqui')}
-              {renderFieldEditor('newsletterDesc', 'Descrição da Newsletter', 'Frase convidando a cadastrar o e-mail para mimos.', true, 'Escreva a descrição ou benefício da newsletter aqui')}
+              {renderFieldEditor('newsletterBadge', 'Selo do Clube', 'Selo superior da caixa da newsletter.', false, 'Clube de Mimos Lavistore')}
+              {renderFieldEditor('newsletterTitle', 'Título do Desconto da Newsletter', 'Oferta de 10% OFF no primeiro pedido.', false, 'Ganhe 10% OFF na sua primeira compra! 🌸')}
+              {renderFieldEditor('newsletterDesc', 'Descrição da Newsletter', 'Frase convidando a cadastrar o e-mail para mimos.', true, 'Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.')}
             </div>
           </div>
         )}

@@ -18,8 +18,8 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
   onEditField
 }) => {
   const badgeText = config?.reviewsBadge?.text || 'Depoimentos Reais';
-  const titleText = config?.reviewsTitle?.text || 'Avaliações dos Clientes';
-  const subtitleText = config?.reviewsSubtitle?.text || 'Veja o que nossos clientes dizem sobre a experiência de compra e a qualidade dos nossos produtos.';
+  const titleText = config?.reviewsTitle?.text || 'Amor em Forma de Pacotinho 🌸';
+  const subtitleText = config?.reviewsSubtitle?.text || 'Veja o que nossas clientes dizem sobre o unboxing perfumado e o carinho dos produtos Lavistore.';
   const displayedReviews = reviews || [];
 
   if (displayedReviews.length === 0 && !isAdminEditing) {
@@ -125,10 +125,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             <span>{config?.reviewsInstagramTag || 'Comunidade Apaixonada'}</span>
           </div>
           <h3 className="font-['Playfair_Display'] text-xl sm:text-2xl font-bold text-purple-950">
-            {config?.reviewsInstagramTitle || 'Compartilhe sua experiência no Instagram'}
+            {config?.reviewsInstagramTitle || 'Compartilhe seu unboxing no Instagram com #LavistoreLove'}
           </h3>
           <p className="font-['Quicksand'] text-xs sm:text-sm text-purple-900 font-medium max-w-lg">
-            {config?.reviewsInstagramSubtitle || 'Marque nosso perfil oficial em seus stories para aparecer em nosso feed de novidades!'}
+            {config?.reviewsInstagramSubtitle || 'Marque @lavistore.oficial em seus stories para aparecer no nosso feed e concorrer a um kit presente floral mensal!'}
           </p>
         </div>
 

@@ -129,7 +129,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
   const itemsText = Array.isArray(orderData.items)
     ? orderData.items.map((it: any) => {
         const prod = it.product || it;
-        const name = prod.name || 'Produto da Loja';
+        const name = prod.name || 'Produto Lavistore';
         const qty = it.quantity || 1;
         const price = Number(it.sizePrice || prod.price || 0);
         const variantParts = [
@@ -142,10 +142,10 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
       }).join('\n')
     : 'Itens do pedido';
 
-  const storeNotificationEmail = homePageConfig?.orderNotificationEmail || 'contato@loja.com.br';
+  const storeNotificationEmail = homePageConfig?.orderNotificationEmail || 'reginahelena1980@gmail.com';
 
   const waMessage = 
-`🌸 *NOVA VENDA CONCLUÍDA* 🌸
+`🌸 *NOVA VENDA CONCLUÍDA - LAVISTORE* 🌸
 ━━━━━━━━━━━━━━━━━━━━━━
 📦 *Pedido:* #${orderData.orderId}
 📅 *Data:* ${orderData.date || new Date().toLocaleDateString('pt-BR')}
@@ -172,7 +172,7 @@ ${orderData.pagSeguroUrl ? `• Link PagSeguro: ${orderData.pagSeguroUrl}\n` : '
 ${orderData.couponApplied ? `🏷️ *Cupom:* ${orderData.couponApplied} (- R$ ${Number(orderData.discountAmount).toFixed(2)})\n` : ''}
 💰 *TOTAL DO PEDIDO: R$ ${Number(orderData.total).toFixed(2)}*
 ━━━━━━━━━━━━━━━━━━━━━━
-✨ Pedido gerado pela loja virtual.`;
+✨ Pedido gerado pela loja virtual Lavistore.`;
 
   const waLink = `https://wa.me/${cleanStorePhone}?text=${encodeURIComponent(waMessage)}`;
 
@@ -508,7 +508,7 @@ ${orderData.couponApplied ? `🏷️ *Cupom:* ${orderData.couponApplied} (- R$ $
         <div className="p-4 bg-amber-50/60 rounded-2xl border-2 border-amber-200 space-y-3 text-left">
           <h4 className="text-xs font-bold text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
             <Truck className="w-4 h-4 text-amber-600" />
-            <span>Etapas do seu Pedido</span>
+            <span>Etapas do seu Pacotinho Lavistore</span>
           </h4>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -557,7 +557,7 @@ ${orderData.couponApplied ? `🏷️ *Cupom:* ${orderData.couponApplied} (- R$ $
           className="w-full py-3.5 bg-gradient-to-r from-[#F43F5E] via-[#FB923C] via-[#FACC15] to-[#06B6D4] hover:opacity-95 text-white font-bold rounded-2xl text-sm shadow-md flex items-center justify-center gap-2 border-2 border-white/60 active:scale-95 transition-transform cursor-pointer"
         >
           <ShoppingBag className="w-4 h-4" />
-          <span>Voltar para a Loja & Continuar Navegando</span>
+          <span>Voltar para a Lavistore & Continuar Navegando</span>
         </button>
 
       </div>

@@ -69,14 +69,24 @@ app.post('/api/store/sync', (req, res) => {
       fs.mkdirSync(dir, { recursive: true });
     }
 
+    let existingContent: any = {};
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      try {
+        existingContent = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
+      } catch (e) {}
+    }
+
     const payloadToSave = {
       updatedAt: new Date().toISOString(),
-      products: Array.isArray(products) ? products : undefined,
-      heroConfig: heroConfig || undefined,
-      homePageConfig: homePageConfig || undefined,
-      categories: Array.isArray(categories) ? categories : undefined,
-      reviews: Array.isArray(reviews) ? reviews : undefined,
-      coupons: Array.isArray(coupons) ? coupons : undefined,
+      adminPassword: existingContent.adminPassword || '1234',
+      adminPasswordChanged: existingContent.adminPasswordChanged || false,
+      adminPasswordChangedAt: existingContent.adminPasswordChangedAt || undefined,
+      products: Array.isArray(products) ? products : existingContent.products,
+      heroConfig: heroConfig || existingContent.heroConfig,
+      homePageConfig: homePageConfig || existingContent.homePageConfig,
+      categories: Array.isArray(categories) ? categories : existingContent.categories,
+      reviews: Array.isArray(reviews) ? reviews : existingContent.reviews,
+      coupons: Array.isArray(coupons) ? coupons : existingContent.coupons,
     };
 
     fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(payloadToSave, null, 2), 'utf-8');
@@ -90,6 +100,127 @@ app.post('/api/store/sync', (req, res) => {
   } catch (error: any) {
     console.error('[Store Data] Erro ao gravar store_state.json:', error);
     return res.status(500).json({ error: 'Falha ao salvar dados da loja', details: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/password-status
+ * Verifica se a gerência ainda usa a senha padrão (1234) ou se já foi personalizada
+ */
+app.get('/api/admin/password-status', (_req, res) => {
+  try {
+    let adminPassword = '1234';
+    let adminPasswordChanged = false;
+
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      const content = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
+      if (content.adminPassword) {
+        adminPassword = content.adminPassword;
+      }
+      if (content.adminPasswordChanged !== undefined) {
+        adminPasswordChanged = Boolean(content.adminPasswordChanged);
+      }
+    }
+
+    return res.json({
+      success: true,
+      isDefaultPassword: adminPassword === '1234' && !adminPasswordChanged,
+      hasChanged: adminPasswordChanged
+    });
+  } catch (err: any) {
+    console.error('[Admin Password Status] Erro:', err);
+    return res.status(500).json({ error: 'Erro ao verificar status da senha', details: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/verify-password
+ * Valida a senha digitada no login da gerência
+ */
+app.post('/api/admin/verify-password', (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ success: false, error: 'Senha é obrigatória' });
+    }
+
+    let actualPassword = '1234';
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      const content = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
+      if (content.adminPassword) {
+        actualPassword = content.adminPassword;
+      }
+    }
+
+    if (password === actualPassword || (actualPassword === '1234' && (password === '1234' || password === 'admin'))) {
+      return res.json({ success: true });
+    }
+
+    return res.status(401).json({ success: false, error: 'Senha de gerência incorreta.' });
+  } catch (err: any) {
+    console.error('[Admin Verify Password] Erro:', err);
+    return res.status(500).json({ success: false, error: 'Erro ao validar senha' });
+  }
+});
+
+/**
+ * POST /api/admin/change-password
+ * Altera e persiste a senha de gerência no arquivo store_state.json
+ */
+app.post('/api/admin/change-password', (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: 'Senha atual e nova senha são obrigatórias.' });
+    }
+
+    if (typeof newPassword !== 'string' || newPassword.trim().length < 4) {
+      return res.status(400).json({ success: false, error: 'A nova senha deve ter no mínimo 4 caracteres.' });
+    }
+
+    let existingData: any = {};
+    let actualPassword = '1234';
+
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      try {
+        existingData = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
+        if (existingData.adminPassword) {
+          actualPassword = existingData.adminPassword;
+        }
+      } catch (e) {}
+    }
+
+    const isCurrentValid = currentPassword === actualPassword || 
+      (actualPassword === '1234' && (currentPassword === '1234' || currentPassword === 'admin'));
+
+    if (!isCurrentValid) {
+      return res.status(401).json({ success: false, error: 'A senha atual informada está incorreta.' });
+    }
+
+    const updatedData = {
+      ...existingData,
+      updatedAt: new Date().toISOString(),
+      adminPassword: newPassword.trim(),
+      adminPasswordChanged: true,
+      adminPasswordChangedAt: new Date().toISOString()
+    };
+
+    const dir = path.dirname(STORE_DATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(updatedData, null, 2), 'utf-8');
+    console.log(`[Admin Password] Senha de gerência alterada com sucesso em ${STORE_DATA_FILE}`);
+
+    return res.json({
+      success: true,
+      message: 'Senha de gerência alterada com sucesso!'
+    });
+  } catch (err: any) {
+    console.error('[Admin Change Password] Erro:', err);
+    return res.status(500).json({ success: false, error: 'Falha ao alterar senha de gerência', details: err.message });
   }
 });
 

@@ -229,11 +229,11 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
         rating: 5.0,
         reviewCount: 12,
         images: initialPhotos,
-        description: foundBi.descricao || `Produto ${foundBi.produto} de alta qualidade. Selecionado especialmente para você.`,
+        description: foundBi.descricao || `Lindo mimo ${foundBi.produto} da Lavistore! Perfeito para presentear quem você ama com muito afeto, delicadeza e encanto. ✨💖`,
         features: [
           `Tam/Cor: ${foundBi.tamCor || 'Único'}`,
-          'Item selecionado com rigoroso padrão de qualidade',
-          'Embalado com todo o cuidado para envio seguro',
+          'Item selecionado com carinho pela Lavistore',
+          'Embalado com todo o cuidado e cheirinho doce especial',
           'Pronta entrega em estoque real'
         ],
         tag: foundBi.vitrineTag || 'Novidade ✨',
@@ -281,8 +281,8 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
           rating: 5.0,
           reviewCount: 8,
           images: ['https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80'],
-          description: 'Produto de alta qualidade selecionado com atenção aos detalhes para você.',
-          features: ['Design exclusivo e acabamento de qualidade', 'Embalado com todo o cuidado para envio seguro'],
+          description: 'Mimo especial e cheio de carinho para encantar o seu dia ou presentear quem você ama.',
+          features: ['Design exclusivo Lavistore', 'Embalado com cheirinho doce especial'],
           tag: 'Novidade ✨',
           dimensions: '',
           imageFit: 'cover',
@@ -674,8 +674,8 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
       rating: formData.rating || 5.0,
       reviewCount: formData.reviewCount || 10,
       images: formData.images,
-      description: formData.description?.trim() || 'Descrição detalhada do produto.',
-      features: formData.features && formData.features.length > 0 ? formData.features : ['Design exclusivo e acabamento de qualidade'],
+      description: formData.description?.trim() || 'Mimo especial Lavistore.',
+      features: formData.features && formData.features.length > 0 ? formData.features : ['Design encantador com carinho'],
       stock: calculatedStock,
       tag: formData.tag?.trim() || undefined,
       dimensions: formData.dimensions?.trim() || undefined,
@@ -1004,7 +1004,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                   required
                   value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Digite o nome do produto aqui"
+                  placeholder="Ex: Caneta Tinta Invisível, Caderno Argolado Jardim Lilás..."
                   className="w-full px-3.5 py-2.5 bg-purple-50/40 border-2 border-purple-200 rounded-2xl font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400"
                 />
               </div>
@@ -1032,7 +1032,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                   type="text"
                   value={formData.tag || ''}
                   onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
-                  placeholder="Digite a etiqueta ou selo do produto aqui"
+                  placeholder="Ex: Novidade ✨, Mais Vendido 🔥, Fofura 🌸"
                   className="w-full px-3.5 py-2.5 bg-purple-50/40 border-2 border-purple-200 rounded-2xl font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400"
                 />
               </div>
@@ -1047,7 +1047,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                   type="text"
                   value={formData.dimensions || ''}
                   onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
-                  placeholder="Digite as dimensões ou medidas aqui"
+                  placeholder="Ex: 15 x 21 cm (A5) • 160 páginas • Gramatura 90g"
                   className="w-full px-3.5 py-2.5 bg-purple-50/40 border-2 border-purple-200 rounded-2xl font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400"
                 />
               </div>
@@ -1091,7 +1091,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                     required
                     value={formData.price ?? ''}
                     onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                    placeholder="Digite o preço de venda aqui"
+                    placeholder="39.90"
                     className="w-full pl-10 pr-3.5 py-2.5 bg-white border-2 border-pink-300 rounded-2xl font-black text-base text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400"
                   />
                 </div>
@@ -1119,7 +1119,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                       ...formData, 
                       originalPrice: e.target.value ? parseFloat(e.target.value) : undefined 
                     })}
-                    placeholder="Digite o preço original aqui"
+                    placeholder="Ex: 59.90"
                     className="w-full pl-10 pr-3.5 py-2.5 bg-white border-2 border-slate-200 rounded-2xl font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-pink-300"
                   />
                 </div>
@@ -1316,7 +1316,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                     type="url"
                     value={imageUrlInput}
                     onChange={(e) => setImageUrlInput(e.target.value)}
-                    placeholder="Cole o link da foto aqui"
+                    placeholder="https://exemplo.com/minha-foto.jpg"
                     className="flex-1 px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-300"
                   />
                   <button
@@ -1626,7 +1626,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                             type="text"
                             value={sz.label}
                             onChange={(e) => handleUpdateSizeVariant(sz.id, 'label', e.target.value)}
-                            placeholder="Digite o tamanho aqui"
+                            placeholder="Ex: P, M, 34-36, 15x21cm"
                             className="w-full px-2.5 py-1.5 bg-purple-50/40 border border-purple-200 rounded-lg text-xs font-bold text-purple-950 focus:outline-none focus:ring-1 focus:ring-purple-400"
                           />
                         </div>
@@ -1823,7 +1823,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                             value={col.imageUrl?.startsWith('data:') ? 'Foto do dispositivo' : (col.imageUrl || '')}
                             disabled={col.imageUrl?.startsWith('data:')}
                             onChange={(e) => handleUpdateColorVariant(col.id, 'imageUrl', e.target.value)}
-                            placeholder="Cole o link da foto aqui"
+                            placeholder="ou Link da foto"
                             className="w-full px-2 py-0.5 bg-purple-50/30 border border-purple-200 rounded-lg text-[9px] text-slate-700 focus:outline-none focus:ring-1 focus:ring-pink-400"
                           />
                         </div>
@@ -1839,7 +1839,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                           required
                           value={col.name || ''}
                           onChange={(e) => handleUpdateColorVariant(col.id, 'name', e.target.value)}
-                          placeholder="Digite o nome da cor ou estampa aqui"
+                          placeholder="Ex: Lilás Lavanda, Floral Margaridas, Rosa Bebê"
                           className="w-full px-3 py-2 bg-purple-50/40 border-2 border-purple-200 rounded-xl font-bold text-xs text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400"
                         />
                       </div>
@@ -1857,7 +1857,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                           type="text"
                           value={col.hex || ''}
                           onChange={(e) => handleUpdateColorVariant(col.id, 'hex', e.target.value)}
-                          placeholder="Código hexadecimal da cor (ex: #F472B6)"
+                          placeholder="#F472B6"
                           className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg font-mono text-[10px] text-slate-700 uppercase focus:outline-none focus:ring-1 focus:ring-pink-400"
                         />
                       </div>
@@ -1916,7 +1916,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                 rows={3}
                 value={formData.description || ''}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Escreva a descrição do produto aqui"
+                placeholder="Conte com carinho sobre os materiais, acabamento especial, por que ele é apaixonante e perfeito para presentear..."
                 className="w-full px-3.5 py-2.5 bg-purple-50/40 border-2 border-purple-200 rounded-2xl font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400 leading-relaxed"
               />
             </div>
@@ -1951,7 +1951,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                       handleAddFeature();
                     }
                   }}
-                  placeholder="Escreva o diferencial ou detalhe do produto aqui"
+                  placeholder="Ex: Embalado para presente com cheirinho doce • Toque aveludado..."
                   className="flex-1 px-3.5 py-2 bg-white border-2 border-pink-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-pink-400"
                 />
                 <button

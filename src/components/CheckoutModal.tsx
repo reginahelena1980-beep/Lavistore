@@ -313,7 +313,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   payer: {
                     email: customerEmail,
                     firstName: customerName.split(' ')[0] || 'Cliente',
-                    lastName: customerName.split(' ').slice(1).join(' ') || 'Consumidor',
+                    lastName: customerName.split(' ').slice(1).join(' ') || 'Lavistore',
                     identification: {
                       type: 'CPF',
                       number: customerCpf.replace(/\D/g, '') || '12345678900'
@@ -378,8 +378,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const freeGiftOrder: OrderData = {
         orderId: `LAVI-${Math.floor(100000 + Math.random() * 900000)}`,
         date: new Date().toLocaleDateString('pt-BR'),
-        customerName: customerName || 'Cliente da Loja',
-        customerEmail: customerEmail || 'contato@loja.com.br',
+        customerName: customerName || 'Cliente Lavistore',
+        customerEmail: customerEmail || 'contato@lavistore.com.br',
         customerPhone: customerPhone || '(11) 99999-9999',
         customerCpf: customerCpf || '123.456.789-00',
         address: `${street || 'Endereço'}, ${number || 'S/N'} ${complement ? complement + ' ' : ''}- ${district || 'Bairro'}, ${city || 'Cidade'}/${state || 'UF'} - CEP: ${cep || '00000-000'}`,
@@ -525,7 +525,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         payer: {
           email: customerEmail,
           first_name: customerName.split(' ')[0] || 'Cliente',
-          last_name: customerName.split(' ').slice(1).join(' ') || 'Consumidor',
+          last_name: customerName.split(' ').slice(1).join(' ') || 'Lavistore',
           identification: {
             type: 'CPF',
             number: cleanCpf
@@ -575,26 +575,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in font-['Cinzel',serif]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-purple-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in font-['Comfortaa']">
       <div 
-        className="bg-[#09101F] rounded-3xl max-w-4xl w-full max-h-[94vh] overflow-y-auto shadow-[0_0_50px_rgba(0,0,0,0.9)] border border-cyan-500/35 relative text-slate-200"
+        className="bg-white rounded-3xl max-w-4xl w-full max-h-[94vh] overflow-y-auto shadow-2xl border border-purple-100 relative text-slate-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 z-20 bg-[#060B17]/95 backdrop-blur-md px-6 py-4 border-b border-cyan-500/25 flex items-center justify-between">
+        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md px-6 py-4 border-b border-purple-100 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.4)] font-black">
-              <ShieldCheck className="w-5 h-5 text-slate-950" />
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center justify-center shadow-md shadow-pink-200">
+              <Flower2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-white">Finalizar Compra & Forjar Pedido</h3>
+              <h3 className="font-['Playfair_Display'] font-bold text-lg text-purple-950">Finalizar Compra Encantada</h3>
               <div className="flex items-center gap-2">
-                <p className="text-[11px] text-cyan-400 font-medium font-['Plus_Jakarta_Sans',sans-serif]">Ambiente 100% Criptografado & Oficial</p>
+                <p className="text-[11px] text-purple-600 font-medium">Ambiente 100% Seguro com Criptografia SSL</p>
                 {melhorEnvioStatus && (
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider font-['Plus_Jakarta_Sans',sans-serif] ${
-                    melhorEnvioStatus.configured ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40' : 'bg-slate-900 text-slate-400 border border-slate-800'
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                    melhorEnvioStatus.configured ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-700'
                   }`}>
-                    {melhorEnvioStatus.configured ? 'Melhor Envio Conectado' : 'Melhor Envio Ativo'}
+                    {melhorEnvioStatus.configured ? 'Melhor Envio Real Conectado' : 'Melhor Envio Ativo'}
                   </span>
                 )}
               </div>
@@ -604,7 +604,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           <button
             id="btn-close-checkout-modal"
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-cyan-950 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+            className="p-2 rounded-full hover:bg-purple-100 text-purple-900 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -617,46 +617,46 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="lg:col-span-7 space-y-6">
               
               {/* Etapa 1: Dados de Contato */}
-              <div className="bg-[#060B17] p-4 sm:p-5 rounded-2xl border border-cyan-500/25 space-y-3">
+              <div className="bg-purple-50/40 p-4 sm:p-5 rounded-2xl border border-purple-100 space-y-3">
                 <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-cyan-500 text-slate-950 text-xs font-black flex items-center justify-center">1</span>
-                  <h4 className="font-bold text-sm text-white">Dados do Aventureiro</h4>
+                  <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                  <h4 className="font-bold text-sm text-purple-950">Dados de Contato</h4>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-['Plus_Jakarta_Sans',sans-serif]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="text-[11px] font-bold text-cyan-300 block mb-1">Nome Completo</label>
+                    <label className="text-[11px] font-bold text-purple-900 block mb-1">Nome Completo</label>
                     <input
                       type="text"
                       required
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="Digite seu nome completo"
-                      className="w-full px-3 py-2 bg-[#0D182E] border border-cyan-500/30 rounded-xl text-xs sm:text-sm text-white placeholder:text-slate-500 focus:ring-2 focus:ring-cyan-400 outline-none"
+                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-pink-400"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-cyan-300 block mb-1">E-mail para Rastreio</label>
+                    <label className="text-[11px] font-bold text-purple-900 block mb-1">E-mail para Rastreio</label>
                     <input
                       type="email"
                       required
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
                       placeholder="seu.email@exemplo.com"
-                      className="w-full px-3 py-2 bg-[#0D182E] border border-cyan-500/30 rounded-xl text-xs sm:text-sm text-white placeholder:text-slate-500 focus:ring-2 focus:ring-cyan-400 outline-none"
+                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-pink-400"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-cyan-300 block mb-1">WhatsApp / Telefone</label>
+                    <label className="text-[11px] font-bold text-purple-900 block mb-1">WhatsApp / Celular</label>
                     <input
                       type="tel"
                       required
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
                       placeholder="(00) 00000-0000"
-                      className="w-full px-3 py-2 bg-[#0D182E] border border-cyan-500/30 rounded-xl text-xs sm:text-sm text-white placeholder:text-slate-500 focus:ring-2 focus:ring-cyan-400 outline-none"
+                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-pink-400"
                     />
                   </div>
                 </div>
@@ -931,7 +931,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         🎉 Opção Cupom BRINDE Ativa
                       </span>
                       <h5 className="font-['Playfair_Display'] font-bold text-lg text-purple-950">
-                        Cortesia Especial da Loja (100% Grátis)
+                        Cortesia Especial Lavistore (100% Grátis)
                       </h5>
                       <p className="text-xs text-purple-900 leading-relaxed max-w-md mx-auto">
                         Com o cupom <strong>{checkoutCoupon || 'BRINDE'}</strong> selecionado, o valor dos produtos e do frete foram totalmente zerados (<strong>Total: R$ 0,00</strong>). Você não precisa efetuar nenhum pagamento nem digitar dados de cartão!
@@ -1203,7 +1203,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       type="text"
                       value={couponInputText}
                       onChange={(e) => setCouponInputText(e.target.value)}
-                      placeholder="Digite o código do cupom aqui"
+                      placeholder="Ex: FRETEGRATIS ou LAVI10"
                       className="flex-1 px-3 py-1.5 bg-purple-950/80 border border-purple-700 rounded-xl text-xs text-white placeholder-purple-400 uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-pink-400"
                     />
                     <button
@@ -1393,7 +1393,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     Garantia de Entrega & Troca Fácil (CDC 7 dias) • Ver regras
                   </button>
                 ) : (
-                  <span>Garantia de Entrega & Troca Fácil</span>
+                  <span>Garantia de Entrega & Troca Fácil Lavistore</span>
                 )}
               </div>
             </div>

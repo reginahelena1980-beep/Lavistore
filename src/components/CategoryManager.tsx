@@ -335,7 +335,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                           type="text"
                           value={cat.name}
                           onChange={(e) => handleUpdateCategory(cat.id, 'name', e.target.value)}
-                          placeholder="Digite o nome da categoria aqui"
+                          placeholder="Nome da Categoria..."
                           className="w-full px-3 py-1.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl font-bold text-xs sm:text-sm text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
                         />
                       </div>
@@ -391,7 +391,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                         type="text"
                         value={cat.description || ''}
                         onChange={(e) => handleUpdateCategory(cat.id, 'description', e.target.value)}
-                        placeholder="Escreva a descrição da categoria aqui"
+                        placeholder="Ex: Cadernos, planners e bloquinhos..."
                         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-400"
                       />
                     </div>
@@ -405,7 +405,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                         type="text"
                         value={cat.badge || ''}
                         onChange={(e) => handleUpdateCategory(cat.id, 'badge', e.target.value)}
-                        placeholder="Digite o selo ou destaque aqui"
+                        placeholder="Ex: Exclusivo, Popular..."
                         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-purple-950 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-400"
                       />
                     </div>
@@ -420,7 +420,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                         disabled={isTodos}
                         value={cat.id}
                         onChange={(e) => handleUpdateCategory(cat.id, 'id', e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
-                        placeholder="Digite o identificador da categoria aqui"
+                        placeholder="id-da-categoria"
                         className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl font-mono text-[11px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:opacity-60"
                       />
                     </div>
@@ -574,7 +574,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                   required
                   value={newCat.name || ''}
                   onChange={(e) => setNewCat(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Digite o nome da categoria aqui"
+                  placeholder="Ex: Canecas & Garrafas Térmicas, Agendas 2026..."
                   className="w-full px-3.5 py-2.5 bg-amber-50/50 border-2 border-amber-200 rounded-2xl font-bold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm"
                 />
               </div>
@@ -611,7 +611,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                   type="text"
                   value={newCat.description || ''}
                   onChange={(e) => setNewCat(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Escreva a descrição da categoria aqui"
+                  placeholder="Ex: Canecas de porcelana, copos térmicos com canudo..."
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-400"
                 />
               </div>
@@ -624,7 +624,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                     type="text"
                     value={newCat.badge || ''}
                     onChange={(e) => setNewCat(prev => ({ ...prev, badge: e.target.value }))}
-                    placeholder="Digite o selo ou destaque aqui"
+                    placeholder="Ex: Lançamento ✨"
                     className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-purple-950 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-400"
                   />
                 </div>
@@ -745,7 +745,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                 Restaurar Categorias Originais?
               </h3>
               <p className="text-xs text-slate-600">
-                Esta ação voltará as categorias da loja e do rodapé para os nomes e emojis padrão originais da loja.
+                Esta ação voltará as categorias da loja e do rodapé para os nomes e emojis padrão originais da Lavistore.
               </p>
             </div>
 

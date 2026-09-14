@@ -1,6 +1,6 @@
 {
-  "name": "Unlocked Door - Loja Oficial Gamer & Colecionáveis",
-  "description": "Loja oficial gamer e de colecionáveis com portal místico, catálogo unificado com variações, estoque por item e gestão financeira integrada.",
+  "name": "Remix Lavistore - Presentes Criativos \u0026 Mimos Fofos",
+  "description": "Loja virtual encantadora de presentes criativos, papelaria fofa e mimos delicados com integração em tempo real entre Estoque/BI Administrativo e Vitrine.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

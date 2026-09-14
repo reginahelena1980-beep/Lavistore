@@ -1,118 +1,92 @@
 @import "tailwindcss";
 
+@import url('https://db.onlinewebfonts.com/c/188d1fa8197b9332b368f98b00285a05?family=Balqis');
+
+@font-face {
+  font-family: 'Balqis';
+  src: url('https://db.onlinewebfonts.com/t/188d1fa8197b9332b368f98b00285a05.woff2') format('woff2'),
+       url('https://db.onlinewebfonts.com/t/188d1fa8197b9332b368f98b00285a05.woff') format('woff'),
+       url('https://db.onlinewebfonts.com/t/188d1fa8197b9332b368f98b00285a05.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   body {
-    @apply antialiased selection:bg-cyan-500 selection:text-slate-950;
-    background-color: #060913;
-    color: #E2E8F0;
-    font-family: 'Plus Jakarta Sans', 'Comfortaa', -apple-system, BlinkMacSystemFont, sans-serif;
+    @apply antialiased selection:bg-amber-300 selection:text-purple-950;
+    background-color: #FEFCE8;
+    font-family: 'Comfortaa', 'Itim', 'Quicksand', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Cinzel', 'Cinzel Decorative', serif;
+    font-family: 'Mali', 'Comfortaa', 'Quicksand', cursive, sans-serif;
   }
 }
 
-/* Unlocked Door RPG Display Fonts */
-.font-rpg-display {
-  font-family: 'Cinzel Decorative', 'Cinzel', Georgia, serif;
+/* Balqis Calligraphy Font for Lavistore Logo */
+.font-balqis {
+  font-family: 'Balqis', 'Alex Brush', 'Great Vibes', 'Allura', 'Dancing Script', cursive;
 }
 
-.font-rpg-serif {
-  font-family: 'Cinzel', Georgia, serif;
-}
-
-.font-gamer-sans {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-/* Cosmic Dark Ambient Canvas for Unlocked Door */
-.unlocked-door-canvas {
-  background: 
-    radial-gradient(at 15% 15%, rgba(6, 182, 212, 0.15) 0px, transparent 45%),
-    radial-gradient(at 85% 20%, rgba(14, 165, 233, 0.12) 0px, transparent 40%),
-    radial-gradient(at 50% 60%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
-    radial-gradient(at 80% 85%, rgba(34, 211, 238, 0.10) 0px, transparent 45%),
-    radial-gradient(at 20% 90%, rgba(59, 130, 246, 0.08) 0px, transparent 40%),
-    linear-gradient(180deg, #050811 0%, #080E1C 35%, #070B16 70%, #04070D 100%);
-  background-attachment: fixed;
-}
-
-/* Fallback for lavistore-gradient-canvas class in components */
+/* Radiant Sunny Sunset Mesh Background with prominent warm sunny yellow */
 .lavistore-gradient-canvas {
   background: 
-    radial-gradient(at 15% 15%, rgba(6, 182, 212, 0.15) 0px, transparent 45%),
-    radial-gradient(at 85% 20%, rgba(14, 165, 233, 0.12) 0px, transparent 40%),
-    radial-gradient(at 50% 60%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
-    radial-gradient(at 80% 85%, rgba(34, 211, 238, 0.10) 0px, transparent 45%),
-    linear-gradient(180deg, #050811 0%, #080E1C 35%, #070B16 70%, #04070D 100%);
+    radial-gradient(at 50% 15%, rgba(253, 224, 71, 0.45) 0px, transparent 55%),
+    radial-gradient(at 85% 30%, rgba(250, 204, 21, 0.50) 0px, transparent 48%),
+    radial-gradient(at 15% 40%, rgba(251, 191, 36, 0.42) 0px, transparent 50%),
+    radial-gradient(at 88% 8%, rgba(56, 189, 248, 0.35) 0px, transparent 45%),
+    radial-gradient(at 12% 85%, rgba(244, 63, 94, 0.35) 0px, transparent 50%),
+    radial-gradient(at 75% 75%, rgba(254, 240, 138, 0.60) 0px, transparent 50%),
+    radial-gradient(at 40% 90%, rgba(251, 146, 60, 0.30) 0px, transparent 50%),
+    linear-gradient(180deg, #FEFCE8 0%, #FFFBEB 25%, #FEF9C3 50%, #FFF1F2 75%, #F0F9FF 100%);
   background-attachment: fixed;
 }
 
-/* Glassmorphism Dark Gamer Cards with Cyan Neon Trim */
-.unlocked-glass-card {
-  background: rgba(11, 18, 34, 0.85);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(6, 182, 212, 0.25);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(6, 182, 212, 0.1);
+/* Custom Cursive Typography Helpers */
+.font-child-cursive {
+  font-family: 'Mali', 'Caveat', cursive;
 }
 
-.unlocked-glass-card-hover {
+.font-child-round {
+  font-family: 'Comfortaa', 'Itim', 'Quicksand', cursive, sans-serif;
+}
+
+.font-child-heading {
+  font-family: 'Mali', 'Comfortaa', cursive, sans-serif;
+}
+
+/* Glassmorphism Cards with gentle solar glow */
+.lavi-glass-card {
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(254, 240, 138, 0.7);
+  box-shadow: 0 10px 25px -5px rgba(250, 204, 21, 0.12), 0 8px 10px -6px rgba(244, 63, 94, 0.05);
+}
+
+.lavi-glass-card-hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
-.unlocked-glass-card-hover:hover {
-  background: rgba(15, 23, 42, 0.95);
+.lavi-glass-card-hover:hover {
+  background: rgba(255, 255, 255, 0.98);
   transform: translateY(-3px);
-  box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.7), 0 0 25px rgba(6, 182, 212, 0.35);
-  border-color: rgba(34, 211, 238, 0.6);
+  box-shadow: 0 20px 30px -10px rgba(250, 204, 21, 0.22), 0 10px 15px -5px rgba(244, 63, 94, 0.1);
+  border-color: rgba(250, 204, 21, 0.8);
 }
 
-.lavi-glass-card {
-  background: rgba(11, 18, 34, 0.85);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(6, 182, 212, 0.25);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6);
+/* Multi-stop Brand Aurora Sunny Gradient */
+.bg-lavi-aurora {
+  background: linear-gradient(135deg, #F43F5E 0%, #FB923C 25%, #FACC15 60%, #06B6D4 100%);
 }
 
-/* Cyan Glow Shadow Utilities */
-.shadow-cyan-neon {
-  box-shadow: 0 0 20px rgba(6, 182, 212, 0.4), 0 0 40px rgba(6, 182, 212, 0.15);
+.bg-lavi-aurora-soft {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.15) 0%, rgba(251, 146, 60, 0.20) 25%, rgba(250, 204, 21, 0.25) 60%, rgba(6, 182, 212, 0.15) 100%);
 }
 
-.shadow-cyan-glow-sm {
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.35);
+.text-lavi-aurora {
+  background: linear-gradient(135deg, #E11D48 0%, #EA580C 25%, #CA8A04 60%, #0891B2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.text-cyan-glow {
-  text-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
-}
-
-/* Pulsing Arcane Portal Aura */
-@keyframes portalPulse {
-  0%, 100% {
-    box-shadow: 0 0 25px rgba(6, 182, 212, 0.3), inset 0 0 15px rgba(6, 182, 212, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 45px rgba(34, 211, 238, 0.6), inset 0 0 25px rgba(34, 211, 238, 0.4);
-  }
-}
-
-.portal-aura-animation {
-  animation: portalPulse 4s ease-in-out infinite;
-}
-
-@keyframes runeFloat {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-.rune-float-animation {
-  animation: runeFloat 3.5s ease-in-out infinite;
-}

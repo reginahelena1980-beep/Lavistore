@@ -49,28 +49,6 @@ export const DEFAULT_COUPONS: Coupon[] = (storeState && Array.isArray(storeState
     createdAt: '2026-03-01'
   },
   {
-    id: 'coupon-unlocked10',
-    code: 'UNLOCKED10',
-    description: '10% de desconto oficial de boas-vindas do Guardião da Unlocked Door',
-    type: 'percentage',
-    discountValue: 10,
-    minOrderValue: 0,
-    isActive: true,
-    timesUsed: 215,
-    createdAt: '2026-03-15'
-  },
-  {
-    id: 'coupon-boss20',
-    code: 'BOSS20',
-    description: '20% de desconto lendário dropado em Boss Fight RPG',
-    type: 'percentage',
-    discountValue: 20,
-    minOrderValue: 0,
-    isActive: true,
-    timesUsed: 42,
-    createdAt: '2026-03-15'
-  },
-  {
     id: 'coupon-brinde',
     code: 'BRINDE',
     description: 'Cupom Especial de Brinde: Compra 100% Grátis (Total R$ 0,00)',
