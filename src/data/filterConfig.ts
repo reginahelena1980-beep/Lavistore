@@ -2,7 +2,7 @@ import { FilterBarConfig } from '../types';
 
 export const DEFAULT_FILTER_BAR_CONFIG: FilterBarConfig = {
   showPriceFilter: true,
-  priceFilterTitle: 'Filtro de valor:',
+  priceFilterTitle: 'Valor:',
   priceRanges: [
     {
       id: 'under50',

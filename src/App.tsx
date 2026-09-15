@@ -112,6 +112,22 @@ export default function App() {
     };
   });
 
+  // Filter Bar Configuration State (Price & Sort, Persisted in localStorage)
+  const [filterBarConfig, setFilterBarConfig] = useState<FilterBarConfig>(() => {
+    try {
+      const saved = localStorage.getItem('lavistore_filter_bar_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.priceRanges)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_FILTER_BAR_CONFIG;
+  });
+
   // Editable Products State (Persisted in localStorage with default fallback)
   const [products, setProducts] = useState<Product[]>(() => {
     try {
@@ -312,6 +328,11 @@ export default function App() {
     safeSetItem('lavistore_home_page_config', JSON.stringify(homePageConfig));
   }, [homePageConfig]);
 
+  // Persist Filter Bar Config
+  useEffect(() => {
+    safeSetItem('lavistore_filter_bar_config', JSON.stringify(filterBarConfig));
+  }, [filterBarConfig]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
@@ -326,7 +347,8 @@ export default function App() {
         homePageConfig,
         categories,
         reviews,
-        coupons
+        coupons,
+        filterBarConfig,
       };
 
       const res = await fetch('/api/store/sync', {
@@ -390,6 +412,7 @@ export default function App() {
               if (Array.isArray(d.categories) && d.categories.length > 0) setCategories(d.categories);
               if (Array.isArray(d.reviews) && d.reviews.length > 0) setReviews(d.reviews);
               if (Array.isArray(d.coupons) && d.coupons.length > 0) setCoupons(d.coupons);
+              if (d.filterBarConfig) setFilterBarConfig(d.filterBarConfig);
             }
           }
         }
@@ -635,12 +658,21 @@ export default function App() {
     }
 
     // Price Filter
-    if (priceFilter === 'under50') {
-      list = list.filter(p => p.price < 50);
-    } else if (priceFilter === 'under100') {
-      list = list.filter(p => p.price >= 50 && p.price <= 100);
-    } else if (priceFilter === 'above100') {
-      list = list.filter(p => p.price > 100);
+    if (priceFilter && priceFilter !== 'all') {
+      const matchedRange = filterBarConfig?.priceRanges?.find(r => r.id === priceFilter);
+      if (matchedRange) {
+        list = list.filter(p => {
+          if (matchedRange.minPrice != null && p.price < matchedRange.minPrice) return false;
+          if (matchedRange.maxPrice != null && p.price > matchedRange.maxPrice) return false;
+          return true;
+        });
+      } else if (priceFilter === 'under50') {
+        list = list.filter(p => p.price <= 50);
+      } else if (priceFilter === 'under100') {
+        list = list.filter(p => p.price >= 50 && p.price <= 100);
+      } else if (priceFilter === 'above100') {
+        list = list.filter(p => p.price > 100);
+      }
     }
 
     // Sorting
@@ -650,10 +682,12 @@ export default function App() {
       list.sort((a, b) => a.price - b.price);
     } else if (sortBy === 'price-desc') {
       list.sort((a, b) => b.price - a.price);
+    } else if (sortBy === 'name-asc') {
+      list.sort((a, b) => a.name.localeCompare(b.name));
     }
 
     return list;
-  }, [products, selectedCategory, searchQuery, priceFilter, sortBy]);
+  }, [products, selectedCategory, searchQuery, priceFilter, sortBy, filterBarConfig]);
 
   return (
     <div className="min-h-screen flex flex-col font-['Comfortaa'] lavistore-gradient-canvas text-slate-800 relative">
@@ -783,6 +817,15 @@ export default function App() {
                   coupons={coupons}
                   onUpdateCoupons={handleUpdateCoupons}
                   onResetCoupons={handleResetCoupons}
+                  filterBarConfig={filterBarConfig}
+                  onUpdateFilterBarConfig={(newCfg) => {
+                    setFilterBarConfig(newCfg);
+                    showToast('✨ Filtros de preço e ordenação salvos com sucesso!');
+                  }}
+                  onResetFilterBarConfig={() => {
+                    setFilterBarConfig(DEFAULT_FILTER_BAR_CONFIG);
+                    showToast('🔄 Configuração dos filtros restaurada para o padrão!');
+                  }}
                   onGoToStorefront={() => {
                     navigateToStorefront('catalog');
                   }}
@@ -834,6 +877,7 @@ export default function App() {
                 setSortBy={setSortBy}
                 priceFilter={priceFilter}
                 setPriceFilter={setPriceFilter}
+                config={filterBarConfig}
               />
 
               {/* Section Title & Subtitle */}

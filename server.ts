@@ -61,7 +61,7 @@ app.get('/api/store/data', (_req, res) => {
  */
 app.post('/api/store/sync', (req, res) => {
   try {
-    const { products, heroConfig, homePageConfig, categories, reviews, coupons } = req.body;
+    const { products, heroConfig, homePageConfig, categories, reviews, coupons, filterBarConfig } = req.body;
 
     // Garante que o diretório existe
     const dir = path.dirname(STORE_DATA_FILE);
@@ -87,6 +87,7 @@ app.post('/api/store/sync', (req, res) => {
       categories: Array.isArray(categories) ? categories : existingContent.categories,
       reviews: Array.isArray(reviews) ? reviews : existingContent.reviews,
       coupons: Array.isArray(coupons) ? coupons : existingContent.coupons,
+      filterBarConfig: filterBarConfig || existingContent.filterBarConfig,
     };
 
     fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(payloadToSave, null, 2), 'utf-8');

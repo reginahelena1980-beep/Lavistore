@@ -143,10 +143,10 @@ export const FilterBarManager: React.FC<FilterBarManagerProps> = ({
             </div>
             <div>
               <h3 className="font-['Mali'] text-lg font-bold text-purple-950 flex items-center gap-2">
-                <span>Faixas de Preço (Filtros Rápidos)</span>
+                <span>Faixas de Preço (Lista de Seleção)</span>
               </h3>
               <p className="text-xs text-slate-500">
-                Ative, desative ou ajuste os valores mínimo e máximo de cada botão.
+                Ative, desative ou ajuste os valores mínimo e máximo de cada opção da lista suspensa da vitrine.
               </p>
             </div>
           </div>
@@ -160,7 +160,7 @@ export const FilterBarManager: React.FC<FilterBarManagerProps> = ({
                 onChange={(e) => setForm(prev => ({ ...prev, showPriceFilter: e.target.checked }))}
                 className="w-4 h-4 accent-purple-600 rounded"
               />
-              <span>Exibir barra de preços na loja</span>
+              <span>Exibir filtro de valores na loja</span>
             </label>
 
             <button
