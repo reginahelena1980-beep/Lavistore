@@ -413,281 +413,281 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in font-['Comfortaa'] pb-12">
+    <div className="space-y-6 animate-in fade-in font-['Comfortaa'] pb-12">
       {/* Top Banner & Quick Metrics */}
-      <div className="bg-gradient-to-r from-amber-100/95 via-white to-pink-100/90 rounded-3xl p-6 sm:p-8 border-2 border-amber-300 shadow-lg relative overflow-hidden">
+      <div className="bg-white/85 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-amber-200/80 shadow-2xs relative overflow-hidden">
         {/* Background decorative flower */}
-        <div className="absolute -right-8 -bottom-8 opacity-15 pointer-events-none">
-          <TrioFlowersIcon size={180} />
+        <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
+          <TrioFlowersIcon size={160} />
         </div>
 
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-200/90 border border-amber-300 text-purple-950 text-xs font-bold shadow-2xs">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-300" />
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative z-10">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100/80 border border-amber-200/80 text-purple-950 text-[11px] font-medium shadow-2xs">
+              <Sparkles className="w-3 h-3 text-amber-600 fill-amber-300" />
               <span>Painel do Administrador Lavistore</span>
             </div>
-            <h1 className="font-['Mali'] text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-950">
+            <h1 className="font-['Mali'] text-xl sm:text-2xl lg:text-3xl font-bold text-purple-950">
               Gerenciador Completo de Produtos 🌸
             </h1>
-            <p className="text-xs sm:text-sm text-purple-900 font-medium max-w-xl leading-relaxed">
-              Aqui você pode editar fotos, descrições, preços, categorias e estoque de qualquer mimo, além de cadastrar novos itens na sua loja!
+            <p className="text-xs text-purple-900/80 font-normal max-w-xl leading-relaxed">
+              Edite fotos, descrições, preços, categorias e estoque de qualquer mimo, além de cadastrar novos itens na sua loja.
             </p>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Action buttons - Delicate, Smaller & Minimalist */}
+          <div className="flex flex-wrap items-center gap-2">
             {onGoToStorefront && (
               <button
                 id="btn-admin-goto-storefront"
                 type="button"
                 onClick={onGoToStorefront}
-                className="px-4 py-3 rounded-2xl bg-white/95 hover:bg-purple-50 text-purple-950 font-bold text-xs border-2 border-purple-300 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-purple-50 text-purple-950 font-medium text-xs border border-purple-200/80 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
                 title="Visualizar a vitrine da loja como cliente"
               >
-                <Store className="w-4 h-4 text-purple-700" />
-                <span>Ver Loja (Vitrine)</span>
+                <Store className="w-3.5 h-3.5 text-purple-700" />
+                <span>Ver Loja</span>
               </button>
             )}
 
             <button
               onClick={onAddProduct}
-              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-[#F43F5E] via-[#FB923C] via-[#FACC15] to-[#06B6D4] hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-2 border-2 border-white/60 active:scale-95 transition-transform cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold text-xs shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>+ Cadastrar Novo Mimo</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Cadastrar Novo Mimo</span>
             </button>
 
             <button
               id="btn-admin-change-password-header"
               type="button"
               onClick={() => setShowPasswordModal(true)}
-              className="px-4 py-3 rounded-2xl bg-white/95 hover:bg-amber-50 text-purple-950 font-bold text-xs border-2 border-amber-300 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-purple-950 font-medium text-xs border border-amber-200/80 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Alterar senha de acesso à gerência"
             >
-              <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+              <KeyRound className="w-3 h-3 text-amber-600" />
               <span>Alterar Senha</span>
             </button>
 
             <button
               onClick={onExitAdmin}
-              className="px-4 py-3 rounded-2xl bg-white/90 hover:bg-amber-50 text-purple-950 font-bold text-xs border-2 border-amber-300 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-purple-900 font-medium text-xs border border-slate-200 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Lock className="w-3.5 h-3.5 text-amber-600" />
-              <span>Sair da Gerência</span>
+              <Lock className="w-3 h-3 text-slate-500" />
+              <span>Sair</span>
             </button>
           </div>
         </div>
 
-        {/* 5 Stats Cards for Financial & Inventory Intelligence */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-6 relative z-10">
+        {/* 5 Stats Cards for Financial & Inventory Intelligence - Delicate & Minimalist */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-4 relative z-10">
           {/* Stat 1: Total Products */}
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-amber-200 shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-xs text-purple-900 font-bold">
+          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
+            <div className="flex items-center justify-between text-[11px] text-purple-900/90 font-semibold">
               <span>Mimos Cadastrados</span>
-              <Package className="w-4 h-4 text-purple-600" />
+              <Package className="w-3.5 h-3.5 text-purple-600" />
             </div>
-            <p className="font-['Mali'] text-xl font-bold text-purple-950">
+            <p className="font-['Mali'] text-base sm:text-lg font-bold text-purple-950">
               {products.length} itens
             </p>
-            <p className="text-[10px] text-slate-500 font-medium">Catálogo completo</p>
+            <p className="text-[10px] text-slate-500">Catálogo completo</p>
           </div>
 
           {/* Stat 2: Total Stock Units */}
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-amber-200 shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-xs text-cyan-900 font-bold">
+          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
+            <div className="flex items-center justify-between text-[11px] text-cyan-900/90 font-semibold">
               <span>Estoque Atual</span>
-              <Layers className="w-4 h-4 text-cyan-600" />
+              <Layers className="w-3.5 h-3.5 text-cyan-600" />
             </div>
-            <p className="font-['Mali'] text-xl font-bold text-cyan-950">
+            <p className="font-['Mali'] text-base sm:text-lg font-bold text-cyan-950">
               {totalStock} un.
             </p>
-            <p className="text-[10px] text-slate-500 font-medium">{lowStockCount} itens com estoque baixo</p>
+            <p className="text-[10px] text-slate-500">{lowStockCount} itens com estoque baixo</p>
           </div>
 
           {/* Stat 3: Total Acquisition Cost Invested */}
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-amber-200 shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-xs text-amber-900 font-bold">
+          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
+            <div className="flex items-center justify-between text-[11px] text-amber-900/90 font-semibold">
               <span>Custo Investido</span>
-              <Calculator className="w-4 h-4 text-amber-600" />
+              <Calculator className="w-3.5 h-3.5 text-amber-600" />
             </div>
-            <p className="font-['Mali'] text-xl font-bold text-amber-950">
+            <p className="font-['Mali'] text-base sm:text-lg font-bold text-amber-950">
               R$ {totalAcquisitionInvested.toFixed(2)}
             </p>
-            <p className="text-[10px] text-slate-500 font-medium">Base no custo unitário</p>
+            <p className="text-[10px] text-slate-500">Base no custo unitário</p>
           </div>
 
           {/* Stat 4: Potential Total Revenue */}
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-amber-200 shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-xs text-emerald-900 font-bold">
+          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
+            <div className="flex items-center justify-between text-[11px] text-emerald-900/90 font-semibold">
               <span>Faturamento Previsto</span>
-              <DollarSign className="w-4 h-4 text-emerald-600" />
+              <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
             </div>
-            <p className="font-['Mali'] text-xl font-bold text-emerald-950">
+            <p className="font-['Mali'] text-base sm:text-lg font-bold text-emerald-950">
               R$ {totalPotentialRevenue.toFixed(2)}
             </p>
-            <p className="text-[10px] text-slate-500 font-medium">Preço de venda final</p>
+            <p className="text-[10px] text-slate-500">Preço de venda final</p>
           </div>
 
           {/* Stat 5: Estimated Gross Profit */}
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-amber-200 shadow-2xs space-y-1 col-span-2 sm:col-span-1">
-            <div className="flex items-center justify-between text-xs text-rose-900 font-bold">
+          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 col-span-2 sm:col-span-1 hover:border-amber-300 transition-colors">
+            <div className="flex items-center justify-between text-[11px] text-rose-900/90 font-semibold">
               <span>Lucro Bruto Estimado</span>
-              <TrendingUp className="w-4 h-4 text-rose-600" />
+              <TrendingUp className="w-3.5 h-3.5 text-rose-600" />
             </div>
-            <p className="font-['Mali'] text-xl font-bold text-rose-600">
+            <p className="font-['Mali'] text-base sm:text-lg font-bold text-rose-600">
               R$ {totalEstimatedGrossProfit.toFixed(2)}
             </p>
-            <p className="text-[10px] text-emerald-700 font-bold">Margem média: ~{avgGrossMargin}%</p>
+            <p className="text-[10px] text-emerald-700 font-semibold">Margem média: ~{avgGrossMargin}%</p>
           </div>
         </div>
       </div>
 
       {/* Notification toast */}
       {copiedNotification && (
-        <div className="bg-amber-100 border-2 border-amber-400 text-purple-950 p-3 rounded-2xl font-bold text-xs flex items-center justify-between shadow-md animate-in fade-in">
+        <div className="bg-amber-100/90 border border-amber-300 text-purple-950 p-2.5 px-3.5 rounded-xl font-medium text-xs flex items-center justify-between shadow-xs animate-in fade-in">
           <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-600" />
+            <Check className="w-3.5 h-3.5 text-emerald-600" />
             <span>{copiedNotification}</span>
           </div>
         </div>
       )}
 
-      {/* Section Switcher Tabs */}
-      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-amber-100/70 border-2 border-amber-300 rounded-2xl">
+      {/* Section Switcher Tabs - Minimalist, Delicate & Organized */}
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-white/75 backdrop-blur-md border border-amber-200/70 rounded-2xl shadow-2xs">
         <button
-          id="btn-tab-admin-bi"
-          onClick={() => setAdminSection('bi')}
-          className={`flex-1 min-w-[170px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            adminSection === 'bi'
-              ? 'bg-gradient-to-r from-purple-950 via-pink-900 to-rose-900 text-white shadow-md border-2 border-pink-400'
-              : 'text-purple-950 hover:bg-amber-200/60 font-extrabold'
+          onClick={() => setAdminSection('products')}
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+            adminSection === 'products'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
           }`}
         >
-          <BarChart3 className="w-4 h-4 text-emerald-400" />
-          <span>📊 BI & Planilhas (Financeiro)</span>
+          <Package className="w-3.5 h-3.5" />
+          <span>Produtos ({products.length})</span>
         </button>
 
         <button
           id="btn-tab-admin-orders"
           onClick={() => setAdminSection('orders')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
             adminSection === 'orders'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
           }`}
         >
-          <ShoppingBag className="w-4 h-4 text-pink-400" />
-          <span>🛍️ Pedidos Recebidos</span>
+          <ShoppingBag className="w-3.5 h-3.5" />
+          <span>Pedidos Recebidos</span>
         </button>
 
         <button
-          onClick={() => setAdminSection('products')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-            adminSection === 'products'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
+          id="btn-tab-admin-bi"
+          onClick={() => setAdminSection('bi')}
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+            adminSection === 'bi'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
           }`}
         >
-          <Package className="w-4 h-4 text-amber-300" />
-          <span>📦 Produtos ({products.length})</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('hero')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-            adminSection === 'hero'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
-          }`}
-        >
-          <ImageIcon className="w-4 h-4 text-amber-300" />
-          <span>🖼️ Foto da Capa</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('hometexts')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-            adminSection === 'hometexts'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
-          }`}
-        >
-          <Edit3 className="w-4 h-4 text-amber-300" />
-          <span>📝 Textos da Home</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('about')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-            adminSection === 'about'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
-          }`}
-        >
-          <Heart className="w-4 h-4 text-rose-300" />
-          <span>🌸 Sobre Nós & História</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('reviews')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-            adminSection === 'reviews'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
-          }`}
-        >
-          <MessageCircle className="w-4 h-4 text-amber-300" />
-          <span>💬 Depoimentos</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('contact')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-            adminSection === 'contact'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
-          }`}
-        >
-          <Phone className="w-4 h-4 text-emerald-300" />
-          <span>📞 Contato & Rodapé</span>
+          <BarChart3 className="w-3.5 h-3.5 text-emerald-500" />
+          <span>BI & Financeiro</span>
         </button>
 
         <button
           onClick={() => setAdminSection('categories')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
             adminSection === 'categories'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
           }`}
         >
-          <Tag className="w-4 h-4 text-amber-300" />
-          <span>🏷️ Categorias</span>
+          <Tag className="w-3.5 h-3.5" />
+          <span>Categorias</span>
+        </button>
+
+        <button
+          onClick={() => setAdminSection('hero')}
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+            adminSection === 'hero'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+          }`}
+        >
+          <ImageIcon className="w-3.5 h-3.5" />
+          <span>Foto de Capa</span>
+        </button>
+
+        <button
+          onClick={() => setAdminSection('hometexts')}
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+            adminSection === 'hometexts'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+          }`}
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+          <span>Textos da Home</span>
+        </button>
+
+        <button
+          onClick={() => setAdminSection('about')}
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+            adminSection === 'about'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+          }`}
+        >
+          <Heart className="w-3.5 h-3.5 text-rose-400" />
+          <span>Sobre Nós</span>
+        </button>
+
+        <button
+          onClick={() => setAdminSection('reviews')}
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+            adminSection === 'reviews'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+          }`}
+        >
+          <MessageCircle className="w-3.5 h-3.5" />
+          <span>Depoimentos</span>
+        </button>
+
+        <button
+          onClick={() => setAdminSection('contact')}
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+            adminSection === 'contact'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+          }`}
+        >
+          <Phone className="w-3.5 h-3.5" />
+          <span>Contato & Rodapé</span>
         </button>
 
         <button
           onClick={() => setAdminSection('filters')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
             adminSection === 'filters'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
           }`}
         >
-          <Sliders className="w-4 h-4 text-amber-300" />
-          <span>✨ Filtros de Preço</span>
+          <Sliders className="w-3.5 h-3.5" />
+          <span>Filtros da Loja</span>
         </button>
 
         <button
           id="admin-tab-coupons-btn"
           onClick={() => setAdminSection('coupons')}
-          className={`flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
             adminSection === 'coupons'
-              ? 'bg-purple-950 text-white shadow-sm'
-              : 'text-purple-950 hover:bg-amber-200/60'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
           }`}
         >
-          <Ticket className="w-4 h-4 text-amber-300" />
-          <span>🎟️ Cupons ({coupons.length})</span>
+          <Ticket className="w-3.5 h-3.5 text-pink-400" />
+          <span>Cupons ({coupons.length})</span>
         </button>
       </div>
 
@@ -1395,9 +1395,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 <button
                   type="submit"
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#F43F5E] via-[#FB923C] via-[#FACC15] to-[#06B6D4] hover:opacity-95 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 border-2 border-white/60 active:scale-95 transition-transform"
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold text-xs shadow-2xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
                 >
-                  <Check className="w-4 h-4" />
+                  <Check className="w-3.5 h-3.5" />
                   <span>Salvar Alterações na Capa</span>
                 </button>
               </div>
@@ -1408,316 +1408,315 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* PRODUCTS CATALOG SECTION */}
       {adminSection === 'products' && (
-        <div className="space-y-8">
-          {/* Toolbar: Search, Filters, Export/Import/Reset */}
-          <div className="bg-white/90 backdrop-blur-md rounded-3xl p-4 sm:p-6 border-2 border-amber-200 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          
-          {/* Search Input */}
-          <div className="relative w-full md:w-80">
-            <Search className="w-4 h-4 text-amber-500 absolute left-3.5 top-3.5" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por nome, tag ou ID..."
-              className="w-full pl-10 pr-4 py-2.5 bg-amber-50/50 border-2 border-amber-200 rounded-2xl text-xs sm:text-sm font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
-            />
+        <div className="space-y-5">
+          {/* Toolbar: Search, Filters, Export/Import/Reset - Delicate & Organized */}
+          <div className="bg-white/85 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 border border-amber-200/70 shadow-2xs">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
+              
+              {/* Left group: Search + Category + Stock */}
+              <div className="flex flex-wrap items-center gap-2 flex-1">
+                {/* Search Input */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 text-amber-500 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar por nome, tag ou ID..."
+                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-purple-100/80 rounded-xl text-xs font-medium text-purple-950 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400 focus:border-amber-300 transition-all"
+                  />
+                </div>
+
+                {/* Category Filter */}
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="px-2.5 py-1.5 bg-white border border-purple-100/80 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-1 focus:ring-amber-300 cursor-pointer shadow-2xs"
+                >
+                  <option value="all">Todas as Categorias</option>
+                  {categories.filter(c => c.id !== 'todos').map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.icon} {c.name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Stock Filter */}
+                <select
+                  value={stockFilter}
+                  onChange={(e) => setStockFilter(e.target.value as any)}
+                  className="px-2.5 py-1.5 bg-white border border-purple-100/80 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-1 focus:ring-amber-300 cursor-pointer shadow-2xs"
+                >
+                  <option value="all">Todos os Estoques</option>
+                  <option value="low">Estoque Baixo (&le; 5)</option>
+                  <option value="out">Esgotados (0)</option>
+                </select>
+              </div>
+
+              {/* Right group: Backup / Export / Import / Reset Actions */}
+              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                <button
+                  onClick={handleExportFullStore}
+                  title="Baixar backup completo de toda a loja em JSON"
+                  className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Backup Loja</span>
+                </button>
+
+                <button
+                  onClick={handleExportBackup}
+                  title="Baixar backup apenas dos produtos em formato JSON"
+                  className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Backup Produtos</span>
+                </button>
+
+                <label
+                  title="Importar produtos de um backup JSON"
+                  className="px-2.5 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-900 border border-cyan-200 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                >
+                  <Upload className="w-3.5 h-3.5 text-cyan-600" />
+                  <span>Importar JSON</span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportBackup}
+                    className="hidden"
+                  />
+                </label>
+
+                <button
+                  onClick={() => setShowResetCatalogModal(true)}
+                  title="Restaurar lista padrão original"
+                  className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-200 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Restaurar Padrão</span>
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Category Filter */}
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3.5 py-2.5 bg-amber-50/50 border-2 border-amber-200 rounded-2xl text-xs font-bold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
-            >
-              <option value="all">Todas as Categorias</option>
-              {categories.filter(c => c.id !== 'todos').map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.icon} {c.name}
-                </option>
-              ))}
-            </select>
+          {/* Products Table List with Intelligent Pricing Overview */}
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-amber-200/70 shadow-2xs overflow-hidden">
+            <div className="p-3 sm:p-3.5 border-b border-amber-100/80 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="font-['Mali'] text-sm sm:text-base font-bold text-purple-950 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Lista de Produtos & Precificação Inteligente ({filteredProducts.length})</span>
+                </h2>
+                <p className="text-[11px] text-slate-500 font-normal">
+                  Preço final público. Custo, mark-up e lucro são exclusivos da administração.
+                </p>
+              </div>
+              <button
+                onClick={onAddProduct}
+                className="self-start sm:self-auto px-3 py-1.5 bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Novo Mimo</span>
+              </button>
+            </div>
 
-            <select
-              value={stockFilter}
-              onChange={(e) => setStockFilter(e.target.value as any)}
-              className="px-3.5 py-2.5 bg-amber-50/50 border-2 border-amber-200 rounded-2xl text-xs font-bold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
-            >
-              <option value="all">Todos os Estoques</option>
-              <option value="low">Estoque Baixo (&le; 5)</option>
-              <option value="out">Esgotados (0)</option>
-            </select>
-          </div>
-
-          {/* Backup / Export / Import / Reset Actions */}
-          <div className="flex flex-wrap items-center gap-2 ml-auto">
-            <button
-              onClick={handleExportFullStore}
-              title="Baixar backup completo de toda a loja (fotos, frases, produtos, categorias e cupons) em JSON"
-              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
-            >
-              <Download className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Backup Loja Completa</span>
-            </button>
-
-            <button
-              onClick={handleExportBackup}
-              title="Baixar backup apenas dos produtos em formato JSON"
-              className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5 text-purple-600" />
-              <span>Backup Produtos</span>
-            </button>
-
-            <label
-              title="Importar produtos de um backup JSON"
-              className="px-3.5 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-900 border border-cyan-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <Upload className="w-3.5 h-3.5 text-cyan-600" />
-              <span>Importar JSON</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportBackup}
-                className="hidden"
-              />
-            </label>
-
-            <button
-              onClick={() => setShowResetCatalogModal(true)}
-              title="Restaurar lista padrão original"
-              className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-              <span>Restaurar Padrão</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Products Table List with Intelligent Pricing Overview */}
-      <div className="bg-white/95 backdrop-blur-md rounded-3xl border-2 border-amber-200 shadow-md overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-amber-100 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h2 className="font-['Mali'] text-lg font-bold text-purple-950 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>Lista de Produtos & Precificação Inteligente ({filteredProducts.length})</span>
-            </h2>
-            <p className="text-xs text-slate-500 font-medium">
-              Apenas o <strong>Preço Final de Venda</strong> fica visível para o cliente na loja. Custo, mark-up e lucro são exclusivos do administrador.
-            </p>
-          </div>
-          <button
-            onClick={onAddProduct}
-            className="self-start sm:self-auto px-4 py-2 bg-amber-400 hover:bg-amber-500 text-purple-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Novo Produto</span>
-          </button>
-        </div>
-
-        {filteredProducts.length === 0 ? (
-          <div className="p-12 text-center space-y-3">
-            <p className="text-sm font-bold text-purple-950">Nenhum produto encontrado com os filtros atuais.</p>
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setCategoryFilter('all');
-                setStockFilter('all');
-              }}
-              className="px-4 py-2 bg-amber-400 text-purple-950 font-bold rounded-xl text-xs"
-            >
-              Limpar Filtros
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs sm:text-sm">
-              <thead>
-                <tr className="bg-amber-100/70 border-b border-amber-200 text-purple-950 font-bold text-[11px] uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Foto & ID</th>
-                  <th className="py-3.5 px-4">Nome do Mimo</th>
-                  <th className="py-3.5 px-4">Categoria</th>
-                  <th className="py-3.5 px-4 text-center">Estoque (Atual / Inicial)</th>
-                  <th className="py-3.5 px-4">Custo Unitário</th>
-                  <th className="py-3.5 px-4">Preço de Venda</th>
-                  <th className="py-3.5 px-4">Mark-up & Lucro Bruto</th>
-                  <th className="py-3.5 px-4 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-amber-100 font-medium text-slate-700">
-                {filteredProducts.map((p) => {
-                  const discount = p.originalPrice 
-                    ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
-                    : null;
-
-                  const unitCost = p.unitCost ?? (p.price * 0.4);
-                  const grossProfit = p.grossProfit ?? (p.price - unitCost);
-                  const markupPercent = p.markupPercent ?? (unitCost > 0 ? ((p.price - unitCost) / unitCost) * 100 : 0);
-                  const grossMargin = p.grossMarginPercent ?? (p.price > 0 ? (grossProfit / p.price) * 100 : 0);
-
-                  return (
-                    <tr key={p.id} className="hover:bg-amber-50/50 transition-colors">
-                      {/* Photo Thumbnail */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="relative w-12 h-12 rounded-xl overflow-hidden border-2 border-amber-200 shrink-0 bg-slate-100">
-                            <img
-                              src={p.images[0]}
-                              alt={p.name}
-                              referrerPolicy="no-referrer"
-                              className="w-full h-full object-cover"
-                            />
-                            {p.images.length > 1 && (
-                              <span className="absolute bottom-0.5 right-0.5 bg-purple-950/80 text-white text-[9px] px-1 rounded font-bold">
-                                +{p.images.length - 1}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[11px] font-mono text-slate-400">
-                            {p.id}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Name & Description Preview */}
-                      <td className="py-3 px-4 max-w-xs">
-                        <p className="font-bold text-purple-950 text-xs sm:text-sm line-clamp-1">{p.name}</p>
-                        <p className="text-[11px] text-slate-500 line-clamp-1 font-normal leading-relaxed">
-                          {p.description}
-                        </p>
-                      </td>
-
-                      {/* Category & Tag */}
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col gap-1 items-start">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-purple-50 border border-purple-200 text-purple-900 text-[11px] font-bold">
-                            {p.category}
-                          </span>
-                          {p.tag && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-pink-100 border border-pink-200 text-pink-900 text-[10px] font-bold">
-                              {p.tag}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Stock (Current / Initial) */}
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex flex-col items-center">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                            p.stock > 5 
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : p.stock > 0
-                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                              : 'bg-rose-100 text-rose-800 border border-rose-300'
-                          }`}>
-                            {p.stock > 0 ? `${p.stock} un.` : 'Esgotado'}
-                          </span>
-                          {p.initialStock && p.initialStock !== p.stock && (
-                            <span className="text-[10px] text-slate-400 mt-0.5">
-                              Inicial: {p.initialStock} un.
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Unit Cost */}
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800">
-                            R$ {unitCost.toFixed(2)}
-                          </span>
-                          {p.acquisitionCostTotal && (
-                            <span className="text-[10px] text-slate-400">
-                              Total: R$ {p.acquisitionCostTotal.toFixed(2)}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Price (Sale Price to End User) */}
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col font-bold text-purple-950">
-                          <span className="text-emerald-950 font-extrabold">
-                            R$ {p.price.toFixed(2)}
-                          </span>
-                          {p.originalPrice && (
-                            <span className="text-[10px] text-slate-400 line-through">
-                              De R$ {p.originalPrice.toFixed(2)} (-{discount}%)
-                            </span>
-                          )}
-                          <span className="text-[9px] text-slate-400 font-normal">
-                            Preço público
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Markup & Gross Profit */}
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-emerald-800 text-xs">
-                            +R$ {grossProfit.toFixed(2)} <span className="font-normal text-[10px] text-slate-500">/un</span>
-                          </span>
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold">
-                            <span>Mark-up: {markupPercent.toFixed(1)}%</span>
-                            <span>•</span>
-                            <span className="text-emerald-700 font-bold">Margem: {grossMargin.toFixed(0)}%</span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Action buttons */}
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Live Preview Button */}
-                          <button
-                            onClick={() => onViewProductLive(p)}
-                            title="Visualizar produto na loja"
-                            className="p-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition-colors"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Duplicate Button */}
-                          <button
-                            onClick={() => onDuplicateProduct(p)}
-                            title="Duplicar este produto para criar variação"
-                            className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-colors"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Edit Button */}
-                          <button
-                            onClick={() => onEditProduct(p)}
-                            title="Editar fotos, descrição, valores e dados"
-                            className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-purple-950 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            <span>Editar</span>
-                          </button>
-
-                          {/* Delete Button (Safe In-App Trigger) */}
-                          <button
-                            onClick={() => setProductToDelete(p)}
-                            title="Excluir produto da loja"
-                            className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
+            {filteredProducts.length === 0 ? (
+              <div className="p-10 text-center space-y-2.5">
+                <p className="text-xs font-semibold text-purple-950">Nenhum produto encontrado com os filtros atuais.</p>
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setCategoryFilter('all');
+                    setStockFilter('all');
+                  }}
+                  className="px-3 py-1.5 bg-amber-400 text-purple-950 font-semibold rounded-xl text-xs cursor-pointer"
+                >
+                  Limpar Filtros
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-amber-50/80 border-b border-amber-200/70 text-purple-950 font-bold text-[10px] uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Foto & ID</th>
+                      <th className="py-2.5 px-3">Nome do Mimo</th>
+                      <th className="py-2.5 px-3">Categoria</th>
+                      <th className="py-2.5 px-3 text-center">Estoque</th>
+                      <th className="py-2.5 px-3">Custo Unitário</th>
+                      <th className="py-2.5 px-3">Preço de Venda</th>
+                      <th className="py-2.5 px-3">Lucro & Mark-up</th>
+                      <th className="py-2.5 px-3 text-right">Ações</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-amber-100/60 font-medium text-slate-700">
+                    {filteredProducts.map((p) => {
+                      const discount = p.originalPrice 
+                        ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
+                        : null;
+
+                      const unitCost = p.unitCost ?? (p.price * 0.4);
+                      const grossProfit = p.grossProfit ?? (p.price - unitCost);
+                      const markupPercent = p.markupPercent ?? (unitCost > 0 ? ((p.price - unitCost) / unitCost) * 100 : 0);
+                      const grossMargin = p.grossMarginPercent ?? (p.price > 0 ? (grossProfit / p.price) * 100 : 0);
+
+                      return (
+                        <tr key={p.id} className="hover:bg-amber-50/40 transition-colors">
+                          {/* Photo Thumbnail */}
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-amber-200 shrink-0 bg-slate-100">
+                                <img
+                                  src={p.images[0]}
+                                  alt={p.name}
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-cover"
+                                />
+                                {p.images.length > 1 && (
+                                  <span className="absolute bottom-0.5 right-0.5 bg-purple-950/80 text-white text-[8px] px-0.5 rounded font-bold">
+                                    +{p.images.length - 1}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-400">
+                                {p.id}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Name & Description Preview */}
+                          <td className="py-2.5 px-3 max-w-xs">
+                            <p className="font-bold text-purple-950 text-xs line-clamp-1">{p.name}</p>
+                            <p className="text-[10px] text-slate-500 line-clamp-1 font-normal">
+                              {p.description}
+                            </p>
+                          </td>
+
+                          {/* Category & Tag */}
+                          <td className="py-2.5 px-3">
+                            <div className="flex flex-col gap-0.5 items-start">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-purple-900 text-[10px] font-semibold">
+                                {p.category}
+                              </span>
+                              {p.tag && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-pink-100 border border-pink-200 text-pink-900 text-[9px] font-semibold">
+                                  {p.tag}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Stock (Current / Initial) */}
+                          <td className="py-2.5 px-3 text-center">
+                            <div className="flex flex-col items-center">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                p.stock > 5 
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : p.stock > 0
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                  : 'bg-rose-100 text-rose-800 border border-rose-300'
+                              }`}>
+                                {p.stock > 0 ? `${p.stock} un.` : 'Esgotado'}
+                              </span>
+                              {p.initialStock && p.initialStock !== p.stock && (
+                                <span className="text-[9px] text-slate-400 mt-0.5">
+                                  Inicial: {p.initialStock} un.
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Unit Cost */}
+                          <td className="py-2.5 px-3">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-800 text-xs">
+                                R$ {unitCost.toFixed(2)}
+                              </span>
+                              {p.acquisitionCostTotal && (
+                                <span className="text-[9px] text-slate-400">
+                                  Total: R$ {p.acquisitionCostTotal.toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Price (Sale Price to End User) */}
+                          <td className="py-2.5 px-3">
+                            <div className="flex flex-col font-semibold text-purple-950">
+                              <span className="text-emerald-950 font-bold text-xs">
+                                R$ {p.price.toFixed(2)}
+                              </span>
+                              {p.originalPrice && (
+                                <span className="text-[9px] text-slate-400 line-through">
+                                  De R$ {p.originalPrice.toFixed(2)} (-{discount}%)
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Markup & Gross Profit */}
+                          <td className="py-2.5 px-3">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-emerald-800 text-xs">
+                                +R$ {grossProfit.toFixed(2)} <span className="font-normal text-[9px] text-slate-500">/un</span>
+                              </span>
+                              <div className="flex items-center gap-1 text-[9px] text-slate-500">
+                                <span>Mark-up: {markupPercent.toFixed(0)}%</span>
+                                <span>•</span>
+                                <span className="text-emerald-700 font-semibold">Margem: {grossMargin.toFixed(0)}%</span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Action buttons - Delicate, Smaller & Unified */}
+                          <td className="py-2.5 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Live Preview Button */}
+                              <button
+                                onClick={() => onViewProductLive(p)}
+                                title="Visualizar produto na loja"
+                                className="p-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200/70 transition-colors cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Duplicate Button */}
+                              <button
+                                onClick={() => onDuplicateProduct(p)}
+                                title="Duplicar este produto"
+                                className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/70 transition-colors cursor-pointer"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Edit Button */}
+                              <button
+                                onClick={() => onEditProduct(p)}
+                                title="Editar fotos, descrição e valores"
+                                className="px-2 py-1 rounded-lg bg-amber-300 hover:bg-amber-400 text-purple-950 font-semibold text-xs flex items-center gap-1 border border-amber-400/60 shadow-2xs transition-colors cursor-pointer"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                                <span>Editar</span>
+                              </button>
+
+                              {/* Delete Button */}
+                              <button
+                                onClick={() => setProductToDelete(p)}
+                                title="Excluir produto"
+                                className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/70 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
         </div>
       )}
@@ -1770,11 +1769,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               Tem certeza que deseja excluir <strong>"{productToDelete.name}"</strong>? Os dados deste mimo serão excluídos do catálogo da loja.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setProductToDelete(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors"
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-xs hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
@@ -1787,7 +1786,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   setCopiedNotification(`Produto "${deletedName}" foi excluído com sucesso! 🗑️`);
                   setTimeout(() => setCopiedNotification(null), 3500);
                 }}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Sim, Excluir Produto</span>
@@ -1800,26 +1799,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* RESET CATALOG MODAL */}
       {showResetCatalogModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full border-2 border-amber-200 shadow-2xl space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center gap-3 text-amber-600">
-              <div className="p-3 bg-amber-100 rounded-2xl">
-                <RotateCcw className="w-6 h-6 text-amber-700" />
+          <div className="bg-white rounded-2xl p-5 sm:p-6 max-w-md w-full border border-amber-200/80 shadow-xl space-y-3.5 animate-in zoom-in-95">
+            <div className="flex items-center gap-2.5 text-amber-600">
+              <div className="p-2.5 bg-amber-100 rounded-xl">
+                <RotateCcw className="w-5 h-5 text-amber-700" />
               </div>
               <div>
-                <h3 className="font-['Mali'] text-lg font-bold text-purple-950">Restaurar Catálogo Padrão?</h3>
-                <p className="text-xs text-slate-500 font-medium">Voltar aos produtos e fotos originais da Lavistore.</p>
+                <h3 className="font-['Mali'] text-base font-bold text-purple-950">Restaurar Catálogo Padrão?</h3>
+                <p className="text-[11px] text-slate-500 font-normal">Voltar aos produtos e fotos originais da Lavistore.</p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+            <p className="text-xs text-slate-600 leading-relaxed font-normal">
               Esta ação redefinirá todos os produtos para a lista inicial original da Lavistore. Se desejar, faça um <strong>Backup JSON</strong> antes.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowResetCatalogModal(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors"
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-xs hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
@@ -1831,7 +1830,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   setCopiedNotification('Catálogo padrão original restaurado com sucesso! ✨');
                   setTimeout(() => setCopiedNotification(null), 3000);
                 }}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-purple-950 font-bold text-xs shadow-md transition-colors"
+                className="px-3.5 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-medium text-xs shadow-2xs transition-colors cursor-pointer"
               >
                 Restaurar Catálogo
               </button>
@@ -1843,33 +1842,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* RESET HERO BANNER MODAL */}
       {showResetHeroModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full border-2 border-amber-200 shadow-2xl space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center gap-3 text-amber-600">
-              <div className="p-3 bg-amber-100 rounded-2xl">
-                <RotateCcw className="w-6 h-6 text-amber-700" />
+          <div className="bg-white rounded-2xl p-5 sm:p-6 max-w-md w-full border border-amber-200/80 shadow-xl space-y-3.5 animate-in zoom-in-95">
+            <div className="flex items-center gap-2.5 text-amber-600">
+              <div className="p-2.5 bg-amber-100 rounded-xl">
+                <RotateCcw className="w-5 h-5 text-amber-700" />
               </div>
               <div>
-                <h3 className="font-['Mali'] text-lg font-bold text-purple-950">Restaurar Banner Principal?</h3>
-                <p className="text-xs text-slate-500 font-medium">Voltar para a imagem e textos padrões de capa.</p>
+                <h3 className="font-['Mali'] text-base font-bold text-purple-950">Restaurar Banner Principal?</h3>
+                <p className="text-[11px] text-slate-500 font-normal">Voltar para a imagem e textos padrões de capa.</p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+            <p className="text-xs text-slate-600 leading-relaxed font-normal">
               Deseja restaurar a foto do trio de florzinhas e textos padrões da capa da página inicial?
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowResetHeroModal(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors"
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-xs hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={confirmResetHeroAction}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-purple-950 font-bold text-xs shadow-md transition-colors"
+                className="px-3.5 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-medium text-xs shadow-2xs transition-colors cursor-pointer"
               >
                 Restaurar Banner
               </button>

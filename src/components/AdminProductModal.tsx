@@ -31,6 +31,11 @@ import {
 import { Product, ProductSizeVariant, ProductColorVariant, Category, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { safeSetItem, compressImage } from '../utils/storage';
+import { 
+  getGroupingKey, 
+  normalizeBaseProductName, 
+  findSiblingBiRecords 
+} from '../utils/productGroupingEngine';
 
 export const SUGGESTED_PRODUCT_PHOTOS: Record<string, string[]> = {
   caneta: [
@@ -87,6 +92,7 @@ export interface AdminProductModalProps {
   categories?: Category[];
   // Integração unificada com a Planilha BI:
   biRecord?: BiProductCalculatedRecord | null;
+  allBiRecords?: BiProductCalculatedRecord[];
   onPublishBiRecord?: (record: BiProductCalculatedRecord, productData: Partial<Product>) => void;
   onUnpublishBiRecord?: (recordId: string, productId?: string) => void;
   onViewLiveProduct?: (product: Product) => void;
@@ -100,6 +106,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
   onDeleteProduct,
   categories = CATEGORIES,
   biRecord,
+  allBiRecords,
   onPublishBiRecord,
   onUnpublishBiRecord,
   onViewLiveProduct
@@ -108,6 +115,8 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
   // Identifica se há um registro da planilha vinculado a esta tela
   const [currentBiRecord, setCurrentBiRecord] = useState<BiProductCalculatedRecord | null>(biRecord || null);
+  // Lista de linhas irmãs da família identificadas na planilha
+  const [detectedSpreadsheetSiblings, setDetectedSpreadsheetSiblings] = useState<BiProductCalculatedRecord[]>([]);
 
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
@@ -148,25 +157,123 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
   // Determinar se há foto sugerida para o nome atual digitado
   const suggestedPhoto = getSuggestedPhotoForName(formData.name || (currentBiRecord ? currentBiRecord.produto : ''));
 
+  // Carrega automaticamente a grade de tamanhos e quantidades a partir da planilha Google Sheets
+  const handleLoadSizesFromSpreadsheet = () => {
+    if (detectedSpreadsheetSiblings.length === 0) return;
+    const importedSizes: ProductSizeVariant[] = detectedSpreadsheetSiblings.map((s, idx) => {
+      const effectiveStock = s.saldoEstoqueQtd > 0
+        ? s.saldoEstoqueQtd
+        : ((!s.quantidadeVendida || s.quantidadeVendida === 0) && (s.quantidadeComprada || 0) > 0)
+          ? s.quantidadeComprada
+          : Math.max(0, s.saldoEstoqueQtd || 0);
+
+      return {
+        id: `size-${s.id || idx}`,
+        label: s.tamCor || 'Único',
+        stock: effectiveStock,
+        initialStock: s.quantidadeComprada,
+        price: s.precoVenda,
+        unitCost: s.custoUnitario,
+        biRecordId: s.id
+      };
+    });
+
+    const totalStk = importedSizes.reduce((acc, sz) => acc + (sz.stock || 0), 0);
+    setFormData(prev => ({
+      ...prev,
+      hasSizes: true,
+      sizes: importedSizes,
+      stock: totalStk
+    }));
+  };
+
   // Initialize form state when opening or editing
   useEffect(() => {
     // 1. Resolver o registro do BI correspondente (se passado diretamente ou por vínculo no produto)
     let foundBi: BiProductCalculatedRecord | null = biRecord || null;
-    if (!foundBi && productToEdit?.biRecordId) {
+    let allRecordsList: BiProductCalculatedRecord[] = allBiRecords || [];
+
+    if (allRecordsList.length === 0) {
       try {
         const raw = localStorage.getItem('lavistore_bi_records');
         if (raw) {
-          const list = JSON.parse(raw);
-          foundBi = list.find((item: any) => item.id === productToEdit.biRecordId) || null;
+          allRecordsList = JSON.parse(raw);
         }
       } catch {}
     }
+
+    if (!foundBi && productToEdit) {
+      if (productToEdit.biRecordId) {
+        foundBi = allRecordsList.find((item: any) => item.id === productToEdit.biRecordId) || null;
+      }
+      if (!foundBi && productToEdit.name) {
+        const pKey = getGroupingKey(productToEdit.name);
+        foundBi = allRecordsList.find((item: any) => getGroupingKey(item.produto) === pKey) || null;
+      }
+    }
     setCurrentBiRecord(foundBi);
 
-    // 2. Se temos produto já cadastrado na vitrine
+    // 2. Localiza automaticamente todas as linhas irmãs da família pelo nome do produto
+    const siblings = foundBi ? findSiblingBiRecords(foundBi, allRecordsList) : [];
+    setDetectedSpreadsheetSiblings(siblings);
+
+    // Constrói lista de tamanhos originada diretamente da coluna Tam/Cor da planilha Google Sheets
+    const autoSpreadsheetSizes: ProductSizeVariant[] = siblings.map((s, idx) => {
+      const effectiveStock = s.saldoEstoqueQtd > 0
+        ? s.saldoEstoqueQtd
+        : ((!s.quantidadeVendida || s.quantidadeVendida === 0) && (s.quantidadeComprada || 0) > 0)
+          ? s.quantidadeComprada
+          : Math.max(0, s.saldoEstoqueQtd || 0);
+
+      return {
+        id: `size-${s.id || idx}`,
+        label: s.tamCor || 'Único',
+        stock: effectiveStock,
+        initialStock: s.quantidadeComprada,
+        price: s.precoVenda,
+        unitCost: s.custoUnitario,
+        biRecordId: s.id
+      };
+    });
+
+    const isSpreadsheetFamily = siblings.length > 1 || (siblings.length === 1 && siblings[0].tamCor && !['único', 'unico'].includes(siblings[0].tamCor.trim().toLowerCase()));
+
+    // 3. Se temos produto já cadastrado na vitrine
     if (productToEdit) {
-      const hasSz = productToEdit.hasSizes ?? (productToEdit.sizes && productToEdit.sizes.length > 0) ?? false;
-      const szList = productToEdit.sizes ? [...productToEdit.sizes] : [];
+      const hasExistingSizes = productToEdit.hasSizes && productToEdit.sizes && productToEdit.sizes.length > 0;
+      let szList: ProductSizeVariant[];
+      let hasSz: boolean;
+
+      if (hasExistingSizes) {
+        szList = (productToEdit.sizes || []).map(sz => {
+          const matchingSibling = siblings.find(
+            s => s.id === sz.biRecordId || s.tamCor.trim().toLowerCase() === sz.label.trim().toLowerCase()
+          );
+          return {
+            ...sz,
+            biRecordId: sz.biRecordId || matchingSibling?.id,
+            initialStock: sz.initialStock ?? matchingSibling?.quantidadeComprada,
+            unitCost: sz.unitCost ?? matchingSibling?.custoUnitario
+          };
+        });
+        hasSz = true;
+      } else if (isSpreadsheetFamily && autoSpreadsheetSizes.length > 0) {
+        // Automaticamente ativa e popula a grade a partir da planilha!
+        szList = autoSpreadsheetSizes;
+        hasSz = true;
+      } else {
+        szList = [];
+        hasSz = false;
+      }
+
+      const totalStockFromSizes = (hasSz && szList.length > 0)
+        ? szList.reduce((acc, s) => acc + (s.stock || 0), 0)
+        : null;
+
+      const effectiveStock = totalStockFromSizes !== null
+        ? totalStockFromSizes
+        : (foundBi ? (foundBi.saldoEstoqueQtd > 0 ? foundBi.saldoEstoqueQtd : foundBi.quantidadeComprada) : (productToEdit.stock ?? 10));
+
       const hasCols = productToEdit.hasColors ?? (productToEdit.colors && productToEdit.colors.length > 0) ?? false;
       const colList: ProductColorVariant[] = productToEdit.colors 
         ? productToEdit.colors.map((c, idx) => ({
@@ -181,6 +288,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
       setFormData({
         ...productToEdit,
+        name: productToEdit.name || (foundBi ? normalizeBaseProductName(foundBi.produto) : ''),
         hasSizes: hasSz,
         sizePricingMode: productToEdit.sizePricingMode || 'same',
         sizes: szList,
@@ -188,7 +296,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
         colors: colList,
         price: productToEdit.price,
         originalPrice: productToEdit.originalPrice,
-        stock: foundBi ? foundBi.saldoEstoqueQtd : (productToEdit.stock ?? 10),
+        stock: effectiveStock,
         imageFit: productToEdit.imageFit || 'cover',
         imagePosition: productToEdit.imagePosition || 'center',
         imageScale: productToEdit.imageScale || 100,
@@ -205,36 +313,41 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
       });
       setHasRestoredDraft(false);
     } else if (foundBi) {
-      // 3. Veio diretamente da planilha do BI sem produto na vitrine ainda
-      const defaultName = foundBi.tamCor && foundBi.tamCor.toLowerCase() !== 'único' && foundBi.tamCor.toLowerCase() !== 'unico'
-        ? `${foundBi.produto} - ${foundBi.tamCor}`
-        : foundBi.produto;
+      // 4. Veio diretamente da planilha do BI sem produto na vitrine ainda
+      const cleanBaseName = normalizeBaseProductName(foundBi.produto) || foundBi.produto;
 
       const initialPhotos = foundBi.vitrineImageUrl
         ? [foundBi.vitrineImageUrl]
-        : [getSuggestedPhotoForName(foundBi.produto)?.url || SUGGESTED_PRODUCT_PHOTOS.default[0]];
+        : [getSuggestedPhotoForName(cleanBaseName)?.url || SUGGESTED_PRODUCT_PHOTOS.default[0]];
+
+      const useSizes = isSpreadsheetFamily && autoSpreadsheetSizes.length > 0;
+      const initialSizes = useSizes ? autoSpreadsheetSizes : [];
+      const totalStockFromSizes = useSizes ? autoSpreadsheetSizes.reduce((acc, s) => acc + (s.stock || 0), 0) : null;
+      const effectiveStock = totalStockFromSizes !== null 
+        ? totalStockFromSizes 
+        : (foundBi.saldoEstoqueQtd > 0 ? foundBi.saldoEstoqueQtd : (foundBi.quantidadeVendida === 0 && foundBi.quantidadeComprada > 0 ? foundBi.quantidadeComprada : 0));
 
       setFormData({
         id: foundBi.vitrineProductId || `lav-${Date.now().toString().slice(-5)}`,
-        name: defaultName,
+        name: cleanBaseName,
         category: (foundBi.vitrineCategory as any) || 'papelaria',
         price: foundBi.precoVenda,
         originalPrice: Number((foundBi.precoVenda * 1.25).toFixed(2)),
-        stock: foundBi.saldoEstoqueQtd,
-        hasSizes: false,
+        stock: effectiveStock,
+        hasSizes: useSizes,
         sizePricingMode: 'same',
-        sizes: [],
+        sizes: initialSizes,
         hasColors: false,
         colors: [],
         rating: 5.0,
         reviewCount: 12,
         images: initialPhotos,
-        description: foundBi.descricao || `Lindo mimo ${foundBi.produto} da Lavistore! Perfeito para presentear quem você ama com muito afeto, delicadeza e encanto. ✨💖`,
+        description: foundBi.descricao || `Lindo mimo ${cleanBaseName} da Lavistore! Perfeito para presentear quem você ama com muito afeto, delicadeza e encanto. ✨💖`,
         features: [
-          `Tam/Cor: ${foundBi.tamCor || 'Único'}`,
+          useSizes ? `Variações disponíveis na planilha: ${siblings.map(s => s.tamCor).join(', ')}` : `Tam/Cor: ${foundBi.tamCor || 'Único'}`,
           'Item selecionado com carinho pela Lavistore',
           'Embalado com todo o cuidado e cheirinho doce especial',
-          'Pronta entrega em estoque real'
+          'Pronta entrega com estoque real sincronizado'
         ],
         tag: foundBi.vitrineTag || 'Novidade ✨',
         dimensions: '',
@@ -1529,6 +1642,41 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
             {formData.hasSizes ? (
               <div className="space-y-4 animate-in fade-in duration-200">
+                {/* Banner de Sincronização Inteligente com a Planilha */}
+                {detectedSpreadsheetSiblings.length > 0 && (
+                  <div className="p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-purple-50 border-2 border-emerald-300 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+                    <div className="flex items-start sm:items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <Sparkles className="w-4 h-4 text-amber-200" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                          <span>✨ Variações Preenchidas Automaticamente da Planilha</span>
+                          <span className="bg-emerald-200 text-emerald-950 px-2 py-0.5 rounded-full text-[9px] font-extrabold border border-emerald-300">
+                            Coluna 'Tam/Cor'
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-emerald-900 font-medium">
+                          {detectedSpreadsheetSiblings.length} variações identificadas com seus saldos de estoque:{' '}
+                          <strong className="text-emerald-950">
+                            {detectedSpreadsheetSiblings.map(s => `${s.tamCor} (${s.saldoEstoqueQtd > 0 ? s.saldoEstoqueQtd : s.quantidadeComprada} un.)`).join(', ')}
+                          </strong>.
+                          Zero trabalho manual duplicado!
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleLoadSizesFromSpreadsheet}
+                      title="Recarregar tamanhos e quantidades originais da planilha"
+                      className="px-3 py-1.5 bg-white hover:bg-emerald-100 text-emerald-950 border border-emerald-300 rounded-xl text-xs font-extrabold shadow-2xs transition-all shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Recarregar da Planilha</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Presets Rápidos */}
                 <div>
                   <label className="text-[11px] font-bold text-purple-950 mb-1.5 flex items-center gap-1">
@@ -1536,6 +1684,16 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                     <span>Carregar Grade Rápida com 1 Clique:</span>
                   </label>
                   <div className="flex flex-wrap gap-1.5">
+                    {detectedSpreadsheetSiblings.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleLoadSizesFromSpreadsheet}
+                        className="px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 border border-emerald-400 cursor-pointer"
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-200" />
+                        <span>📊 Planilha ({detectedSpreadsheetSiblings.map(s => s.tamCor).join(', ')})</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleApplySizePreset('calcados')}
@@ -1622,13 +1780,23 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                       >
                         {/* Label */}
                         <div className={formData.sizePricingMode === 'custom' ? 'col-span-6 sm:col-span-5' : 'col-span-8 sm:col-span-7'}>
-                          <input
-                            type="text"
-                            value={sz.label}
-                            onChange={(e) => handleUpdateSizeVariant(sz.id, 'label', e.target.value)}
-                            placeholder="Ex: P, M, 34-36, 15x21cm"
-                            className="w-full px-2.5 py-1.5 bg-purple-50/40 border border-purple-200 rounded-lg text-xs font-bold text-purple-950 focus:outline-none focus:ring-1 focus:ring-purple-400"
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              value={sz.label}
+                              onChange={(e) => handleUpdateSizeVariant(sz.id, 'label', e.target.value)}
+                              placeholder="Ex: P, M, 34-36, 15x21cm"
+                              className="w-full px-2.5 py-1.5 bg-purple-50/40 border border-purple-200 rounded-lg text-xs font-bold text-purple-950 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                            />
+                            {sz.biRecordId && (
+                              <span 
+                                className="shrink-0 text-[9px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-md"
+                                title="Variação vinculada à linha correspondente na planilha Google Sheets"
+                              >
+                                📊 Planilha
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Estoque */}

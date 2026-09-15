@@ -31,7 +31,8 @@ import {
   ExternalLink,
   Store,
   ShoppingBag,
-  Database
+  Database,
+  Ruler
 } from 'lucide-react';
 import { BiProductCalculatedRecord, BiConsolidatedKpis, Product } from '../types';
 import {
@@ -44,6 +45,11 @@ import {
   DEFAULT_BI_SAMPLE_RECORDS,
   PYTHON_PANDAS_PIPELINE_CODE
 } from '../utils/biFinanceEngine';
+import {
+  findSiblingBiRecords,
+  createParentProductFromBiRecords,
+  getGroupingKey
+} from '../utils/productGroupingEngine';
 import { PublishToVitrineModal } from './PublishToVitrineModal';
 import { BiDatabaseArchitectureModal } from './BiDatabaseArchitectureModal';
 
@@ -440,7 +446,10 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
   // Identifica se o produto do BI já está na Vitrine
   const isRecordPublished = (r: BiProductCalculatedRecord) => {
     if (r.publishedToVitrine) return true;
-    if (products && products.some(p => p.biRecordId === r.id || (r.vitrineProductId && p.id === r.vitrineProductId))) {
+    if (products && products.some(p => {
+      if (p.biRecordId === r.id || (r.vitrineProductId && p.id === r.vitrineProductId)) return true;
+      return getGroupingKey(p.name) === getGroupingKey(r.produto);
+    })) {
       return true;
     }
     return false;
@@ -449,95 +458,81 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
   // Localiza o produto correspondente da Vitrine
   const getMatchingProduct = (r: BiProductCalculatedRecord): Product | null => {
     if (!products || products.length === 0) return null;
-    return products.find(p => p.biRecordId === r.id || (r.vitrineProductId && p.id === r.vitrineProductId)) || null;
+    const direct = products.find(p => p.biRecordId === r.id || (r.vitrineProductId && p.id === r.vitrineProductId));
+    if (direct) return direct;
+    const rKey = getGroupingKey(r.produto);
+    return products.find(p => getGroupingKey(p.name) === rKey) || null;
   };
 
-  // Publica ou atualiza o produto na Vitrine do E-commerce
+  // Publica ou atualiza o produto na Vitrine do E-commerce com inteligência de agrupamento Pai/Filho
   const handlePublishToVitrine = async (updatedRecord: BiProductCalculatedRecord, productData: Partial<Product>) => {
     const existing = getMatchingProduct(updatedRecord);
-    const prodId = existing?.id || updatedRecord.vitrineProductId || `lav-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
     
-    const productToSave: Product = {
-      ...productData,
-      id: prodId,
-      name: productData.name || updatedRecord.produto,
-      category: productData.category || 'papelaria',
-      price: productData.price || updatedRecord.precoVenda,
-      originalPrice: productData.originalPrice || (productData.price ? Number((productData.price * 1.25).toFixed(2)) : undefined),
-      rating: existing?.rating || 5.0,
-      reviewCount: existing?.reviewCount || 12,
-      images: productData.images && productData.images.length > 0
-        ? productData.images
-        : [updatedRecord.vitrineImageUrl || 'https://images.unsplash.com/photo-1582966770380-921587181f82?w=800&auto=format&fit=crop&q=80'],
-      description: productData.description || updatedRecord.descricao,
-      features: productData.features || [
-        `Tam/Cor: ${updatedRecord.tamCor}`,
-        'Item selecionado com carinho pela Lavistore',
-        'Embalado com todo o cuidado e cheirinho doce especial',
-        'Pronta entrega em estoque real'
-      ],
-      tag: productData.tag || 'Novidade ✨',
-      dimensions: productData.dimensions,
-      isNew: productData.isNew ?? true,
-      isBestseller: productData.isBestseller ?? false,
-      isFloralSpecial: productData.isFloralSpecial ?? false,
-      hasSizes: productData.hasSizes ?? false,
-      sizePricingMode: productData.sizePricingMode || 'same',
-      sizes: productData.sizes,
-      hasColors: productData.hasColors ?? false,
-      colors: productData.colors,
-      imageFit: productData.imageFit || 'cover',
-      imagePosition: productData.imagePosition || 'center',
-      imageScale: productData.imageScale || 100,
-      stock: productData.stock ?? updatedRecord.saldoEstoqueQtd, // Preserva estoque calculado ou sincronizado
-      biRecordId: updatedRecord.id,
-      originTamCor: updatedRecord.tamCor,
-      isPublished: productData.isPublished !== undefined ? productData.isPublished : true,
-      autoHideWhenOutOfStock: productData.autoHideWhenOutOfStock !== undefined 
-        ? productData.autoHideWhenOutOfStock 
-        : (updatedRecord.autoHideWhenOutOfStock !== undefined ? updatedRecord.autoHideWhenOutOfStock : true)
-    };
+    // Identifica automaticamente todas as linhas irmãs da família do produto pelo nome principal (ex: P, M, G, GG)
+    const siblings = findSiblingBiRecords(updatedRecord, records);
+    const effectiveSiblings = siblings.length > 0 ? siblings : [updatedRecord];
+
+    // Cria ou atualiza o produto Pai unificado com todas as variações (tamanhos/cores)
+    const productToSave = createParentProductFromBiRecords(
+      updatedRecord,
+      effectiveSiblings,
+      existing,
+      productData
+    );
 
     if (onSaveProduct) {
       onSaveProduct(productToSave);
     }
 
-    const finalRecord: BiProductCalculatedRecord = {
-      ...updatedRecord,
-      publishedToVitrine: true,
-      vitrineProductId: prodId,
-      vitrineImageUrl: productToSave.images[0],
-      vitrineCategory: productToSave.category,
-      vitrineTag: productToSave.tag
-    };
+    // Marca todas as linhas irmãs da planilha como publicadas e vinculadas ao mesmo produto da vitrine
+    const siblingIds = new Set(effectiveSiblings.map(s => s.id));
+    const newRecords = records.map(item => {
+      if (siblingIds.has(item.id)) {
+        return {
+          ...item,
+          publishedToVitrine: true,
+          vitrineProductId: productToSave.id,
+          vitrineImageUrl: productToSave.images[0],
+          vitrineCategory: productToSave.category,
+          vitrineTag: productToSave.tag
+        };
+      }
+      return item;
+    });
 
-    const newRecords = records.map(item => item.id === finalRecord.id ? finalRecord : item);
     await persistRecords(newRecords);
     setRecordToPublish(null);
 
     if (onNotify) {
-      onNotify(`✨ Mimo "${productToSave.name}" publicado na vitrine com sucesso! Estoque: ${productToSave.stock} un.`);
+      if (effectiveSiblings.length > 1) {
+        onNotify(`✨ Mimo "${productToSave.name}" unificado com sucesso! ${effectiveSiblings.length} variações vinculadas (${effectiveSiblings.map(s => s.tamCor).join(', ')}). Estoque total: ${productToSave.stock} un.`);
+      } else {
+        onNotify(`✨ Mimo "${productToSave.name}" publicado na vitrine com sucesso! Estoque: ${productToSave.stock} un.`);
+      }
     }
   };
 
-  // Despublica o produto da Vitrine (remove da visão pública dos clientes)
+  // Despublica o produto da Vitrine (remove da visão pública dos clientes mantendo os dados no BI)
   const handleUnpublishFromVitrine = async (recordId: string, productId?: string) => {
     const rec = records.find(r => r.id === recordId);
     if (!rec) return;
 
+    const siblings = findSiblingBiRecords(rec, records);
+    const siblingIds = new Set((siblings.length > 0 ? siblings : [rec]).map(s => s.id));
+
     if (productId && products) {
-      const prod = products.find(p => p.id === productId || p.biRecordId === recordId);
+      const prod = products.find(p => p.id === productId || p.biRecordId === recordId || getGroupingKey(p.name) === getGroupingKey(rec.produto));
       if (prod && onSaveProduct) {
         onSaveProduct({ ...prod, isPublished: false });
       }
     }
 
-    const updated = records.map(r => r.id === recordId ? { ...r, publishedToVitrine: false } : r);
+    const updated = records.map(r => (siblingIds.has(r.id) || r.id === recordId) ? { ...r, publishedToVitrine: false } : r);
     await persistRecords(updated);
     setRecordToPublish(null);
 
     if (onNotify) {
-      onNotify(`Mimo "${rec.produto}" despublicado da vitrine dos clientes.`);
+      onNotify(`Mimo "${rec.produto}" e suas variações foram despublicados da vitrine dos clientes.`);
     }
   };
 
@@ -1217,7 +1212,13 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                       <span>Vitrine da Loja</span>
                     </div>
                   </th>
-                  <th className="py-3 px-3.5 min-w-[220px]">Produto & Tam/Cor</th>
+                  <th className="py-3 px-3.5 min-w-[190px]">Produto</th>
+                  <th className="py-3 px-3.5 text-center min-w-[110px]">
+                    <div className="flex items-center justify-center gap-1 text-purple-950">
+                      <Ruler className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Tam/Cor</span>
+                    </div>
+                  </th>
                   <th className="py-3 px-3.5">Período</th>
                   <th className="py-3 px-3.5 text-center">Compras (Qtd)</th>
                   <th className="py-3 px-3.5 text-center">Vendas (Qtd)</th>
@@ -1308,7 +1309,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                         </div>
                       </td>
 
-                      {/* 2ª COLUNA: Produto & Tam/Cor (Ao lado do botão de publicação) */}
+                      {/* 2ª COLUNA: PRODUTO */}
                       <td className="py-3 px-3.5">
                         <div className="flex items-center gap-2.5">
                           {displayThumb ? (
@@ -1324,20 +1325,39 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                             </div>
                           )}
                           <div className="space-y-0.5 min-w-0">
-                            <strong className="font-bold text-purple-950 text-xs sm:text-sm block truncate max-w-[200px]">
+                            <strong className="font-bold text-purple-950 text-xs sm:text-sm block truncate max-w-[210px]" title={r.produto}>
                               {r.produto}
                             </strong>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-purple-900 text-[10px] font-bold">
-                                {r.tamCor}
+                            {r.descricao && (
+                              <span className="text-[10px] text-slate-400 truncate max-w-[180px] block" title={r.descricao}>
+                                {r.descricao}
                               </span>
-                              {r.descricao && (
-                                <span className="text-[10px] text-slate-400 truncate max-w-[140px]" title={r.descricao}>
-                                  {r.descricao}
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
+                        </div>
+                      </td>
+
+                      {/* 3ª COLUNA: TAM/COR (Coluna Adicional Separada Conforme Planilha) */}
+                      <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <span className="inline-block px-2.5 py-1 rounded-lg bg-purple-100 border border-purple-200 text-purple-950 text-xs font-black shadow-2xs">
+                            {r.tamCor || 'Único'}
+                          </span>
+                          {(() => {
+                            const siblings = findSiblingBiRecords(r, records);
+                            if (siblings.length > 1) {
+                              return (
+                                <span 
+                                  className="px-1.5 py-0.5 rounded-md bg-pink-50 border border-pink-200 text-pink-700 text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs"
+                                  title={`Item vinculado à família com ${siblings.length} variações (${siblings.map(s => s.tamCor).join(', ')}). Exibido em card unificado na vitrine.`}
+                                >
+                                  <Sparkles className="w-2.5 h-2.5 text-pink-500" />
+                                  <span>Família ({siblings.length})</span>
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </td>
 
@@ -1743,6 +1763,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       {recordToPublish && (
         <PublishToVitrineModal
           record={recordToPublish}
+          allRecords={records}
           existingProduct={getMatchingProduct(recordToPublish)}
           categories={categories}
           onClose={() => setRecordToPublish(null)}

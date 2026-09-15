@@ -94,39 +94,39 @@ export const FilterBarManager: React.FC<FilterBarManagerProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 p-5 rounded-3xl border-2 border-amber-300">
+      {/* Header Banner - Delicate & Minimalist */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white/85 backdrop-blur-md p-5 sm:p-6 rounded-2xl border border-amber-200/80 shadow-2xs">
         <div>
           <h2 className="font-['Mali'] text-xl sm:text-2xl font-bold text-purple-950 flex items-center gap-2">
-            <SlidersHorizontal className="w-6 h-6 text-purple-700" />
+            <SlidersHorizontal className="w-5 h-5 text-purple-700" />
             <span>Configurar Filtro de Valores & Ordenação</span>
           </h2>
-          <p className="text-xs sm:text-sm text-purple-900/80 font-['Comfortaa'] mt-1">
-            Habilite, desabilite ou crie faixas de preço personalizadas e escolha quais opções de ordenação aparecem na loja.
+          <p className="text-xs text-purple-900/80 font-['Comfortaa'] mt-1">
+            Habilite, desabilite ou crie faixas de preço personalizadas e escolha as opções de ordenação da vitrine.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={onResetConfig}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/80 hover:bg-white text-slate-700 hover:text-purple-950 border border-amber-300 transition-colors flex items-center gap-1.5 shadow-2xs"
+            className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+            <RotateCcw className="w-3 h-3 text-slate-500" />
             <span>Restaurar Padrão</span>
           </button>
 
           <button
             onClick={handleSave}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-purple-950 hover:bg-purple-900 text-amber-300 transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg transform active:scale-95"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-purple-950 hover:bg-purple-900 text-amber-300 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
           >
             {saveSuccess ? (
               <>
-                <Check className="w-4 h-4 text-emerald-400" />
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Salvo com Sucesso! ✨</span>
               </>
             ) : (
               <>
-                <Check className="w-4 h-4 text-amber-300" />
+                <Check className="w-3.5 h-3.5 text-amber-300" />
                 <span>Salvar Alterações</span>
               </>
             )}

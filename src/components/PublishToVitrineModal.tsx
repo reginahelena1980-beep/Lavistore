@@ -4,6 +4,7 @@ import { BiProductCalculatedRecord, Product, Category } from '../types';
 
 export interface PublishToVitrineModalProps {
   record: BiProductCalculatedRecord;
+  allRecords?: BiProductCalculatedRecord[];
   existingProduct?: Product | null;
   onClose: () => void;
   onPublish: (updatedRecord: BiProductCalculatedRecord, productData: Partial<Product>) => void;
@@ -21,6 +22,7 @@ export interface PublishToVitrineModalProps {
  */
 export const PublishToVitrineModal: React.FC<PublishToVitrineModalProps> = ({
   record,
+  allRecords,
   existingProduct,
   onClose,
   onPublish,
@@ -34,6 +36,7 @@ export const PublishToVitrineModal: React.FC<PublishToVitrineModalProps> = ({
       isOpen={true}
       productToEdit={existingProduct || null}
       biRecord={record}
+      allBiRecords={allRecords}
       onClose={onClose}
       onSaveProduct={(prod) => {
         if (onPublish && record) {

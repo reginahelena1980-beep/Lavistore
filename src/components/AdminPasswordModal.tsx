@@ -165,21 +165,21 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
                   if (errorMessage) setErrorMessage(null);
                 }}
                 placeholder="Digite a senha atual (ou 1234)"
-                className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all pr-10"
+                className="w-full px-3 py-2 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-medium text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:bg-white transition-all pr-9"
               />
               <button
                 type="button"
                 onClick={() => setShowCurrent(!showCurrent)}
-                className="absolute right-3 top-3 text-purple-400 hover:text-purple-700"
+                className="absolute right-2.5 top-2.5 text-purple-400 hover:text-purple-700 cursor-pointer"
               >
-                {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
           </div>
 
           {/* Nova Senha */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-purple-950">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-purple-950">
               Nova Senha
             </label>
             <div className="relative">
@@ -194,21 +194,21 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
                   if (errorMessage) setErrorMessage(null);
                 }}
                 placeholder="Crie uma nova senha (mínimo 4 caracteres)"
-                className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all pr-10"
+                className="w-full px-3 py-2 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-medium text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:bg-white transition-all pr-9"
               />
               <button
                 type="button"
                 onClick={() => setShowNew(!showNew)}
-                className="absolute right-3 top-3 text-purple-400 hover:text-purple-700"
+                className="absolute right-2.5 top-2.5 text-purple-400 hover:text-purple-700 cursor-pointer"
               >
-                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showNew ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
           </div>
 
           {/* Confirmar Nova Senha */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-purple-950">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-purple-950">
               Confirmar Nova Senha
             </label>
             <div className="relative">
@@ -222,24 +222,24 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
                   if (errorMessage) setErrorMessage(null);
                 }}
                 placeholder="Repita a nova senha"
-                className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all pr-10"
+                className="w-full px-3 py-2 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-medium text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:bg-white transition-all pr-9"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirm(!showConfirm)}
-                className="absolute right-3 top-3 text-purple-400 hover:text-purple-700"
+                className="absolute right-2.5 top-2.5 text-purple-400 hover:text-purple-700 cursor-pointer"
               >
-                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
           </div>
 
           {/* Buttons */}
-          <div className="pt-2 flex items-center justify-end gap-3">
+          <div className="pt-2 flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-purple-200 text-purple-900 font-bold text-xs hover:bg-purple-50 transition-colors"
+              className="px-3 py-1.5 rounded-xl border border-purple-200 text-purple-900 font-medium text-xs hover:bg-purple-50 transition-colors cursor-pointer"
             >
               Cancelar
             </button>
@@ -247,9 +247,9 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
               id="btn-save-new-password"
               type="submit"
               disabled={isLoading}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-900 via-purple-950 to-pink-900 text-white font-bold text-xs shadow-md hover:opacity-95 flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold text-xs shadow-2xs hover:opacity-95 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
             >
-              <Lock className="w-3.5 h-3.5 text-amber-300" />
+              <Lock className="w-3 h-3 text-amber-300" />
               <span>{isLoading ? 'Salvando...' : 'Salvar Nova Senha'}</span>
             </button>
           </div>

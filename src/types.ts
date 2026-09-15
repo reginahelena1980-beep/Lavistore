@@ -5,6 +5,7 @@ export interface ProductSizeVariant {
   initialStock?: number;
   price?: number; // Custom price for this size, if different from product base price
   unitCost?: number; // Custom unit cost for this size
+  biRecordId?: string; // ID da linha correspondente na planilha do BI (para baixa individual de estoque)
 }
 
 export interface ProductColorVariant {
@@ -67,6 +68,8 @@ export interface CartItem {
   quantity: number;
   selectedColor?: string;
   selectedSize?: string;
+  selectedSizeId?: string;
+  biRecordId?: string; // ID da variação na planilha (para garantir baixa exclusiva)
   sizePrice?: number;
   isGiftWrapped?: boolean;
   customMessage?: string;

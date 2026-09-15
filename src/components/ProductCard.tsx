@@ -1,11 +1,20 @@
-import React from 'react';
-import { Heart, Star, ShoppingBag, Eye, Flower2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Heart, Star, ShoppingBag, Eye, Flower2, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 
 interface ProductCardProps {
   product: Product;
   onOpenProduct: (product: Product) => void;
-  onAddToCart: (product: Product) => void;
+  onAddToCart: (
+    product: Product,
+    quantity?: number,
+    selectedColor?: string,
+    isGiftWrapped?: boolean,
+    selectedSize?: string,
+    sizePrice?: number,
+    selectedSizeId?: string,
+    biRecordId?: string
+  ) => void;
   isFavorite: boolean;
   onToggleFavorite: (product: Product) => void;
   isAdminMode?: boolean;
@@ -19,9 +28,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleFavorite,
   isAdminMode = false,
 }) => {
+  const hasSizes = Boolean(product.hasSizes && product.sizes && product.sizes.length > 0);
+  const hasColors = Boolean(product.colors && product.colors.length > 0);
+
+  // Seleção dinâmica do tamanho / variação ativo no card
+  const [selectedSizeId, setSelectedSizeId] = useState<string | undefined>(() => {
+    if (hasSizes && product.sizes && product.sizes.length > 0) {
+      const inStock = product.sizes.find(s => s.stock > 0);
+      return inStock?.id || product.sizes[0].id;
+    }
+    return undefined;
+  });
+
+  const activeSizeVariant = hasSizes && product.sizes
+    ? product.sizes.find(s => s.id === selectedSizeId) || product.sizes[0]
+    : null;
+
+  const currentPrice = activeSizeVariant && product.sizePricingMode === 'custom' && activeSizeVariant.price
+    ? activeSizeVariant.price
+    : product.price;
+
+  const isCurrentOutOfStock = hasSizes && activeSizeVariant
+    ? activeSizeVariant.stock <= 0
+    : (product.stock ?? 0) <= 0;
+
   const isOutOfStock = (product.stock ?? 0) <= 0;
   const discountPercent = product.originalPrice 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    ? Math.round(((product.originalPrice - currentPrice) / product.originalPrice) * 100)
     : null;
 
   return (
@@ -154,7 +187,64 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {product.name}
           </h3>
 
-          {/* Admin-only Stock Status Badge - Strictly forbidden on customer view */}
+          {/* Dynamic Tam/Cor Variation Selector (Storefront Public Card) */}
+          {hasSizes && product.sizes && product.sizes.length > 0 && (
+            <div className="mt-2.5 pt-2 border-t border-dashed border-amber-200/90 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-bold text-purple-950 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-pink-500" />
+                  <span>Opções ({product.sizes.length}):</span>
+                </span>
+                {activeSizeVariant && (
+                  <span className={`text-[10px] font-bold ${
+                    activeSizeVariant.stock <= 0
+                      ? 'text-rose-600 font-extrabold'
+                      : 'text-emerald-700'
+                  }`}>
+                    {activeSizeVariant.stock <= 0
+                      ? 'Esgotado'
+                      : 'Disponível'}
+                  </span>
+                )}
+              </div>
+
+              {/* Botões seletores de Tam/Cor limpos e elegantes (sem quantidade numérica exposta) */}
+              <div className="flex flex-wrap gap-1.5">
+                {product.sizes.map((sz) => {
+                  const isSelected = activeSizeVariant?.id === sz.id;
+                  const isSoldOut = sz.stock <= 0;
+                  return (
+                    <button
+                      key={sz.id}
+                      type="button"
+                      disabled={isSoldOut}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSizeId(sz.id);
+                      }}
+                      title={`${sz.label}: ${isSoldOut ? 'Esgotado' : 'Disponível'}${sz.price ? ` - R$ ${sz.price.toFixed(2)}` : ''}`}
+                      className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer border ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white border-transparent shadow-xs ring-2 ring-pink-300 scale-102'
+                          : isSoldOut
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through opacity-55'
+                            : 'bg-white hover:bg-pink-50 text-purple-950 border-purple-200 hover:border-pink-300 shadow-2xs'
+                      }`}
+                    >
+                      <span>{sz.label}</span>
+                      {isSoldOut && (
+                        <span className="text-[9px] text-slate-400 font-normal ml-1">
+                          (Esgotado)
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Admin-only Stock Status Badge */}
           {isAdminMode && (
             <div className="mt-2 flex items-center justify-between gap-1.5 pt-1 border-t border-dashed border-amber-200/80">
               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
@@ -167,12 +257,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <span className={`w-1.5 h-1.5 rounded-full ${
                   product.stock > 5 ? 'bg-emerald-500' : product.stock > 0 ? 'bg-amber-500' : 'bg-rose-500'
                 }`} />
-                <span>{product.stock > 0 ? `Estoque: ${product.stock} un.` : 'Estoque Zerado'}</span>
+                <span>{product.stock > 0 ? `Estoque Total: ${product.stock} un.` : 'Estoque Zerado'}</span>
               </span>
 
               {product.hasSizes && product.sizes && (
                 <span className="text-[9px] font-bold text-purple-800 bg-purple-100/70 px-1.5 py-0.5 rounded-md border border-purple-200">
-                  {product.sizes.length} tam.
+                  {product.sizes.length} variações
                 </span>
               )}
             </div>
@@ -190,49 +280,57 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <div className="flex items-baseline gap-1">
               <span className="text-xs font-bold text-purple-900">R$</span>
               <span className="text-base sm:text-lg font-extrabold text-[#E11D48]">
-                {product.price.toFixed(2)}
+                {currentPrice.toFixed(2)}
               </span>
             </div>
           </div>
 
           {(() => {
-            const hasOptions = Boolean(
-              (product.hasSizes && product.sizes && product.sizes.length > 0) ||
-              (product.colors && product.colors.length > 0)
-            );
+            const needsModal = Boolean(hasColors && product.colors && product.colors.length > 0);
+            const buttonDisabled = isCurrentOutOfStock;
 
             return (
               <button
                 id={`btn-add-cart-${product.id}`}
-                disabled={isOutOfStock}
+                disabled={buttonDisabled}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!isOutOfStock) {
-                    if (hasOptions) {
-                      onOpenProduct(product);
-                    } else {
-                      onAddToCart(product);
-                    }
+                  if (buttonDisabled) return;
+                  if (needsModal) {
+                    onOpenProduct(product);
+                  } else {
+                    onAddToCart(
+                      product,
+                      1,
+                      undefined,
+                      false,
+                      activeSizeVariant?.label,
+                      currentPrice,
+                      activeSizeVariant?.id,
+                      activeSizeVariant?.biRecordId
+                    );
                   }
                 }}
                 className={`p-2 sm:px-3 sm:py-2 rounded-xl sm:rounded-2xl font-bold text-xs transition-all duration-300 flex items-center gap-1.5 shadow-2xs border ${
-                  isOutOfStock
+                  buttonDisabled
                     ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-75'
-                    : hasOptions
+                    : needsModal
                       ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-pink-400 active:scale-95 group/btn cursor-pointer shadow-xs'
                       : 'bg-amber-100 hover:bg-gradient-to-r hover:from-[#F43F5E] hover:via-[#FB923C] hover:to-[#06B6D4] text-purple-950 hover:text-white border-amber-300 active:scale-95 group/btn cursor-pointer'
                 }`}
                 title={
-                  isOutOfStock 
-                    ? 'Produto Esgotado' 
-                    : hasOptions 
-                      ? 'Selecione as opções obrigatórias (tamanho ou cor)' 
-                      : 'Adicionar à Sacola'
+                  buttonDisabled 
+                    ? 'Variação Esgotada' 
+                    : needsModal 
+                      ? 'Selecione a cor desejada' 
+                      : activeSizeVariant 
+                        ? `Adicionar ${product.name} (${activeSizeVariant.label}) à sacola`
+                        : 'Adicionar à Sacola'
                 }
               >
-                <ShoppingBag className={`w-4 h-4 ${isOutOfStock ? 'text-slate-400' : hasOptions ? 'text-white' : 'text-purple-900 group-hover/btn:text-white'} transition-colors`} />
+                <ShoppingBag className={`w-4 h-4 ${buttonDisabled ? 'text-slate-400' : needsModal ? 'text-white' : 'text-purple-900 group-hover/btn:text-white'} transition-colors`} />
                 <span className="hidden sm:inline">
-                  {isOutOfStock ? 'Esgotado' : hasOptions ? 'Opções' : 'Adicionar'}
+                  {buttonDisabled ? 'Esgotado' : needsModal ? 'Opções' : 'Adicionar'}
                 </span>
               </button>
             );

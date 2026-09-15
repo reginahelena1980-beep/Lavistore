@@ -205,68 +205,68 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
         </div>
       )}
 
-      {/* Top Banner & Quick Metrics */}
-      <div className="bg-gradient-to-r from-amber-100/90 via-white to-pink-100/80 rounded-3xl p-6 sm:p-8 border-2 border-amber-300 shadow-sm relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-200/80 text-purple-950 text-xs font-bold border border-amber-300">
-              <Ticket className="w-3.5 h-3.5 text-amber-700" />
+      {/* Top Banner & Quick Metrics - Delicate & Minimalist */}
+      <div className="bg-white/85 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-amber-200/80 shadow-2xs relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100/80 text-purple-950 text-[11px] font-medium border border-amber-200/80 shadow-2xs">
+              <Ticket className="w-3 h-3 text-amber-700" />
               <span>Gerenciamento de Cupons & Promoções</span>
             </div>
-            <h2 className="font-['Mali'] text-2xl sm:text-3xl font-bold text-purple-950">
+            <h2 className="font-['Mali'] text-xl sm:text-2xl font-bold text-purple-950">
               Cupons de Desconto & Frete Grátis 🎟️
             </h2>
-            <p className="text-xs sm:text-sm text-slate-700 max-w-2xl font-medium leading-relaxed">
-              Crie, edite e ative os cupons da sua loja. Você pode criar cupons de <strong>Frete Grátis</strong> (que zeram o frete real), cupons de <strong>Brinde (Compra R$ 0,00)</strong> ou cupons de <strong>Porcentagem (%)</strong> e <strong>Valor Fixo (R$)</strong>.
+            <p className="text-xs text-purple-900/80 max-w-2xl font-normal leading-relaxed">
+              Crie cupons de <strong>Frete Grátis</strong>, <strong>Brindes</strong>, <strong>Porcentagem (%)</strong> ou <strong>Valor Fixo (R$)</strong>.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
               id="admin-create-coupon-btn"
               onClick={handleOpenCreateModal}
-              className="px-5 py-3 bg-purple-950 hover:bg-purple-900 text-amber-300 font-bold rounded-2xl text-xs shadow-md hover:shadow-lg transition-all flex items-center gap-2 border border-amber-400 cursor-pointer"
+              className="px-3.5 py-1.5 bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold rounded-xl text-xs shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4 text-amber-300" />
+              <Plus className="w-3.5 h-3.5 text-amber-300" />
               <span>Criar Novo Cupom</span>
             </button>
 
             <button
               id="admin-reset-coupons-btn"
               onClick={() => setShowResetConfirmModal(true)}
-              className="px-4 py-3 bg-white hover:bg-amber-50 text-purple-950 font-bold rounded-2xl text-xs border-2 border-amber-200 shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
+              className="px-3 py-1.5 bg-white hover:bg-amber-50 text-purple-950 font-medium rounded-xl text-xs border border-amber-200/80 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
               title="Restaurar lista de cupons originais"
             >
-              <RotateCcw className="w-4 h-4 text-amber-600" />
+              <RotateCcw className="w-3 h-3 text-amber-600" />
               <span>Restaurar Padrão</span>
             </button>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-amber-200/80">
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-amber-200 shadow-2xs space-y-1">
-            <span className="text-[11px] text-slate-500 font-bold block">Total de Cupons</span>
-            <p className="font-['Mali'] text-2xl font-bold text-purple-950">{coupons.length}</p>
-            <span className="text-[10px] text-amber-700 font-medium">Cadastrados no sistema</span>
+        {/* Stats Grid - Delicate */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-4 border-t border-amber-100">
+          <div className="bg-white/80 rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5">
+            <span className="text-[11px] text-slate-500 font-semibold block">Total de Cupons</span>
+            <p className="font-['Mali'] text-lg font-bold text-purple-950">{coupons.length}</p>
+            <span className="text-[10px] text-amber-700">Cadastrados no sistema</span>
           </div>
 
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-emerald-200 shadow-2xs space-y-1">
-            <span className="text-[11px] text-emerald-800 font-bold block">Cupons Ativos</span>
-            <p className="font-['Mali'] text-2xl font-bold text-emerald-600">{activeCouponsCount}</p>
-            <span className="text-[10px] text-emerald-700 font-medium">Disponíveis aos clientes</span>
+          <div className="bg-white/80 rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5">
+            <span className="text-[11px] text-emerald-800 font-semibold block">Cupons Ativos</span>
+            <p className="font-['Mali'] text-lg font-bold text-emerald-600">{activeCouponsCount}</p>
+            <span className="text-[10px] text-emerald-700">Disponíveis aos clientes</span>
           </div>
 
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-sky-200 shadow-2xs space-y-1">
-            <span className="text-[11px] text-sky-800 font-bold block">Frete Grátis</span>
-            <p className="font-['Mali'] text-2xl font-bold text-sky-700">{freeShippingCouponsCount}</p>
-            <span className="text-[10px] text-sky-700 font-medium">Zeram o frete real</span>
+          <div className="bg-white/80 rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5">
+            <span className="text-[11px] text-sky-800 font-semibold block">Frete Grátis</span>
+            <p className="font-['Mali'] text-lg font-bold text-sky-700">{freeShippingCouponsCount}</p>
+            <span className="text-[10px] text-sky-700">Zeram o frete real</span>
           </div>
 
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-pink-200 shadow-2xs space-y-1">
-            <span className="text-[11px] text-pink-800 font-bold block">Brindes (R$ 0,00)</span>
-            <p className="font-['Mali'] text-2xl font-bold text-pink-600">{giftCouponsCount}</p>
-            <span className="text-[10px] text-pink-700 font-medium">{discountCouponsCount} com %/R$ OFF</span>
+          <div className="bg-white/80 rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5">
+            <span className="text-[11px] text-pink-800 font-semibold block">Brindes (R$ 0,00)</span>
+            <p className="font-['Mali'] text-lg font-bold text-pink-600">{giftCouponsCount}</p>
+            <span className="text-[10px] text-pink-700">{discountCouponsCount} com %/R$ OFF</span>
           </div>
         </div>
       </div>

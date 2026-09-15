@@ -34,6 +34,7 @@ import { CategoryEditorModal } from './components/CategoryEditorModal';
 import { DEFAULT_HOME_PAGE_CONFIG, getFontSizeClass, getFontWeightClass } from './utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from './data/filterConfig';
 import { safeSetItem, serializeCart, deserializeCart, serializeFavorites, deserializeFavorites } from './utils/storage';
+import { aggregateProductsForVitrine, findExactBiRecordForOrderItem } from './utils/productGroupingEngine';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('catalog');
@@ -537,7 +538,9 @@ export default function App() {
     selectedColor?: string, 
     isGiftWrapped = false,
     selectedSize?: string,
-    sizePrice?: number
+    sizePrice?: number,
+    selectedSizeId?: string,
+    biRecordId?: string
   ) => {
     const hasSizes = Boolean(product.hasSizes && product.sizes && product.sizes.length > 0);
     const hasColors = Boolean(product.colors && product.colors.length > 0);
@@ -548,24 +551,47 @@ export default function App() {
       return;
     }
 
+    // Determine target BI record ID from size variant or product
+    let targetBiRecordId = biRecordId;
+    if (!targetBiRecordId && selectedSize && product.sizes) {
+      const matched = product.sizes.find(s => s.id === selectedSizeId || s.label.trim().toLowerCase() === selectedSize.trim().toLowerCase());
+      targetBiRecordId = matched?.biRecordId;
+    }
+    if (!targetBiRecordId) {
+      targetBiRecordId = product.biRecordId;
+    }
+
     setCartItems(prev => {
       const existingIdx = prev.findIndex(
         item => item.product.id === product.id && 
                 item.selectedColor === selectedColor &&
-                item.selectedSize === selectedSize
+                item.selectedSize === selectedSize &&
+                (selectedSizeId ? item.selectedSizeId === selectedSizeId : true)
       );
 
       if (existingIdx > -1) {
         const updated = [...prev];
         updated[existingIdx].quantity += quantity;
         if (isGiftWrapped) updated[existingIdx].isGiftWrapped = true;
+        if (!updated[existingIdx].biRecordId && targetBiRecordId) {
+          updated[existingIdx].biRecordId = targetBiRecordId;
+        }
         return updated;
       } else {
-        return [...prev, { product, quantity, selectedColor, isGiftWrapped, selectedSize, sizePrice }];
+        return [...prev, {
+          product,
+          quantity,
+          selectedColor,
+          isGiftWrapped,
+          selectedSize,
+          sizePrice,
+          selectedSizeId,
+          biRecordId: targetBiRecordId
+        }];
       }
     });
 
-    const sizeSuffix = selectedSize ? ` (Tam: ${selectedSize})` : '';
+    const sizeSuffix = selectedSize ? ` (Tam/Cor: ${selectedSize})` : '';
     showToast(`🌸 "${product.name.slice(0, 25)}${sizeSuffix}" adicionado à sua sacola!`);
   };
 
@@ -623,9 +649,20 @@ export default function App() {
 
   const discountAmount = couponEvaluation.calculatedDiscount;
 
+  // Agregação automática Pai/Filho para a Vitrine pública (baseada na coluna Tam/Cor)
+  const vitrineProducts = useMemo(() => {
+    try {
+      const rawBi = localStorage.getItem('lavistore_bi_records');
+      const biRecs = rawBi ? JSON.parse(rawBi) : undefined;
+      return aggregateProductsForVitrine(products, Array.isArray(biRecs) ? biRecs : undefined);
+    } catch {
+      return products;
+    }
+  }, [products]);
+
   // Filtered & Sorted Catalog
   const filteredProducts = useMemo(() => {
-    let list = [...products];
+    let list = [...vitrineProducts];
 
     // Regra da Vitrine: Ocultar produtos despublicados ou pausados automaticamente por estoque zerado
     list = list.filter(p => {
@@ -950,7 +987,9 @@ export default function App() {
                       key={product.id}
                       product={product}
                       onOpenProduct={setSelectedProduct}
-                      onAddToCart={(prod) => handleAddToCart(prod, 1)}
+                      onAddToCart={(prod, qty, col, gift, szLabel, szPrice, szId, biRecId) => 
+                        handleAddToCart(prod, qty, col, gift, szLabel, szPrice, szId, biRecId)
+                      }
                       isFavorite={favorites.some(f => f.id === product.id)}
                       onToggleFavorite={handleToggleFavorite}
                       isAdminMode={false}
@@ -1441,74 +1480,28 @@ export default function App() {
               console.warn('Erro ao disparar requisição de pedido:', networkErr);
             }
 
-            // Automatically deduct purchased quantities from stock balance
-            setProducts(prevProducts => {
-              return prevProducts.map(prod => {
-                const matchingOrderItems = (orderData.items as CartItem[]).filter(
-                  item => item.product.id === prod.id
-                );
-                if (matchingOrderItems.length === 0) return prod;
-
-                let updatedProduct = { ...prod };
-
-                // If product has size variants
-                if (updatedProduct.hasSizes && updatedProduct.sizes && updatedProduct.sizes.length > 0) {
-                  const updatedSizes = updatedProduct.sizes.map(sizeVar => {
-                    const itemsForThisSize = matchingOrderItems.filter(
-                      item => item.selectedSize === sizeVar.label || item.selectedSize === sizeVar.id
-                    );
-                    const qtyBoughtForSize = itemsForThisSize.reduce((acc, item) => acc + item.quantity, 0);
-                    if (qtyBoughtForSize > 0) {
-                      return {
-                        ...sizeVar,
-                        stock: Math.max(0, (sizeVar.stock || 0) - qtyBoughtForSize)
-                      };
-                    }
-                    return sizeVar;
-                  });
-
-                  const newTotalStock = updatedSizes.reduce((acc, s) => acc + (Number(s.stock) || 0), 0);
-                  updatedProduct = {
-                    ...updatedProduct,
-                    sizes: updatedSizes,
-                    stock: newTotalStock
-                  };
-                } else {
-                  // Product without size variants
-                  const totalQtyBought = matchingOrderItems.reduce((acc, item) => acc + item.quantity, 0);
-                  updatedProduct = {
-                    ...updatedProduct,
-                    stock: Math.max(0, (updatedProduct.stock || 0) - totalQtyBought)
-                  };
-                }
-
-                return updatedProduct;
-              });
-            });
-
-            // Sincronização em tempo real com o BI Financeiro e Estoque da Lavistore
+            // Sincronização e Abatimento em Tempo Real no BI Financeiro e Estoque da Lavistore
             try {
               const biRaw = localStorage.getItem('lavistore_bi_records');
               if (biRaw) {
                 const biRecords = JSON.parse(biRaw);
                 if (Array.isArray(biRecords)) {
+                  // Mapeia o abatimento exclusivamente para o ID exato da variação comprada
+                  const biDeductionMap = new Map<string, number>();
+                  for (const item of (orderData.items as CartItem[])) {
+                    const exactBiRecord = findExactBiRecordForOrderItem(item, biRecords);
+                    if (exactBiRecord) {
+                      biDeductionMap.set(exactBiRecord.id, (biDeductionMap.get(exactBiRecord.id) || 0) + item.quantity);
+                    }
+                  }
+
                   let hasChanges = false;
                   const updatedBiRecords = biRecords.map((r: any) => {
-                    const matchingOrderItems = (orderData.items as CartItem[]).filter(item => {
-                      if (item.product.biRecordId && item.product.biRecordId === r.id) return true;
-                      if (r.vitrineProductId && item.product.id === r.vitrineProductId) return true;
-                      const pNameNorm = item.product.name.trim().toLowerCase();
-                      const rNameNorm = r.produto.trim().toLowerCase();
-                      return pNameNorm === rNameNorm || pNameNorm.startsWith(rNameNorm);
-                    });
-
-                    if (matchingOrderItems.length === 0) return r;
-
-                    const totalQtyBought = matchingOrderItems.reduce((acc, i) => acc + i.quantity, 0);
-                    if (totalQtyBought <= 0) return r;
+                    const qtyBought = biDeductionMap.get(r.id) || 0;
+                    if (qtyBought <= 0) return r;
 
                     hasChanges = true;
-                    const novaQtdVendida = (Number(r.quantidadeVendida) || 0) + totalQtyBought;
+                    const novaQtdVendida = (Number(r.quantidadeVendida) || 0) + qtyBought;
                     const novoSaldoEstoque = Math.max(0, (Number(r.quantidadeComprada) || 0) - novaQtdVendida);
                     const novaVendaTotal = novaQtdVendida * (Number(r.precoVenda) || 0);
                     const novoCpv = novaQtdVendida * (Number(r.custoUnitario) || 0);
@@ -1543,6 +1536,57 @@ export default function App() {
             } catch (biSyncErr) {
               console.warn('Erro ao sincronizar saldo de estoque com o BI:', biSyncErr);
             }
+
+            // Abate as quantidades compradas na lista de produtos da vitrine
+            setProducts(prevProducts => {
+              return prevProducts.map(prod => {
+                const matchingOrderItems = (orderData.items as CartItem[]).filter(
+                  item => item.product.id === prod.id ||
+                          (prod.biRecordId && item.product.biRecordId === prod.biRecordId) ||
+                          (item.biRecordId && prod.sizes?.some(s => s.biRecordId === item.biRecordId))
+                );
+                if (matchingOrderItems.length === 0) return prod;
+
+                let updatedProduct = { ...prod };
+
+                // Se possui variações de tamanho / Tam/Cor
+                if (updatedProduct.hasSizes && updatedProduct.sizes && updatedProduct.sizes.length > 0) {
+                  const updatedSizes = updatedProduct.sizes.map(sizeVar => {
+                    const itemsForThisSize = matchingOrderItems.filter(item => {
+                      if (sizeVar.biRecordId && item.biRecordId === sizeVar.biRecordId) return true;
+                      if (item.selectedSizeId && item.selectedSizeId === sizeVar.id) return true;
+                      const sLabel = (item.selectedSize || '').trim().toLowerCase();
+                      const varLabel = (sizeVar.label || '').trim().toLowerCase();
+                      return sLabel === varLabel || item.selectedSize === sizeVar.id;
+                    });
+                    const qtyBoughtForSize = itemsForThisSize.reduce((acc, item) => acc + item.quantity, 0);
+                    if (qtyBoughtForSize > 0) {
+                      return {
+                        ...sizeVar,
+                        stock: Math.max(0, (sizeVar.stock || 0) - qtyBoughtForSize)
+                      };
+                    }
+                    return sizeVar;
+                  });
+
+                  const newTotalStock = updatedSizes.reduce((acc, s) => acc + (Number(s.stock) || 0), 0);
+                  updatedProduct = {
+                    ...updatedProduct,
+                    sizes: updatedSizes,
+                    stock: newTotalStock
+                  };
+                } else {
+                  // Produto simples sem variações
+                  const totalQtyBought = matchingOrderItems.reduce((acc, item) => acc + item.quantity, 0);
+                  updatedProduct = {
+                    ...updatedProduct,
+                    stock: Math.max(0, (updatedProduct.stock || 0) - totalQtyBought)
+                  };
+                }
+
+                return updatedProduct;
+              });
+            });
 
             setCartItems([]);
             setCompletedOrderData(orderData);

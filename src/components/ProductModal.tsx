@@ -25,7 +25,9 @@ interface ProductModalProps {
     selectedColor?: string, 
     isGiftWrapped?: boolean,
     selectedSize?: string,
-    sizePrice?: number
+    sizePrice?: number,
+    selectedSizeId?: string,
+    biRecordId?: string
   ) => void;
   isFavorite: boolean;
   onToggleFavorite: (product: Product) => void;
@@ -523,7 +525,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     selectedColor, 
                     isGiftWrapped,
                     activeSizeVariant?.label,
-                    activeSizeVariant?.price ?? product.price
+                    activeSizeVariant?.price ?? product.price,
+                    activeSizeVariant?.id,
+                    activeSizeVariant?.biRecordId
                   );
                   onClose();
                 }}
