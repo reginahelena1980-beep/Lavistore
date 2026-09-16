@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Gift, 
   Sparkles, 
@@ -11,21 +11,28 @@ import {
   PenTool,
   RotateCcw
 } from 'lucide-react';
-import { Product } from '../types';
+import { Product, BagType, RibbonOption } from '../types';
 import { BAG_TYPES, RIBBON_OPTIONS, CARD_TEMPLATES } from '../data/categories';
 import customBoxImg from '../assets/images/gift_box_custom_1788110261776.jpg';
 
 interface CustomKitBuilderProps {
   products: Product[];
   onAddKitToCart: (customKitProduct: Product, kitDetails: any) => void;
+  bagTypes?: BagType[];
+  ribbonOptions?: RibbonOption[];
 }
 
 export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
   products,
-  onAddKitToCart
+  onAddKitToCart,
+  bagTypes = BAG_TYPES,
+  ribbonOptions = RIBBON_OPTIONS
 }) => {
-  const [selectedBag, setSelectedBag] = useState(BAG_TYPES[0]);
-  const [selectedRibbon, setSelectedRibbon] = useState(RIBBON_OPTIONS[0]);
+  const currentBags = bagTypes && bagTypes.length > 0 ? bagTypes : BAG_TYPES;
+  const currentRibbons = ribbonOptions && ribbonOptions.length > 0 ? ribbonOptions : RIBBON_OPTIONS;
+
+  const [selectedBag, setSelectedBag] = useState<BagType>(currentBags[0]);
+  const [selectedRibbon, setSelectedRibbon] = useState<RibbonOption>(currentRibbons[0]);
   const [selectedItems, setSelectedItems] = useState<Product[]>([products[0], products[1]]);
   const [cardTheme, setCardTheme] = useState(CARD_TEMPLATES[0].theme);
   const [recipient, setRecipient] = useState('');
@@ -33,14 +40,24 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
   const [message, setMessage] = useState(CARD_TEMPLATES[0].text);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
+  // Sync selected bag if list changes or selected bag was deleted
+  useEffect(() => {
+    if (currentBags.length > 0 && !currentBags.some(b => b.id === selectedBag?.id)) {
+      setSelectedBag(currentBags[0]);
+    }
+  }, [currentBags, selectedBag]);
+
+  // Sync selected ribbon if list changes or selected ribbon was deleted
+  useEffect(() => {
+    if (currentRibbons.length > 0 && !currentRibbons.some(r => r.id === selectedRibbon?.id)) {
+      setSelectedRibbon(currentRibbons[0]);
+    }
+  }, [currentRibbons, selectedRibbon]);
+
   const toggleItemSelection = (product: Product) => {
     if (selectedItems.some(i => i.id === product.id)) {
       setSelectedItems(selectedItems.filter(i => i.id !== product.id));
     } else {
-      if (selectedItems.length >= 6) {
-        alert('A sacolinha comporta no máximo 6 mimos para ficar perfeitamente acomodada! 🌸');
-        return;
-      }
       setSelectedItems([...selectedItems, product]);
     }
   };
@@ -115,7 +132,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
         <div className="flex items-center justify-center gap-2 sm:gap-4 mb-8 overflow-x-auto pb-2">
           {[
             { step: 1, title: '1. Sacolinha Amarela' },
-            { step: 2, title: `2. Selecione os Mimos (${selectedItems.length}/6)` },
+            { step: 2, title: `2. Selecione os Mimos (${selectedItems.length})` },
             { step: 3, title: '3. Fita & Laço' },
             { step: 4, title: '4. Cartão & Finalizar' }
           ].map(s => (
@@ -152,15 +169,16 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {BAG_TYPES.map(bag => {
-                    const isSelected = selectedBag.id === bag.id;
+                  {currentBags.map(bag => {
+                    const isSelected = selectedBag?.id === bag.id;
+                    const bgClass = bag.bgClass || 'from-amber-100 to-yellow-200 border-amber-300';
                     return (
                       <div
                         key={bag.id}
                         onClick={() => setSelectedBag(bag)}
                         className={`p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 relative bg-gradient-to-b ${
                           isSelected
-                            ? `${bag.bgClass} shadow-md scale-102 ring-2 ring-amber-400 border-amber-400`
+                            ? `${bgClass} shadow-md scale-102 ring-2 ring-amber-400 border-amber-400`
                             : 'border-amber-100 hover:border-amber-300 bg-amber-50/30'
                         }`}
                       >
@@ -169,17 +187,18 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                             <Check className="w-3.5 h-3.5" />
                           </span>
                         )}
-                        <img 
-                          src={bag.image} 
-                          alt={bag.name} 
-                          referrerPolicy="no-referrer"
-                          className="w-full h-32 object-cover rounded-xl mb-3 shadow-inner" 
-                        />
+                        <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 shadow-inner bg-slate-100">
+                          <img 
+                            src={bag.image} 
+                            alt={bag.name} 
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover" 
+                          />
+                        </div>
                         <h4 className="text-sm font-bold text-purple-950">{bag.name}</h4>
                         <p className="text-xs text-slate-600 mt-1 line-clamp-2">{bag.description}</p>
                         <div className="mt-3 flex items-center justify-between">
                           <span className="text-xs font-bold text-amber-900 bg-amber-200/90 px-2 py-0.5 rounded-lg">R$ {bag.price.toFixed(2)}</span>
-                          <span className="text-[11px] text-amber-800 font-semibold">Com seda floral & cheirinho</span>
                         </div>
                       </div>
                     );
@@ -203,12 +222,16 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="font-['Mali'] text-lg sm:text-xl font-bold text-purple-950">
-                      Passo 2: Escolha de 2 a 6 mimos para a sacolinha
+                      Passo 2: Escolha os mimos para a sacolinha (mínimo de 2 itens)
                     </h3>
                     <p className="text-xs text-slate-500">Selecione os itens que mais combinam com seu presente</p>
                   </div>
-                  <span className="bg-amber-100 text-purple-950 border border-amber-300 text-xs font-bold px-3 py-1 rounded-full">
-                    {selectedItems.length} de 6 mimos selecionados
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full border transition-all ${
+                    selectedItems.length >= 2
+                      ? 'bg-amber-100 text-purple-950 border-amber-300'
+                      : 'bg-rose-50 text-rose-700 border-rose-200'
+                  }`}>
+                    {selectedItems.length} {selectedItems.length === 1 ? 'mimo selecionado' : 'mimos selecionados'} {selectedItems.length < 2 && '(mínimo 2)'}
                   </span>
                 </div>
 
@@ -301,8 +324,8 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                 <p className="text-xs text-slate-500">O toque delicado que amarra o carinho na sua sacolinha amarela</p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {RIBBON_OPTIONS.map(rib => {
-                    const isSelected = selectedRibbon.id === rib.id;
+                  {currentRibbons.map(rib => {
+                    const isSelected = selectedRibbon?.id === rib.id;
                     return (
                       <div
                         key={rib.id}
@@ -465,7 +488,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
             {/* Items inside list */}
             <div>
               <p className="text-xs font-bold text-purple-950 mb-2">
-                Itens na Sacolinha ({selectedItems.length}/6):
+                Itens na Sacolinha ({selectedItems.length}):
               </p>
               {selectedItems.length === 0 ? (
                 <p className="text-xs text-purple-900 italic">Nenhum mimo selecionado ainda.</p>

@@ -1,4 +1,5 @@
 import storeState from './store_state.json';
+import { BagType, RibbonOption } from '../types';
 
 export interface Category {
   id: string;
@@ -84,7 +85,7 @@ export const CATEGORIES: Category[] = (storeState && Array.isArray(storeState.ca
   }
 ];
 
-export const BAG_TYPES = [
+export const BAG_TYPES: BagType[] = [
   {
     id: 'bag-amarela-solar',
     name: 'Sacolinha Amarela Solar com Alça de Algodão',
@@ -125,7 +126,7 @@ export const BAG_TYPES = [
 
 export const BOX_TYPES = BAG_TYPES;
 
-export const RIBBON_OPTIONS = [
+export const RIBBON_OPTIONS: RibbonOption[] = [
   { id: 'ribbon-lilas', name: 'Fita de Cetim Lilás Violeta', color: '#8B5CF6' },
   { id: 'ribbon-turquesa', name: 'Fita de Gorgurão Turquesa Tiffany', color: '#06B6D4' },
   { id: 'ribbon-rosa', name: 'Fita de Cetim Rosa Algodão Doce', color: '#EC4899' },

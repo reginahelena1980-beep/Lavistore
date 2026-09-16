@@ -7,7 +7,7 @@ interface HomeTextEditorModalProps {
   isOpen: boolean;
   fieldKey: keyof HomePageConfig | null;
   fieldLabel: string;
-  currentValue: FormattedText;
+  currentValue: FormattedText | string | any;
   onClose: () => void;
   onSave: (fieldKey: keyof HomePageConfig, updated: FormattedText) => void;
 }
@@ -20,17 +20,18 @@ export const HomeTextEditorModal: React.FC<HomeTextEditorModalProps> = ({
   onClose,
   onSave
 }) => {
-  const [text, setText] = useState(currentValue?.text || '');
+  const initialText = typeof currentValue === 'string' ? currentValue : (currentValue?.text || '');
+  const [text, setText] = useState(initialText);
   const [fontSize, setFontSize] = useState<FormattedText['fontSize']>(currentValue?.fontSize || 'base');
   const [isBold, setIsBold] = useState<boolean>(currentValue?.isBold ?? false);
 
   React.useEffect(() => {
-    if (currentValue) {
-      setText(currentValue.text || '');
-      setFontSize(currentValue.fontSize || 'base');
-      setIsBold(currentValue.isBold ?? false);
+    if (currentValue !== undefined && currentValue !== null) {
+      setText(typeof currentValue === 'string' ? currentValue : (currentValue?.text || ''));
+      setFontSize(currentValue?.fontSize || 'base');
+      setIsBold(currentValue?.isBold ?? false);
     }
-  }, [fieldKey, currentValue?.text, currentValue?.fontSize, currentValue?.isBold]);
+  }, [fieldKey, currentValue]);
 
   const fontSizes: { value: FormattedText['fontSize']; label: string; previewClass: string }[] = [
     { value: 'xs', label: 'Extra Pequeno (XS)', previewClass: 'text-xs' },

@@ -205,6 +205,8 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   },
   footerDescription: 'Loja virtual brasileira focada em presentes criativos, papelaria fofa, mimos delicados e caixas afetivas inspiradas no trio de flores: violeta, turquesa e rosa.',
   companyLegalText: '© 2026 Lavistore Presentes e Mimos Criativos',
+  footerCreditsText: 'Desenvolvido com o encanto das 3 florzinhas',
+  showFooterCredits: true,
   sslSecurityText: 'SSL 256 Bits',
   pixDiscountText: 'PIX 5% OFF',
   installmentText: 'Até 12x',
@@ -226,6 +228,8 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   chatWelcomeTitle: 'Olá, bem-vinda à Lavistore! 🌷',
   chatWelcomeBody: 'Posso ajudar você a escolher um mimo perfeito, tirar dúvidas sobre o frete ou montar uma caixa personalizada?',
   chatButtonLabel: 'Dúvidas? Fale Conosco',
+  whatsappMode: 'direct', // 'direct' opens WhatsApp immediately in 1-click; 'popup' opens concierge card first
+  whatsappDefaultMessage: 'Olá Lavistore! Estou na loja virtual e gostaria de tirar uma dúvida sobre os mimos. 🌸',
 
   // About Page ("Sobre Nós")
   aboutHeroSlogan: 'A Lavistore nasce para fazer o mundo mais afetuoso, doce e colorido!',
@@ -266,4 +270,24 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   aboutCtaBtn1: 'Ver Todos os Mimos no Catálogo',
   aboutCtaBtn2: 'Montar Sacolinha de Presente',
   ...((storeState?.homePageConfig as unknown as Partial<HomePageConfig>) || {})
+};
+
+/**
+ * Formata um link direto para o WhatsApp oficial com número e mensagem inicial
+ */
+export const formatWhatsAppLink = (rawNumber?: string, message?: string): string => {
+  const defaultNumber = '5511987654321';
+  let digits = (rawNumber || defaultNumber).replace(/\D/g, '');
+
+  if (!digits) {
+    digits = defaultNumber;
+  } else if (digits.length === 10 || digits.length === 11) {
+    // Adiciona o código do Brasil 55 caso não tenha sido digitado
+    digits = `55${digits}`;
+  }
+
+  const defaultMsg = 'Olá Lavistore! Estou na loja virtual e gostaria de tirar uma dúvida sobre os mimos. 🌸';
+  const textParam = encodeURIComponent(message || defaultMsg);
+
+  return `https://wa.me/${digits}?text=${textParam}`;
 };

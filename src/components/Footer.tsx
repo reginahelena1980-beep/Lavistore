@@ -311,7 +311,25 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-purple-200 text-center text-xs text-purple-800 font-medium flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-start">
-            <p>{config?.companyLegalText || '© 2026 Lavistore Presentes e Mimos Criativos'}</p>
+            <p className="flex items-center gap-1">
+              {onNavigateToAdmin ? (
+                <button
+                  type="button"
+                  id="btn-footer-admin-secret"
+                  onClick={onNavigateToAdmin}
+                  className="hover:text-purple-950 transition-all hover:scale-110 active:scale-90 cursor-pointer select-none font-bold"
+                  title="Acesso Administrativo"
+                  aria-label="Acesso Administrativo"
+                >
+                  ©
+                </button>
+              ) : (
+                <span>©</span>
+              )}
+              <span>
+                {(config?.companyLegalText || '© 2026 Lavistore Presentes e Mimos Criativos').replace(/^©\s*/, '')}
+              </span>
+            </p>
             <span className="hidden sm:inline text-purple-400">•</span>
             <button
               type="button"
@@ -321,26 +339,35 @@ export const Footer: React.FC<FooterProps> = ({
             >
               Política de Troca e Devolução (CDC)
             </button>
-            {onNavigateToAdmin && (
-              <button
-                type="button"
-                id="btn-footer-admin-link"
-                onClick={onNavigateToAdmin}
-                className="text-[10px] text-purple-900/30 hover:text-purple-900 transition-colors ml-1 cursor-pointer"
-                title="Acesso de Gerência"
-                aria-label="Gerência"
-              >
-                • Gerência
-              </button>
-            )}
           </div>
-          <p className="flex items-center gap-1 text-purple-900 font-semibold">
-            <span>Desenvolvido com o encanto das</span>
-            <span className="text-[#8B5CF6] font-bold">3</span>
-            <span className="text-[#06B6D4] font-bold">flor</span>
-            <span className="text-[#F43F5E] font-bold">zinhas</span>
-            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline ml-1" />
-          </p>
+          {config?.showFooterCredits !== false && (
+            <div className="flex items-center gap-1.5 text-purple-900 font-semibold">
+              {(!config?.footerCreditsText || config?.footerCreditsText.toLowerCase().includes('3 florzinhas') || config?.footerCreditsText.toLowerCase().includes('3 flor zinhas')) ? (
+                <p className="flex items-center gap-1">
+                  <span>{config?.footerCreditsText ? config.footerCreditsText.replace(/3\s*flor\s*zinhas/i, '').trim() : 'Desenvolvido com o encanto das'}</span>
+                  <span className="text-[#8B5CF6] font-bold">3</span>
+                  <span className="text-[#06B6D4] font-bold">flor</span>
+                  <span className="text-[#F43F5E] font-bold">zinhas</span>
+                  <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline ml-1" />
+                </p>
+              ) : (
+                <p className="flex items-center gap-1">
+                  <span>{config.footerCreditsText}</span>
+                  <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline ml-1" />
+                </p>
+              )}
+              {isAdminEditing && onEditField && (
+                <button
+                  type="button"
+                  onClick={() => onEditField('footerCreditsText', 'Texto de Créditos do Rodapé')}
+                  className="p-1 bg-amber-200 hover:bg-amber-300 text-purple-950 rounded-md transition-colors"
+                  title="Editar créditos do rodapé"
+                >
+                  <Edit3 className="w-3 h-3 text-purple-900" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
       </div>

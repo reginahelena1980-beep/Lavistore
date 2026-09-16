@@ -22,8 +22,8 @@ import { ReviewsSection } from './components/ReviewsSection';
 import { PRODUCTS } from './data/products';
 import { CUSTOMER_REVIEWS } from './data/reviews';
 import { DEFAULT_COUPONS } from './data/coupons';
-import { Product, CartItem, ActiveTab, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, ShippingOption, Coupon } from './types';
-import { CATEGORIES as DEFAULT_CATEGORIES } from './data/categories';
+import { Product, CartItem, ActiveTab, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, ShippingOption, Coupon, BagType, RibbonOption } from './types';
+import { CATEGORIES as DEFAULT_CATEGORIES, BAG_TYPES, RIBBON_OPTIONS } from './data/categories';
 import storeState from './data/store_state.json';
 import { evaluateCoupon } from './utils/couponUtils';
 import { Sparkles, Flower2, Gift, ArrowRight, Edit3, ShoppingBag, Tag, Heart, Sun, Smile, Package, CheckCircle2 } from 'lucide-react';
@@ -149,14 +149,8 @@ export default function App() {
     }
   });
 
-  // Admin Authentication state (Protected session, persisted safely in localStorage)
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('lavistore_admin_authenticated') === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // Admin Authentication state - Strictly password-protected (never auto-authenticate)
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
 
   // Editable Reviews State (Persisted in localStorage)
   const [reviews, setReviews] = useState<CustomerReview[]>(() => {
@@ -251,18 +245,58 @@ export default function App() {
     safeSetItem('lavistore_coupons', JSON.stringify(coupons));
   }, [coupons]);
 
+  // Packaging Models (Sacolinhas) State (Persisted in localStorage)
+  const [bagTypes, setBagTypes] = useState<BagType[]>(() => {
+    try {
+      const saved = localStorage.getItem('lavistore_bag_types');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading bag types from localStorage', e);
+    }
+    return BAG_TYPES;
+  });
+
+  useEffect(() => {
+    safeSetItem('lavistore_bag_types', JSON.stringify(bagTypes));
+  }, [bagTypes]);
+
+  // Ribbon Colors State (Persisted in localStorage)
+  const [ribbonOptions, setRibbonOptions] = useState<RibbonOption[]>(() => {
+    try {
+      const saved = localStorage.getItem('lavistore_ribbon_options');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading ribbon options from localStorage', e);
+    }
+    return RIBBON_OPTIONS;
+  });
+
+  useEffect(() => {
+    safeSetItem('lavistore_ribbon_options', JSON.stringify(ribbonOptions));
+  }, [ribbonOptions]);
+
   // Persist Products to localStorage
   useEffect(() => {
     safeSetItem('lavistore_products', JSON.stringify(products));
   }, [products]);
 
-  // Persist Admin Authentication status to localStorage
-  useEffect(() => {
-    safeSetItem('lavistore_admin_authenticated', isAdminAuthenticated.toString());
-  }, [isAdminAuthenticated]);
-
   // Synchronize URL with Dedicated Admin Route (/admin) and Storefront
   useEffect(() => {
+    // Clear any leftover admin session so authentication is strictly requested
+    try {
+      localStorage.removeItem('lavistore_admin_authenticated');
+    } catch {}
+
     const handleLocationChange = () => {
       const pathname = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase();
@@ -281,6 +315,12 @@ export default function App() {
 
   // Safe navigation helpers between Storefront and Admin area
   const navigateToAdmin = () => {
+    // Exigir sempre a autenticação por senha ao acessar a área restrita
+    setIsAdminAuthenticated(false);
+    try {
+      localStorage.removeItem('lavistore_admin_authenticated');
+    } catch {}
+
     try {
       if (window.location.pathname !== '/admin') {
         window.history.pushState({}, '', '/admin');
@@ -293,6 +333,11 @@ export default function App() {
   };
 
   const navigateToStorefront = (tab: ActiveTab = 'catalog') => {
+    setIsAdminAuthenticated(false);
+    try {
+      localStorage.removeItem('lavistore_admin_authenticated');
+    } catch {}
+
     try {
       if (window.location.pathname === '/admin' || window.location.hash === '#admin') {
         window.history.pushState({}, '', '/');
@@ -854,6 +899,24 @@ export default function App() {
                   coupons={coupons}
                   onUpdateCoupons={handleUpdateCoupons}
                   onResetCoupons={handleResetCoupons}
+                  bagTypes={bagTypes}
+                  onUpdateBagTypes={(newBags) => {
+                    setBagTypes(newBags);
+                    showToast('🛍️ Modelos de sacolinhas salvos com sucesso!');
+                  }}
+                  onResetBagTypes={() => {
+                    setBagTypes(BAG_TYPES);
+                    showToast('🔄 Modelos de sacolinhas restaurados para o padrão original!');
+                  }}
+                  ribbonOptions={ribbonOptions}
+                  onUpdateRibbonOptions={(newRibbons) => {
+                    setRibbonOptions(newRibbons);
+                    showToast('🎀 Cores e fitas salvas com sucesso!');
+                  }}
+                  onResetRibbonOptions={() => {
+                    setRibbonOptions(RIBBON_OPTIONS);
+                    showToast('🔄 Fitas restauradas para o padrão original!');
+                  }}
                   filterBarConfig={filterBarConfig}
                   onUpdateFilterBarConfig={(newCfg) => {
                     setFilterBarConfig(newCfg);
@@ -1049,6 +1112,8 @@ export default function App() {
           <CustomKitBuilder
             products={products}
             onAddKitToCart={handleAddKitToCart}
+            bagTypes={bagTypes}
+            ribbonOptions={ribbonOptions}
           />
         )}
 
@@ -1654,13 +1719,17 @@ export default function App() {
           isOpen={activeEditingField !== null}
           fieldKey={activeEditingField.fieldKey}
           fieldLabel={activeEditingField.label}
-          currentValue={homePageConfig[activeEditingField.fieldKey] || { text: '', fontSize: 'base', isBold: false }}
+          currentValue={homePageConfig[activeEditingField.fieldKey] ?? { text: '', fontSize: 'base', isBold: false }}
           onClose={() => setActiveEditingField(null)}
           onSave={(fKey, updated) => {
-            setHomePageConfig(prev => ({
-              ...prev,
-              [fKey]: updated
-            }));
+            setHomePageConfig(prev => {
+              const currentVal = prev[fKey];
+              const isStringField = typeof currentVal === 'string' || fKey === 'footerCreditsText';
+              return {
+                ...prev,
+                [fKey]: isStringField ? updated.text : updated
+              };
+            });
             showToast(`✏️ Campo "${activeEditingField?.label}" atualizado com sucesso!`);
           }}
         />

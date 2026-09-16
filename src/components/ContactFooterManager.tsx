@@ -15,10 +15,12 @@ import {
   FileText,
   Sparkles,
   QrCode,
-  Heart
+  Heart,
+  ExternalLink,
+  Zap
 } from 'lucide-react';
 import { HomePageConfig } from '../types';
-import { DEFAULT_HOME_PAGE_CONFIG } from '../utils/textFormatter';
+import { DEFAULT_HOME_PAGE_CONFIG, formatWhatsAppLink } from '../utils/textFormatter';
 
 interface ContactFooterManagerProps {
   config: HomePageConfig;
@@ -35,7 +37,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
   const [savedToast, setSavedToast] = useState(false);
   const [activeTab, setActiveTab] = useState<'contact' | 'footer' | 'chat'>('contact');
 
-  const updateField = (fieldKey: keyof HomePageConfig, value: string) => {
+  const updateField = (fieldKey: keyof HomePageConfig, value: any) => {
     setFormData(prev => ({
       ...prev,
       [fieldKey]: value
@@ -61,6 +63,8 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
         instagramUrl: DEFAULT_HOME_PAGE_CONFIG.instagramUrl,
         footerDescription: DEFAULT_HOME_PAGE_CONFIG.footerDescription,
         companyLegalText: DEFAULT_HOME_PAGE_CONFIG.companyLegalText,
+        footerCreditsText: DEFAULT_HOME_PAGE_CONFIG.footerCreditsText,
+        showFooterCredits: DEFAULT_HOME_PAGE_CONFIG.showFooterCredits,
         sslSecurityText: DEFAULT_HOME_PAGE_CONFIG.sslSecurityText,
         pixDiscountText: DEFAULT_HOME_PAGE_CONFIG.pixDiscountText,
         installmentText: DEFAULT_HOME_PAGE_CONFIG.installmentText,
@@ -70,6 +74,8 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
         chatWelcomeTitle: DEFAULT_HOME_PAGE_CONFIG.chatWelcomeTitle,
         chatWelcomeBody: DEFAULT_HOME_PAGE_CONFIG.chatWelcomeBody,
         chatButtonLabel: DEFAULT_HOME_PAGE_CONFIG.chatButtonLabel,
+        whatsappMode: DEFAULT_HOME_PAGE_CONFIG.whatsappMode,
+        whatsappDefaultMessage: DEFAULT_HOME_PAGE_CONFIG.whatsappDefaultMessage,
         orderNotificationEmail: DEFAULT_HOME_PAGE_CONFIG.orderNotificationEmail,
         pagSeguroPaymentUrl: DEFAULT_HOME_PAGE_CONFIG.pagSeguroPaymentUrl,
       };
@@ -307,59 +313,108 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
         {activeTab === 'chat' && (
           <div className="space-y-4">
             <h3 className="font-['Mali'] text-lg font-bold text-purple-950 flex items-center gap-2">
-              <MessageCircle className="w-4 h-4 text-emerald-500" />
-              <span>Personalização do Balão de Chat WhatsApp Flutuante</span>
+              <MessageCircle className="w-5 h-5 text-emerald-500" />
+              <span>Conexão do Botão Flutuante com o WhatsApp da Loja</span>
             </h3>
 
-            <div className="p-5 rounded-2xl bg-white/95 border-2 border-amber-200 shadow-2xs space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-purple-950 block mb-1">Nome do Concierge / Atendente</label>
-                  <input
-                    type="text"
-                    value={formData.chatConciergeName || DEFAULT_HOME_PAGE_CONFIG.chatConciergeName}
-                    onChange={(e) => updateField('chatConciergeName', e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                    placeholder="Ex: Concierge Lavistore 🌸"
-                  />
+            {/* Status da Conexão com o WhatsApp */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-300 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                    <MessageCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Número Vinculado ao Botão</span>
+                    <p className="text-base font-bold text-emerald-950 flex items-center gap-1.5">
+                      <span>{formData.whatsappNumber || DEFAULT_HOME_PAGE_CONFIG.whatsappNumber}</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900">
+                        Ativo
+                      </span>
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-purple-950 block mb-1">Status / Cargo</label>
-                  <input
-                    type="text"
-                    value={formData.chatConciergeRole || DEFAULT_HOME_PAGE_CONFIG.chatConciergeRole}
-                    onChange={(e) => updateField('chatConciergeRole', e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                    placeholder="Ex: Atendimento Online • Suporte a Presentes"
-                  />
+                <a
+                  href={formatWhatsAppLink(formData.whatsappNumber, formData.whatsappDefaultMessage)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-102 active:scale-98"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Testar Link do WhatsApp Agora</span>
+                </a>
+              </div>
+
+              <p className="text-xs text-emerald-900 bg-white/70 p-3 rounded-xl border border-emerald-200 leading-relaxed">
+                💡 <strong>Como funciona:</strong> Ao clicar no botão flutuante, a cliente é direcionada imediatamente para o WhatsApp da sua loja com uma mensagem carinhosa pré-preenchida, pronta para iniciar o atendimento.
+              </p>
+            </div>
+
+            {/* Configurações do Botão */}
+            <div className="p-5 rounded-2xl bg-white/95 border-2 border-amber-200 shadow-2xs space-y-4">
+              {/* Modo de Ação */}
+              <div>
+                <label className="text-xs font-bold text-purple-950 block mb-2">
+                  Comportamento ao Clicar no Botão Verde Flutuante
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => updateField('whatsappMode', 'direct')}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                      (formData.whatsappMode || 'direct') === 'direct'
+                        ? 'border-emerald-500 bg-emerald-50/70 shadow-xs'
+                        : 'border-slate-200 hover:border-emerald-300 bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Zap className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-bold text-purple-950">1 Clique: Abrir WhatsApp Direto</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600">
+                      Recomendado. Abre o WhatsApp do celular ou Web instantaneamente com a mensagem pronta.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => updateField('whatsappMode', 'popup')}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                      formData.whatsappMode === 'popup'
+                        ? 'border-purple-500 bg-purple-50/70 shadow-xs'
+                        : 'border-slate-200 hover:border-purple-300 bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <MessageCircle className="w-4 h-4 text-purple-600" />
+                      <span className="text-xs font-bold text-purple-950">Balãozinho Concierge Interativo</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600">
+                      Abre a janelinha com foto do concierge e mensagem de boas-vindas antes de ir ao WhatsApp.
+                    </p>
+                  </div>
                 </div>
               </div>
 
+              {/* Mensagem Padrão que a cliente enviará */}
               <div>
-                <label className="text-xs font-bold text-purple-950 block mb-1">Mensagem de Boas-Vindas</label>
+                <label className="text-xs font-bold text-purple-950 block mb-1">
+                  Mensagem Automática Inicial no WhatsApp
+                </label>
                 <input
                   type="text"
-                  value={formData.chatWelcomeTitle || DEFAULT_HOME_PAGE_CONFIG.chatWelcomeTitle}
-                  onChange={(e) => updateField('chatWelcomeTitle', e.target.value)}
+                  value={formData.whatsappDefaultMessage || DEFAULT_HOME_PAGE_CONFIG.whatsappDefaultMessage}
+                  onChange={(e) => updateField('whatsappDefaultMessage', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                  placeholder="Ex: Olá, bem-vinda à Lavistore! 🌷"
+                  placeholder="Ex: Olá Lavistore! Estou na loja virtual e gostaria de tirar uma dúvida sobre os mimos. 🌸"
                 />
+                <span className="text-[10px] text-purple-800 block mt-1">
+                  Essa mensagem aparecerá no campo de texto da cliente quando o WhatsApp dela abrir, facilitando a primeira mensagem!
+                </span>
               </div>
 
+              {/* Rótulo do Botão Flutuante */}
               <div>
-                <label className="text-xs font-bold text-purple-950 block mb-1">Texto de Apoio / Pergunta</label>
-                <textarea
-                  rows={2}
-                  value={formData.chatWelcomeBody || DEFAULT_HOME_PAGE_CONFIG.chatWelcomeBody}
-                  onChange={(e) => updateField('chatWelcomeBody', e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                  placeholder="Ex: Posso ajudar você a escolher um mimo perfeito, tirar dúvidas sobre o frete ou montar uma caixa personalizada?"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-purple-950 block mb-1">Rótulo do Botão Flutuante (Launcher)</label>
+                <label className="text-xs font-bold text-purple-950 block mb-1">Texto do Botão Flutuante</label>
                 <input
                   type="text"
                   value={formData.chatButtonLabel || DEFAULT_HOME_PAGE_CONFIG.chatButtonLabel}
@@ -368,6 +423,58 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   placeholder="Ex: Dúvidas? Fale Conosco"
                 />
               </div>
+
+              {/* Se o modo for popup, exibe configurações extras */}
+              {formData.whatsappMode === 'popup' && (
+                <div className="p-4 rounded-xl bg-purple-50/60 border border-purple-200 space-y-3 animate-in fade-in">
+                  <h4 className="text-xs font-bold text-purple-950">Personalização do Balãozinho Concierge</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-purple-950 block mb-1">Nome do Concierge / Atendente</label>
+                      <input
+                        type="text"
+                        value={formData.chatConciergeName || DEFAULT_HOME_PAGE_CONFIG.chatConciergeName}
+                        onChange={(e) => updateField('chatConciergeName', e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs text-purple-950 font-medium"
+                        placeholder="Ex: Concierge Lavistore 🌸"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-purple-950 block mb-1">Status / Cargo</label>
+                      <input
+                        type="text"
+                        value={formData.chatConciergeRole || DEFAULT_HOME_PAGE_CONFIG.chatConciergeRole}
+                        onChange={(e) => updateField('chatConciergeRole', e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs text-purple-950 font-medium"
+                        placeholder="Ex: Atendimento Online • Suporte a Presentes"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-purple-950 block mb-1">Mensagem de Boas-Vindas</label>
+                    <input
+                      type="text"
+                      value={formData.chatWelcomeTitle || DEFAULT_HOME_PAGE_CONFIG.chatWelcomeTitle}
+                      onChange={(e) => updateField('chatWelcomeTitle', e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs text-purple-950 font-medium"
+                      placeholder="Ex: Olá, bem-vinda à Lavistore! 🌷"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-purple-950 block mb-1">Texto de Apoio / Pergunta</label>
+                    <textarea
+                      rows={2}
+                      value={formData.chatWelcomeBody || DEFAULT_HOME_PAGE_CONFIG.chatWelcomeBody}
+                      onChange={(e) => updateField('chatWelcomeBody', e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs text-purple-950 font-medium"
+                      placeholder="Ex: Posso ajudar você a escolher um mimo perfeito, tirar dúvidas sobre o frete ou montar uma caixa personalizada?"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -405,6 +512,45 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
                   placeholder="Ex: © 2026 Lavistore Presentes e Mimos Criativos"
                 />
+              </div>
+
+              {/* Créditos de Desenvolvimento */}
+              <div className="p-4 rounded-2xl bg-purple-50/70 border-2 border-purple-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
+                    <label className="text-xs font-bold text-purple-950">
+                      Créditos de Desenvolvimento no Rodapé
+                    </label>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-purple-900">
+                    <input
+                      type="checkbox"
+                      checked={formData.showFooterCredits !== false}
+                      onChange={(e) => updateField('showFooterCredits', e.target.checked)}
+                      className="w-4 h-4 text-purple-600 rounded border-purple-300 focus:ring-purple-400"
+                    />
+                    <span>Exibir no rodapé da loja</span>
+                  </label>
+                </div>
+
+                {formData.showFooterCredits !== false && (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={formData.footerCreditsText || DEFAULT_HOME_PAGE_CONFIG.footerCreditsText}
+                      onChange={(e) => updateField('footerCreditsText', e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border border-purple-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      placeholder="Ex: Desenvolvido com o encanto das 3 florzinhas ou Seu Nome / Agência"
+                    />
+                    <div className="flex items-center gap-2 text-[11px] text-purple-800 bg-white/80 p-2.5 rounded-lg border border-purple-100">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>
+                        <strong>Dica:</strong> Se você mantiver o texto padrão com <em>"3 florzinhas"</em>, ele exibirá automaticamente as cores oficiais do trio (violeta, turquesa e rosa). Você pode digitar qualquer outro texto ou desmarcar a caixinha se preferir ocultar!
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">

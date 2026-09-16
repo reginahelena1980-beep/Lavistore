@@ -134,6 +134,8 @@ export interface HomePageConfig {
   newsletterDesc?: FormattedText;
   footerDescription?: string;
   companyLegalText?: string;
+  footerCreditsText?: string;
+  showFooterCredits?: boolean;
   sslSecurityText?: string;
   pixDiscountText?: string;
   installmentText?: string;
@@ -155,6 +157,8 @@ export interface HomePageConfig {
   chatWelcomeTitle?: string;
   chatWelcomeBody?: string;
   chatButtonLabel?: string;
+  whatsappMode?: 'direct' | 'popup';
+  whatsappDefaultMessage?: string;
 
   // About page ("Sobre Nós")
   aboutHeroSlogan?: string;
@@ -194,6 +198,22 @@ export interface HomePageConfig {
   aboutCtaDesc?: string;
   aboutCtaBtn1?: string;
   aboutCtaBtn2?: string;
+}
+
+export interface BagType {
+  id: string;
+  name: string;
+  price: number;
+  color: string;
+  bgClass?: string;
+  description: string;
+  image: string;
+}
+
+export interface RibbonOption {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export interface CustomKitSelection {

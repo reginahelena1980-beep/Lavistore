@@ -45,8 +45,8 @@ import {
   BarChart3,
   KeyRound
 } from 'lucide-react';
-import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, Coupon } from '../types';
-import { CATEGORIES } from '../data/categories';
+import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, Coupon, BagType, RibbonOption } from '../types';
+import { CATEGORIES, BAG_TYPES, RIBBON_OPTIONS } from '../data/categories';
 import { CUSTOMER_REVIEWS } from '../data/reviews';
 import { DEFAULT_COUPONS } from '../data/coupons';
 import { TrioFlowersIcon } from './LavistoreLogo';
@@ -61,6 +61,8 @@ import { CouponManager } from './CouponManager';
 import { OrdersManager } from './OrdersManager';
 import { BiFinancialManager } from './BiFinancialManager';
 import { AdminPasswordModal } from './AdminPasswordModal';
+import { AdminProductCatalogView } from './AdminProductCatalogView';
+import { PackagingRibbonManager } from './PackagingRibbonManager';
 import { DEFAULT_HOME_PAGE_CONFIG } from '../utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from '../data/filterConfig';
 
@@ -94,7 +96,13 @@ interface AdminDashboardProps {
   coupons?: Coupon[];
   onUpdateCoupons?: (coupons: Coupon[]) => void;
   onResetCoupons?: () => void;
-  initialAdminSection?: 'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi';
+  bagTypes?: BagType[];
+  onUpdateBagTypes?: (bagTypes: BagType[]) => void;
+  onResetBagTypes?: () => void;
+  ribbonOptions?: RibbonOption[];
+  onUpdateRibbonOptions?: (ribbonOptions: RibbonOption[]) => void;
+  onResetRibbonOptions?: () => void;
+  initialAdminSection?: 'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi';
   onGoToStorefront?: () => void;
   onGoToAboutPage?: () => void;
 }
@@ -129,11 +137,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   coupons = DEFAULT_COUPONS,
   onUpdateCoupons,
   onResetCoupons,
+  bagTypes = BAG_TYPES,
+  onUpdateBagTypes,
+  onResetBagTypes,
+  ribbonOptions = RIBBON_OPTIONS,
+  onUpdateRibbonOptions,
+  onResetRibbonOptions,
   initialAdminSection = 'products',
   onGoToStorefront,
   onGoToAboutPage
 }) => {
-  const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi'>(initialAdminSection);
+  const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi'>(initialAdminSection);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
@@ -149,7 +163,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       categories,
       reviews,
       coupons,
-      filterBarConfig
+      filterBarConfig,
+      bagTypes,
+      ribbonOptions
     };
     const blob = new Blob([JSON.stringify(fullBackup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -402,8 +418,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             setCopiedNotification(`${imported.length} produtos importados com sucesso! 🎉`);
             setTimeout(() => setCopiedNotification(null), 3000);
           }
+        } else if (imported && typeof imported === 'object' && Array.isArray(imported.products)) {
+          if (confirm(`Deseja restaurar este backup da loja? Isso atualizará produtos, sacolinhas, fitas e configurações.`)) {
+            onImportProducts(imported.products);
+            if (imported.bagTypes && Array.isArray(imported.bagTypes) && onUpdateBagTypes) {
+              onUpdateBagTypes(imported.bagTypes);
+            }
+            if (imported.ribbonOptions && Array.isArray(imported.ribbonOptions) && onUpdateRibbonOptions) {
+              onUpdateRibbonOptions(imported.ribbonOptions);
+            }
+            if (imported.categories && Array.isArray(imported.categories) && onUpdateCategories) {
+              onUpdateCategories(imported.categories);
+            }
+            if (imported.reviews && Array.isArray(imported.reviews) && onUpdateReviews) {
+              onUpdateReviews(imported.reviews);
+            }
+            if (imported.coupons && Array.isArray(imported.coupons) && onUpdateCoupons) {
+              onUpdateCoupons(imported.coupons);
+            }
+            setCopiedNotification(`Backup completo da loja restaurado com sucesso! 🎉`);
+            setTimeout(() => setCopiedNotification(null), 3500);
+          }
         } else {
-          alert('Arquivo JSON inválido. Certifique-se de que é um backup do catálogo Lavistore.');
+          alert('Arquivo JSON inválido. Certifique-se de que é um backup do catálogo ou da loja Lavistore.');
         }
       } catch (err) {
         alert('Erro ao ler arquivo JSON. Verifique o formato do arquivo.');
@@ -553,6 +590,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
+      {/* PRODUCTS CATALOG SECTION - Repositioned above the section tabs so the selection strip sits directly below it */}
+      {adminSection === 'products' && (
+        <AdminProductCatalogView
+          products={products}
+          filteredProducts={filteredProducts}
+          categories={categories}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          categoryFilter={categoryFilter}
+          setCategoryFilter={setCategoryFilter}
+          stockFilter={stockFilter}
+          setStockFilter={setStockFilter}
+          handleExportFullStore={handleExportFullStore}
+          handleExportBackup={handleExportBackup}
+          handleImportBackup={handleImportBackup}
+          setShowResetCatalogModal={setShowResetCatalogModal}
+          onAddProduct={onAddProduct}
+          onEditProduct={onEditProduct}
+          onDuplicateProduct={onDuplicateProduct}
+          onDeleteProduct={setProductToDelete}
+          onViewProductLive={onViewProductLive}
+        />
+      )}
+
       {/* Section Switcher Tabs - Minimalist, Delicate & Organized */}
       <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-white/75 backdrop-blur-md border border-amber-200/70 rounded-2xl shadow-2xs">
         <button
@@ -603,6 +664,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         >
           <Tag className="w-3.5 h-3.5" />
           <span>Categorias</span>
+        </button>
+
+        <button
+          id="admin-tab-packaging-btn"
+          onClick={() => setAdminSection('packaging')}
+          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+            adminSection === 'packaging'
+              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+          }`}
+        >
+          <ShoppingBag className="w-3.5 h-3.5 text-amber-500" />
+          <span>Sacolinhas & Fitas</span>
         </button>
 
         <button
@@ -866,6 +940,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onResetCoupons();
             }
             setCopiedNotification('Cupons restaurados para o padrão original da Lavistore!');
+            setTimeout(() => setCopiedNotification(null), 3000);
+          }}
+        />
+      )}
+
+      {/* PACKAGING & RIBBONS MANAGER VIEW */}
+      {adminSection === 'packaging' && (
+        <PackagingRibbonManager
+          bagTypes={bagTypes}
+          onUpdateBagTypes={(newBags) => {
+            if (onUpdateBagTypes) {
+              onUpdateBagTypes(newBags);
+            }
+            setCopiedNotification('Modelos de sacolinhas atualizados com sucesso! 🛍️✨');
+            setTimeout(() => setCopiedNotification(null), 3500);
+          }}
+          onResetBagTypes={() => {
+            if (onResetBagTypes) {
+              onResetBagTypes();
+            }
+            setCopiedNotification('Modelos de sacolinhas restaurados para o padrão original!');
+            setTimeout(() => setCopiedNotification(null), 3000);
+          }}
+          ribbonOptions={ribbonOptions}
+          onUpdateRibbonOptions={(newRibbons) => {
+            if (onUpdateRibbonOptions) {
+              onUpdateRibbonOptions(newRibbons);
+            }
+            setCopiedNotification('Cores e opções de fitas salvas com sucesso! 🎀✨');
+            setTimeout(() => setCopiedNotification(null), 3500);
+          }}
+          onResetRibbonOptions={() => {
+            if (onResetRibbonOptions) {
+              onResetRibbonOptions();
+            }
+            setCopiedNotification('Fitas restauradas para o padrão original!');
             setTimeout(() => setCopiedNotification(null), 3000);
           }}
         />
@@ -1403,321 +1513,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </form>
           </div>
-        </div>
-      )}
-
-      {/* PRODUCTS CATALOG SECTION */}
-      {adminSection === 'products' && (
-        <div className="space-y-5">
-          {/* Toolbar: Search, Filters, Export/Import/Reset - Delicate & Organized */}
-          <div className="bg-white/85 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 border border-amber-200/70 shadow-2xs">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
-              
-              {/* Left group: Search + Category + Stock */}
-              <div className="flex flex-wrap items-center gap-2 flex-1">
-                {/* Search Input */}
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-3.5 h-3.5 text-amber-500 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar por nome, tag ou ID..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-purple-100/80 rounded-xl text-xs font-medium text-purple-950 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-400 focus:border-amber-300 transition-all"
-                  />
-                </div>
-
-                {/* Category Filter */}
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-purple-100/80 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-1 focus:ring-amber-300 cursor-pointer shadow-2xs"
-                >
-                  <option value="all">Todas as Categorias</option>
-                  {categories.filter(c => c.id !== 'todos').map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.icon} {c.name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Stock Filter */}
-                <select
-                  value={stockFilter}
-                  onChange={(e) => setStockFilter(e.target.value as any)}
-                  className="px-2.5 py-1.5 bg-white border border-purple-100/80 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-1 focus:ring-amber-300 cursor-pointer shadow-2xs"
-                >
-                  <option value="all">Todos os Estoques</option>
-                  <option value="low">Estoque Baixo (&le; 5)</option>
-                  <option value="out">Esgotados (0)</option>
-                </select>
-              </div>
-
-              {/* Right group: Backup / Export / Import / Reset Actions */}
-              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                <button
-                  onClick={handleExportFullStore}
-                  title="Baixar backup completo de toda a loja em JSON"
-                  className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Backup Loja</span>
-                </button>
-
-                <button
-                  onClick={handleExportBackup}
-                  title="Baixar backup apenas dos produtos em formato JSON"
-                  className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Backup Produtos</span>
-                </button>
-
-                <label
-                  title="Importar produtos de um backup JSON"
-                  className="px-2.5 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-900 border border-cyan-200 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                >
-                  <Upload className="w-3.5 h-3.5 text-cyan-600" />
-                  <span>Importar JSON</span>
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleImportBackup}
-                    className="hidden"
-                  />
-                </label>
-
-                <button
-                  onClick={() => setShowResetCatalogModal(true)}
-                  title="Restaurar lista padrão original"
-                  className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-200 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Restaurar Padrão</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Products Table List with Intelligent Pricing Overview */}
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-amber-200/70 shadow-2xs overflow-hidden">
-            <div className="p-3 sm:p-3.5 border-b border-amber-100/80 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h2 className="font-['Mali'] text-sm sm:text-base font-bold text-purple-950 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Lista de Produtos & Precificação Inteligente ({filteredProducts.length})</span>
-                </h2>
-                <p className="text-[11px] text-slate-500 font-normal">
-                  Preço final público. Custo, mark-up e lucro são exclusivos da administração.
-                </p>
-              </div>
-              <button
-                onClick={onAddProduct}
-                className="self-start sm:self-auto px-3 py-1.5 bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Novo Mimo</span>
-              </button>
-            </div>
-
-            {filteredProducts.length === 0 ? (
-              <div className="p-10 text-center space-y-2.5">
-                <p className="text-xs font-semibold text-purple-950">Nenhum produto encontrado com os filtros atuais.</p>
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setCategoryFilter('all');
-                    setStockFilter('all');
-                  }}
-                  className="px-3 py-1.5 bg-amber-400 text-purple-950 font-semibold rounded-xl text-xs cursor-pointer"
-                >
-                  Limpar Filtros
-                </button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-amber-50/80 border-b border-amber-200/70 text-purple-950 font-bold text-[10px] uppercase tracking-wider">
-                      <th className="py-2.5 px-3">Foto & ID</th>
-                      <th className="py-2.5 px-3">Nome do Mimo</th>
-                      <th className="py-2.5 px-3">Categoria</th>
-                      <th className="py-2.5 px-3 text-center">Estoque</th>
-                      <th className="py-2.5 px-3">Custo Unitário</th>
-                      <th className="py-2.5 px-3">Preço de Venda</th>
-                      <th className="py-2.5 px-3">Lucro & Mark-up</th>
-                      <th className="py-2.5 px-3 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-amber-100/60 font-medium text-slate-700">
-                    {filteredProducts.map((p) => {
-                      const discount = p.originalPrice 
-                        ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
-                        : null;
-
-                      const unitCost = p.unitCost ?? (p.price * 0.4);
-                      const grossProfit = p.grossProfit ?? (p.price - unitCost);
-                      const markupPercent = p.markupPercent ?? (unitCost > 0 ? ((p.price - unitCost) / unitCost) * 100 : 0);
-                      const grossMargin = p.grossMarginPercent ?? (p.price > 0 ? (grossProfit / p.price) * 100 : 0);
-
-                      return (
-                        <tr key={p.id} className="hover:bg-amber-50/40 transition-colors">
-                          {/* Photo Thumbnail */}
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-amber-200 shrink-0 bg-slate-100">
-                                <img
-                                  src={p.images[0]}
-                                  alt={p.name}
-                                  referrerPolicy="no-referrer"
-                                  className="w-full h-full object-cover"
-                                />
-                                {p.images.length > 1 && (
-                                  <span className="absolute bottom-0.5 right-0.5 bg-purple-950/80 text-white text-[8px] px-0.5 rounded font-bold">
-                                    +{p.images.length - 1}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[10px] font-mono text-slate-400">
-                                {p.id}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Name & Description Preview */}
-                          <td className="py-2.5 px-3 max-w-xs">
-                            <p className="font-bold text-purple-950 text-xs line-clamp-1">{p.name}</p>
-                            <p className="text-[10px] text-slate-500 line-clamp-1 font-normal">
-                              {p.description}
-                            </p>
-                          </td>
-
-                          {/* Category & Tag */}
-                          <td className="py-2.5 px-3">
-                            <div className="flex flex-col gap-0.5 items-start">
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-purple-900 text-[10px] font-semibold">
-                                {p.category}
-                              </span>
-                              {p.tag && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-pink-100 border border-pink-200 text-pink-900 text-[9px] font-semibold">
-                                  {p.tag}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Stock (Current / Initial) */}
-                          <td className="py-2.5 px-3 text-center">
-                            <div className="flex flex-col items-center">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                p.stock > 5 
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                  : p.stock > 0
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                  : 'bg-rose-100 text-rose-800 border border-rose-300'
-                              }`}>
-                                {p.stock > 0 ? `${p.stock} un.` : 'Esgotado'}
-                              </span>
-                              {p.initialStock && p.initialStock !== p.stock && (
-                                <span className="text-[9px] text-slate-400 mt-0.5">
-                                  Inicial: {p.initialStock} un.
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Unit Cost */}
-                          <td className="py-2.5 px-3">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-slate-800 text-xs">
-                                R$ {unitCost.toFixed(2)}
-                              </span>
-                              {p.acquisitionCostTotal && (
-                                <span className="text-[9px] text-slate-400">
-                                  Total: R$ {p.acquisitionCostTotal.toFixed(2)}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Price (Sale Price to End User) */}
-                          <td className="py-2.5 px-3">
-                            <div className="flex flex-col font-semibold text-purple-950">
-                              <span className="text-emerald-950 font-bold text-xs">
-                                R$ {p.price.toFixed(2)}
-                              </span>
-                              {p.originalPrice && (
-                                <span className="text-[9px] text-slate-400 line-through">
-                                  De R$ {p.originalPrice.toFixed(2)} (-{discount}%)
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Markup & Gross Profit */}
-                          <td className="py-2.5 px-3">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-emerald-800 text-xs">
-                                +R$ {grossProfit.toFixed(2)} <span className="font-normal text-[9px] text-slate-500">/un</span>
-                              </span>
-                              <div className="flex items-center gap-1 text-[9px] text-slate-500">
-                                <span>Mark-up: {markupPercent.toFixed(0)}%</span>
-                                <span>•</span>
-                                <span className="text-emerald-700 font-semibold">Margem: {grossMargin.toFixed(0)}%</span>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Action buttons - Delicate, Smaller & Unified */}
-                          <td className="py-2.5 px-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {/* Live Preview Button */}
-                              <button
-                                onClick={() => onViewProductLive(p)}
-                                title="Visualizar produto na loja"
-                                className="p-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200/70 transition-colors cursor-pointer"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Duplicate Button */}
-                              <button
-                                onClick={() => onDuplicateProduct(p)}
-                                title="Duplicar este produto"
-                                className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/70 transition-colors cursor-pointer"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Edit Button */}
-                              <button
-                                onClick={() => onEditProduct(p)}
-                                title="Editar fotos, descrição e valores"
-                                className="px-2 py-1 rounded-lg bg-amber-300 hover:bg-amber-400 text-purple-950 font-semibold text-xs flex items-center gap-1 border border-amber-400/60 shadow-2xs transition-colors cursor-pointer"
-                              >
-                                <Edit3 className="w-3 h-3" />
-                                <span>Editar</span>
-                              </button>
-
-                              {/* Delete Button */}
-                              <button
-                                onClick={() => setProductToDelete(p)}
-                                title="Excluir produto"
-                                className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/70 transition-colors cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
         </div>
       )}
 
