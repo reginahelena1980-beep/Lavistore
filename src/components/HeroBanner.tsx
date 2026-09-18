@@ -41,25 +41,25 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   onEditField
 }) => {
   const currentHeroImage = heroImage || heroDefaultProductImg;
-  const currentBadge = config?.heroBadge.text || heroBadge || "Presentes & Mimos Criativos 🌸";
-  const badgeSize = config?.heroBadge.fontSize || 'xs';
-  const badgeBold = config?.heroBadge.isBold ?? true;
+  const currentBadge = config?.heroBadge?.text || heroBadge || "Presentes & Mimos Criativos 🌸";
+  const badgeSize = config?.heroBadge?.fontSize || 'xs';
+  const badgeBold = config?.heroBadge?.isBold ?? true;
 
-  const currentTitle = config?.heroTitle.text || heroTitle || "Demonstre seu carinho com nossos mimos!";
-  const titleSize = config?.heroTitle.fontSize || '4xl';
-  const titleBold = config?.heroTitle.isBold ?? true;
+  const currentTitle = config?.heroTitle?.text || heroTitle || "Demonstre seu carinho com nossos mimos!";
+  const titleSize = config?.heroTitle?.fontSize || '4xl';
+  const titleBold = config?.heroTitle?.isBold ?? true;
 
-  const btnPrimaryText = config?.heroBtnPrimary.text || 'Explorar nossos produtos';
-  const btnPrimarySize = config?.heroBtnPrimary.fontSize || 'sm';
-  const btnPrimaryBold = config?.heroBtnPrimary.isBold ?? true;
+  const btnPrimaryText = config?.heroBtnPrimary?.text || 'Explorar nossos produtos';
+  const btnPrimarySize = config?.heroBtnPrimary?.fontSize || 'sm';
+  const btnPrimaryBold = config?.heroBtnPrimary?.isBold ?? true;
 
-  const btnSecondaryText = config?.heroBtnSecondary.text || 'Monte sua Sacolinha de Presente';
-  const btnSecondarySize = config?.heroBtnSecondary.fontSize || 'sm';
-  const btnSecondaryBold = config?.heroBtnSecondary.isBold ?? true;
+  const btnSecondaryText = config?.heroBtnSecondary?.text || 'Monte sua Sacolinha de Presente';
+  const btnSecondarySize = config?.heroBtnSecondary?.fontSize || 'sm';
+  const btnSecondaryBold = config?.heroBtnSecondary?.isBold ?? true;
 
-  const trust1Text = config?.heroTrust1.text || 'Embalagens Exclusivas';
-  const trust2Text = config?.heroTrust2.text || 'Feito com Amor';
-  const trust3Text = config?.heroTrust3.text || 'Carinho em cada mimo!';
+  const trust1Text = config?.heroTrust1?.text || 'Embalagens Exclusivas';
+  const trust2Text = config?.heroTrust2?.text || 'Feito com Amor';
+  const trust3Text = config?.heroTrust3?.text || 'Carinho em cada mimo!';
 
   // Compute banner sizing class to guarantee perfect proportions on all screens including fullscreen
   const sizeClasses = {
@@ -158,21 +158,21 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
                 className={`flex items-center gap-2 ${isAdminEditing ? 'cursor-pointer hover:underline' : ''}`}
               >
                 <Gift className="w-4 h-4 text-purple-950 stroke-[1.8]" />
-                <span className={`${getFontSizeClass(config?.heroTrust1.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust1.isBold, true)}`}>{trust1Text}</span>
+                <span className={`${getFontSizeClass(config?.heroTrust1?.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust1?.isBold, true)}`}>{trust1Text}</span>
               </div>
               <div 
                 onClick={() => isAdminEditing && onEditField && onEditField('heroTrust2', 'Hero - Destaque 2')}
                 className={`flex items-center gap-2 ${isAdminEditing ? 'cursor-pointer hover:underline' : ''}`}
               >
                 <Heart className="w-4 h-4 text-purple-950 stroke-[1.8]" />
-                <span className={`${getFontSizeClass(config?.heroTrust2.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust2.isBold, true)}`}>{trust2Text}</span>
+                <span className={`${getFontSizeClass(config?.heroTrust2?.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust2?.isBold, true)}`}>{trust2Text}</span>
               </div>
               <div 
                 onClick={() => isAdminEditing && onEditField && onEditField('heroTrust3', 'Hero - Destaque 3')}
                 className={`flex items-center gap-2 ${isAdminEditing ? 'cursor-pointer hover:underline' : ''}`}
               >
                 <Star className="w-4 h-4 text-purple-950 stroke-[1.8]" />
-                <span className={`${getFontSizeClass(config?.heroTrust3.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust3.isBold, true)}`}>{trust3Text}</span>
+                <span className={`${getFontSizeClass(config?.heroTrust3?.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust3?.isBold, true)}`}>{trust3Text}</span>
               </div>
             </div>
           </div>

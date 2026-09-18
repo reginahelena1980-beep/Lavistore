@@ -384,17 +384,23 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const [isPublishingToServer, setIsPublishingToServer] = useState(false);
+
   // Sincronização persistente com o servidor para publicação oficial
   const handlePublishToServer = async (customPayload?: any, showFeedback = true): Promise<boolean> => {
+    setIsPublishingToServer(true);
     try {
-      const payload = customPayload || {
-        products,
-        heroConfig,
-        homePageConfig,
-        categories,
-        reviews,
-        coupons,
-        filterBarConfig,
+      const payload = {
+        products: customPayload?.products ?? products,
+        heroConfig: customPayload?.heroConfig ?? heroConfig,
+        homePageConfig: customPayload?.homePageConfig ?? homePageConfig,
+        categories: customPayload?.categories ?? categories,
+        reviews: customPayload?.reviews ?? reviews,
+        coupons: customPayload?.coupons ?? coupons,
+        bagTypes: customPayload?.bagTypes ?? bagTypes,
+        ribbonOptions: customPayload?.ribbonOptions ?? ribbonOptions,
+        filterBarConfig: customPayload?.filterBarConfig ?? filterBarConfig,
+        ...customPayload
       };
 
       const res = await fetch('/api/store/sync', {
@@ -405,8 +411,9 @@ export default function App() {
 
       if (res.ok) {
         if (showFeedback) {
-          showToast('🌸 Todas as fotos, frases e produtos foram gravados no servidor com sucesso para publicação!');
+          showToast('🌸 Loja sincronizada no servidor com sucesso! Disponível em qualquer computador.');
         }
+        setIsPublishingToServer(false);
         return true;
       }
     } catch (err) {
@@ -415,56 +422,75 @@ export default function App() {
         showToast('⚠️ Não foi possível sincronizar com o servidor no momento.');
       }
     }
+    setIsPublishingToServer(false);
     return false;
   };
 
-  // Na inicialização da loja: carrega dados oficiais do servidor ou sincroniza edições locais
+  // Na inicialização da loja: carrega dados oficiais do servidor (fonte de verdade compartilhada entre múltiplos computadores)
   useEffect(() => {
     const initStoreSync = async () => {
       try {
-        let localProducts = localStorage.getItem('lavistore_products');
-        let localHomeConfig = localStorage.getItem('lavistore_home_page_config');
-        let localHeroConfig = localStorage.getItem('lavistore_hero_config');
-        let localCategories = localStorage.getItem('lavistore_categories');
-        let localReviews = localStorage.getItem('lavistore_reviews');
-        let localCoupons = localStorage.getItem('lavistore_coupons');
-
-        // Se o cache local continha os produtos de exemplo do template inicial, limpa para priorizar a loja real
-        if (localProducts && (localProducts.includes('lav-01') || localProducts.includes('lav-02'))) {
-          localStorage.removeItem('lavistore_products');
-          localProducts = null;
-        }
-        if (localCategories && localCategories.includes('canetas-marcadores')) {
-          localStorage.removeItem('lavistore_categories');
-          localCategories = null;
-        }
-        if (localCoupons && (localCoupons.includes('LAVI10') || localCoupons.includes('FLORZINHA'))) {
-          localStorage.removeItem('lavistore_coupons');
-          localCoupons = null;
-        }
-
-        const hasLocalModifications = Boolean(localProducts || localHomeConfig || localHeroConfig || localCategories);
-
         const res = await fetch('/api/store/data');
         if (res.ok) {
           const json = await res.json();
           if (json?.hasCustomData && json?.data) {
             const d = json.data;
-            if (!hasLocalModifications) {
-              // Visitante novo ou cliente: carrega versão oficial gravada no servidor
-              if (Array.isArray(d.products) && d.products.length > 0) setProducts(d.products);
-              if (d.heroConfig) setHeroConfig(d.heroConfig);
-              if (d.homePageConfig) setHomePageConfig(d.homePageConfig);
-              if (Array.isArray(d.categories) && d.categories.length > 0) setCategories(d.categories);
-              if (Array.isArray(d.reviews) && d.reviews.length > 0) setReviews(d.reviews);
-              if (Array.isArray(d.coupons) && d.coupons.length > 0) setCoupons(d.coupons);
-              if (d.filterBarConfig) setFilterBarConfig(d.filterBarConfig);
+            // O Servidor é a fonte oficial da verdade compartilhada entre qualquer computador ou dispositivo!
+            if (Array.isArray(d.products) && d.products.length > 0) {
+              setProducts(d.products);
+              try { localStorage.setItem('lavistore_products', JSON.stringify(d.products)); } catch {}
             }
+            if (d.heroConfig) {
+              setHeroConfig(prev => ({ ...prev, ...d.heroConfig }));
+              try { localStorage.setItem('lavistore_hero_config', JSON.stringify(d.heroConfig)); } catch {}
+            }
+            if (d.homePageConfig) {
+              const mergedHome = { ...DEFAULT_HOME_PAGE_CONFIG, ...d.homePageConfig };
+              setHomePageConfig(mergedHome);
+              try { localStorage.setItem('lavistore_home_page_config', JSON.stringify(mergedHome)); } catch {}
+            }
+            if (Array.isArray(d.categories) && d.categories.length > 0) {
+              setCategories(d.categories);
+              try { localStorage.setItem('lavistore_categories', JSON.stringify(d.categories)); } catch {}
+            }
+            if (Array.isArray(d.coupons) && d.coupons.length > 0) {
+              setCoupons(d.coupons);
+              try { localStorage.setItem('lavistore_coupons', JSON.stringify(d.coupons)); } catch {}
+            }
+            if (Array.isArray(d.bagTypes) && d.bagTypes.length > 0) {
+              setBagTypes(d.bagTypes);
+              try { localStorage.setItem('lavistore_bag_types', JSON.stringify(d.bagTypes)); } catch {}
+            }
+            if (Array.isArray(d.ribbonOptions) && d.ribbonOptions.length > 0) {
+              setRibbonOptions(d.ribbonOptions);
+              try { localStorage.setItem('lavistore_ribbon_options', JSON.stringify(d.ribbonOptions)); } catch {}
+            }
+            if (Array.isArray(d.reviews) && d.reviews.length > 0) {
+              setReviews(d.reviews);
+              try { localStorage.setItem('lavistore_reviews', JSON.stringify(d.reviews)); } catch {}
+            }
+            if (d.filterBarConfig) {
+              const mergedFilter = { ...DEFAULT_FILTER_BAR_CONFIG, ...d.filterBarConfig };
+              setFilterBarConfig(mergedFilter);
+              try { localStorage.setItem('lavistore_filter_bar_config', JSON.stringify(mergedFilter)); } catch {}
+            }
+            return;
           }
         }
       } catch (err) {
         console.warn('Store sync initialization notice:', err);
       }
+
+      // Se o servidor ainda não possuir dados customizados, sincroniza os dados locais com o servidor
+      try {
+        const localProds = localStorage.getItem('lavistore_products');
+        if (localProds) {
+          const parsed = JSON.parse(localProds);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            handlePublishToServer({ products: parsed }, false);
+          }
+        }
+      } catch {}
     };
 
     initStoreSync();
@@ -472,16 +498,19 @@ export default function App() {
 
   // CRUD Handlers for Administrator
   const handleSaveProduct = (productData: Product) => {
+    let nextProducts: Product[] = [];
     setProducts(prev => {
       const existingIdx = prev.findIndex(p => p.id === productData.id);
       if (existingIdx >= 0) {
         // Update existing
         const updated = [...prev];
         updated[existingIdx] = productData;
+        nextProducts = updated;
         return updated;
       } else {
         // Insert new product at beginning of list
-        return [productData, ...prev];
+        nextProducts = [productData, ...prev];
+        return nextProducts;
       }
     });
 
@@ -494,12 +523,14 @@ export default function App() {
     setIsCreatingProduct(false);
     setEditingProduct(null);
     showToast(`🌸 Mimo "${productData.name}" salvo com sucesso!`);
+    handlePublishToServer({ products: nextProducts }, false);
   };
 
   // Quick stock update handler for Administrator
   const handleQuickUpdateStock = (productId: string, newStock: number, sizeId?: string) => {
+    let nextProducts: Product[] = [];
     setProducts(prev => {
-      return prev.map(prod => {
+      const updated = prev.map(prod => {
         if (prod.id !== productId) return prod;
 
         if (sizeId && prod.sizes && prod.sizes.length > 0) {
@@ -523,12 +554,20 @@ export default function App() {
           stock: safeStock
         };
       });
+      nextProducts = updated;
+      return updated;
     });
+    handlePublishToServer({ products: nextProducts }, false);
   };
 
   const handleDeleteProduct = (productId: string) => {
     const targetProduct = products.find(p => p.id === productId);
-    setProducts(prev => prev.filter(p => p.id !== productId));
+    let nextProducts: Product[] = [];
+    setProducts(prev => {
+      const updated = prev.filter(p => p.id !== productId);
+      nextProducts = updated;
+      return updated;
+    });
     setFavorites(prev => prev.filter(p => p.id !== productId));
     setCartItems(prev => prev.filter(i => i.product.id !== productId));
     
@@ -541,6 +580,7 @@ export default function App() {
     }
 
     showToast(`🗑️ Mimo "${targetProduct?.name || productId}" excluído.`);
+    handlePublishToServer({ products: nextProducts }, false);
   };
 
   const handleDuplicateProduct = (product: Product) => {
@@ -558,22 +598,26 @@ export default function App() {
   const handleResetProducts = () => {
     setProducts(PRODUCTS);
     showToast('Catálogo padrão original restaurado com sucesso! 🔄');
+    handlePublishToServer({ products: PRODUCTS }, false);
   };
 
   const handleImportProducts = (importedProducts: Product[]) => {
     setProducts(importedProducts);
     showToast(`Catálogo atualizado com ${importedProducts.length} produtos! 🎉`);
+    handlePublishToServer({ products: importedProducts }, false);
   };
 
   // Coupons Admin Handlers
   const handleUpdateCoupons = (newCoupons: Coupon[]) => {
     setCoupons(newCoupons);
     showToast(`Lista de cupons atualizada (${newCoupons.length} cupons)! 🎟️✨`);
+    handlePublishToServer({ coupons: newCoupons }, false);
   };
 
   const handleResetCoupons = () => {
     setCoupons(DEFAULT_COUPONS);
-    showToast('Cupons restaurados para o padrão original da Lavistore! 🔄');
+    showToast('Cupons restaurados para o padrão original! 🔄');
+    handlePublishToServer({ coupons: DEFAULT_COUPONS }, false);
   };
 
   // Cart Handlers
@@ -853,47 +897,57 @@ export default function App() {
                   heroConfig={heroConfig}
                   onUpdateHeroConfig={(newConfig) => {
                     setHeroConfig(newConfig);
+                    handlePublishToServer({ heroConfig: newConfig }, false);
+                    showToast('✨ Capa e Banner atualizados no servidor!');
                   }}
                   onResetHeroConfig={() => {
-                    setHeroConfig({
+                    const defaultHero = {
                       image: defaultHeroImg,
                       badge: "Presentes Criativos & Mimos com Amor 🌸",
                       title: "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
                       subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
-                      imageFit: 'cover',
+                      imageFit: 'cover' as const,
                       imageScale: 100,
-                      imagePosition: 'center',
+                      imagePosition: 'center' as const,
                       imagePositionX: 50,
                       imagePositionY: 50,
-                      bannerHeight: 'medium',
-                    });
+                      bannerHeight: 'medium' as const,
+                    };
+                    setHeroConfig(defaultHero);
+                    handlePublishToServer({ heroConfig: defaultHero }, false);
                     showToast('Capa restaurada para o padrão!');
                   }}
                   homePageConfig={homePageConfig}
                   onUpdateHomePageConfig={(newCfg) => {
                     setHomePageConfig(newCfg);
-                    showToast('✨ Textos da Página Inicial atualizados!');
+                    handlePublishToServer({ homePageConfig: newCfg }, false);
+                    showToast('✨ Textos da Página Inicial atualizados no servidor!');
                   }}
                   onResetHomePageConfig={() => {
                     setHomePageConfig(DEFAULT_HOME_PAGE_CONFIG);
+                    handlePublishToServer({ homePageConfig: DEFAULT_HOME_PAGE_CONFIG }, false);
                     showToast('🔄 Textos da Home restaurados para o padrão!');
                   }}
                   categories={categories}
                   onUpdateCategories={(newCats) => {
                     setCategories(newCats);
-                    showToast('🏷️ Categorias e rodapé salvos com sucesso!');
+                    handlePublishToServer({ categories: newCats }, false);
+                    showToast('🏷️ Categorias e rodapé salvos no servidor!');
                   }}
                   onResetCategories={() => {
                     setCategories(DEFAULT_CATEGORIES);
+                    handlePublishToServer({ categories: DEFAULT_CATEGORIES }, false);
                     showToast('🔄 Categorias restauradas para o padrão!');
                   }}
                   reviews={reviews}
                   onUpdateReviews={(newRevs) => {
                     setReviews(newRevs);
-                    showToast('⭐ Depoimentos atualizados com sucesso!');
+                    handlePublishToServer({ reviews: newRevs }, false);
+                    showToast('⭐ Depoimentos atualizados no servidor!');
                   }}
                   onResetReviews={() => {
                     setReviews(CUSTOMER_REVIEWS);
+                    handlePublishToServer({ reviews: CUSTOMER_REVIEWS }, false);
                     showToast('🔄 Depoimentos restaurados para o padrão original!');
                   }}
                   coupons={coupons}
@@ -902,30 +956,38 @@ export default function App() {
                   bagTypes={bagTypes}
                   onUpdateBagTypes={(newBags) => {
                     setBagTypes(newBags);
-                    showToast('🛍️ Modelos de sacolinhas salvos com sucesso!');
+                    handlePublishToServer({ bagTypes: newBags }, false);
+                    showToast('🛍️ Modelos de sacolinhas salvos no servidor!');
                   }}
                   onResetBagTypes={() => {
                     setBagTypes(BAG_TYPES);
+                    handlePublishToServer({ bagTypes: BAG_TYPES }, false);
                     showToast('🔄 Modelos de sacolinhas restaurados para o padrão original!');
                   }}
                   ribbonOptions={ribbonOptions}
                   onUpdateRibbonOptions={(newRibbons) => {
                     setRibbonOptions(newRibbons);
-                    showToast('🎀 Cores e fitas salvas com sucesso!');
+                    handlePublishToServer({ ribbonOptions: newRibbons }, false);
+                    showToast('🎀 Cores e fitas salvas no servidor!');
                   }}
                   onResetRibbonOptions={() => {
                     setRibbonOptions(RIBBON_OPTIONS);
+                    handlePublishToServer({ ribbonOptions: RIBBON_OPTIONS }, false);
                     showToast('🔄 Fitas restauradas para o padrão original!');
                   }}
                   filterBarConfig={filterBarConfig}
                   onUpdateFilterBarConfig={(newCfg) => {
                     setFilterBarConfig(newCfg);
-                    showToast('✨ Filtros de preço e ordenação salvos com sucesso!');
+                    handlePublishToServer({ filterBarConfig: newCfg }, false);
+                    showToast('✨ Filtros salvos no servidor!');
                   }}
                   onResetFilterBarConfig={() => {
                     setFilterBarConfig(DEFAULT_FILTER_BAR_CONFIG);
+                    handlePublishToServer({ filterBarConfig: DEFAULT_FILTER_BAR_CONFIG }, false);
                     showToast('🔄 Configuração dos filtros restaurada para o padrão!');
                   }}
+                  onPublishToServer={() => handlePublishToServer(undefined, true)}
+                  isPublishing={isPublishingToServer}
                   onGoToStorefront={() => {
                     navigateToStorefront('catalog');
                   }}

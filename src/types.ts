@@ -454,3 +454,16 @@ export interface BiConsolidatedKpis {
   faturamentoPlanejadoTotal: number;
   atingimentoGlobal: number;
 }
+
+export interface NewsletterLead {
+  id: string;
+  email: string;
+  name?: string;
+  registeredAt: string;
+  lastInteractionAt?: string;
+  source?: string;
+  couponOffered?: string;
+  status?: 'active' | 'unsubscribed';
+  notes?: string;
+}
+

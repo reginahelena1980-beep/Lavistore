@@ -25,6 +25,39 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Arquivo de persistência da loja para publicação oficial
 const STORE_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'store_state.json');
 const BI_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'bi_records.json');
+const NEWSLETTER_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'newsletter_leads.json');
+const ORDERS_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'orders.json');
+
+/**
+ * Helper: Lê os pedidos persistidos do arquivo JSON de forma segura
+ */
+function readStoredOrders(): any[] {
+  try {
+    if (fs.existsSync(ORDERS_DATA_FILE)) {
+      const content = fs.readFileSync(ORDERS_DATA_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch (err: any) {
+    console.error('[Orders] Erro ao ler orders.json:', err.message);
+  }
+  return [];
+}
+
+/**
+ * Helper: Grava os pedidos no arquivo JSON com garantia atômica
+ */
+function saveStoredOrders(orders: any[]) {
+  try {
+    const dir = path.dirname(ORDERS_DATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(ORDERS_DATA_FILE, JSON.stringify(orders, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.error('[Orders] Erro ao gravar orders.json:', err.message);
+  }
+}
 
 // Origem padrão da loja (Lavistore - São Paulo/SP)
 const DEFAULT_FROM_CEP = '01001-000';
@@ -61,7 +94,7 @@ app.get('/api/store/data', (_req, res) => {
  */
 app.post('/api/store/sync', (req, res) => {
   try {
-    const { products, heroConfig, homePageConfig, categories, reviews, coupons, filterBarConfig } = req.body;
+    const { products, heroConfig, homePageConfig, categories, reviews, coupons, filterBarConfig, bagTypes, ribbonOptions } = req.body;
 
     // Garante que o diretório existe
     const dir = path.dirname(STORE_DATA_FILE);
@@ -82,12 +115,14 @@ app.post('/api/store/sync', (req, res) => {
       adminPasswordChanged: existingContent.adminPasswordChanged || false,
       adminPasswordChangedAt: existingContent.adminPasswordChangedAt || undefined,
       products: Array.isArray(products) ? products : existingContent.products,
-      heroConfig: heroConfig || existingContent.heroConfig,
-      homePageConfig: homePageConfig || existingContent.homePageConfig,
+      heroConfig: heroConfig ? { ...(existingContent.heroConfig || {}), ...heroConfig } : existingContent.heroConfig,
+      homePageConfig: homePageConfig ? { ...(existingContent.homePageConfig || {}), ...homePageConfig } : existingContent.homePageConfig,
       categories: Array.isArray(categories) ? categories : existingContent.categories,
       reviews: Array.isArray(reviews) ? reviews : existingContent.reviews,
       coupons: Array.isArray(coupons) ? coupons : existingContent.coupons,
-      filterBarConfig: filterBarConfig || existingContent.filterBarConfig,
+      bagTypes: Array.isArray(bagTypes) ? bagTypes : existingContent.bagTypes,
+      ribbonOptions: Array.isArray(ribbonOptions) ? ribbonOptions : existingContent.ribbonOptions,
+      filterBarConfig: filterBarConfig ? { ...(existingContent.filterBarConfig || {}), ...filterBarConfig } : existingContent.filterBarConfig,
     };
 
     fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(payloadToSave, null, 2), 'utf-8');
@@ -712,8 +747,8 @@ app.post('/api/shipping/calculate', async (req, res) => {
  * =====================================================================
  */
 
-// Memória de pedidos recebidos para consulta administrativa
-const storeOrders: any[] = [];
+// Memória de pedidos recebidos para consulta administrativa sincronizada com arquivo JSON
+let storeOrders: any[] = readStoredOrders();
 
 /**
  * Cria ou obtém o transporter do Nodemailer
@@ -1017,7 +1052,8 @@ app.post('/api/orders', async (req, res) => {
     };
 
     storeOrders.unshift(orderRecord);
-    if (storeOrders.length > 50) storeOrders.pop(); // Mantém os últimos 50 pedidos em memória
+    if (storeOrders.length > 200) storeOrders.pop(); // Mantém os últimos 200 pedidos
+    saveStoredOrders(storeOrders);
 
     // Sincronização ACID: Abate automático de estoque em BI_DATA_FILE e STORE_DATA_FILE
     try {
@@ -1174,13 +1210,180 @@ app.post('/api/orders', async (req, res) => {
 
 /**
  * GET /api/orders
- * Retorna o histórico de pedidos recentes recebidos pelo backend
+ * Retorna o histórico de pedidos recentes recebidos pelo backend persistidos no servidor
  */
 app.get('/api/orders', (_req, res) => {
+  storeOrders = readStoredOrders();
   res.json({
     totalOrders: storeOrders.length,
     orders: storeOrders
   });
+});
+
+/**
+ * POST /api/orders/update-status
+ * Atualiza o status de entrega/processamento de um pedido e persiste no servidor
+ */
+app.post('/api/orders/update-status', (req, res) => {
+  try {
+    const { orderId, customStatus, trackingCode } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ error: 'orderId é obrigatório' });
+    }
+    const orders = readStoredOrders();
+    const index = orders.findIndex((o: any) => String(o.orderId) === String(orderId));
+    if (index !== -1) {
+      if (customStatus !== undefined) orders[index].customStatus = customStatus;
+      if (trackingCode !== undefined) orders[index].trackingCode = trackingCode;
+      orders[index].updatedAt = new Date().toISOString();
+      saveStoredOrders(orders);
+      storeOrders = orders;
+      console.log(`[Orders] Pedido #${orderId} atualizado com status "${customStatus}"`);
+      return res.json({ success: true, order: orders[index] });
+    }
+    return res.status(404).json({ error: 'Pedido não encontrado' });
+  } catch (err: any) {
+    console.error('[Orders] Erro ao atualizar status do pedido:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Helper: Lê os leads do arquivo JSON de forma segura
+ */
+function readNewsletterLeads(): any[] {
+  try {
+    if (fs.existsSync(NEWSLETTER_DATA_FILE)) {
+      const content = fs.readFileSync(NEWSLETTER_DATA_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch (err: any) {
+    console.error('[Newsletter] Erro ao ler newsletter_leads.json:', err.message);
+  }
+  return [];
+}
+
+/**
+ * Helper: Grava os leads no arquivo JSON
+ */
+function writeNewsletterLeads(leads: any[]): boolean {
+  try {
+    const dir = path.dirname(NEWSLETTER_DATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(NEWSLETTER_DATA_FILE, JSON.stringify(leads, null, 2), 'utf-8');
+    return true;
+  } catch (err: any) {
+    console.error('[Newsletter] Erro ao gravar newsletter_leads.json:', err.message);
+    return false;
+  }
+}
+
+/**
+ * GET /api/newsletter/leads
+ * Retorna todos os cadastros de clientes no Clube de Mimos / Newsletter
+ */
+app.get('/api/newsletter/leads', (_req, res) => {
+  try {
+    const leads = readNewsletterLeads();
+    return res.json({
+      success: true,
+      total: leads.length,
+      leads: leads
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/newsletter/subscribe
+ * Cadastra um novo cliente no Clube de Mimos (com e-mail e data/hora)
+ */
+app.post('/api/newsletter/subscribe', (req, res) => {
+  try {
+    const { email, source, couponOffered, name } = req.body;
+
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Por favor, informe um endereço de e-mail válido.'
+      });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const leads = readNewsletterLeads();
+
+    // Verifica se já está cadastrado
+    const existingIndex = leads.findIndex((l: any) => (l.email || '').toLowerCase() === cleanEmail);
+    if (existingIndex >= 0) {
+      // Já cadastrado - atualiza última interação
+      const existing = leads[existingIndex];
+      existing.lastInteractionAt = new Date().toISOString();
+      writeNewsletterLeads(leads);
+
+      console.log(`[Newsletter] E-mail já cadastrado: ${cleanEmail}`);
+      return res.json({
+        success: true,
+        alreadySubscribed: true,
+        coupon: existing.couponOffered || 'LAVI10',
+        message: 'Você já faz parte do Clube Lavistore! Use seu cupom LAVI10 no checkout. ✨',
+        lead: existing
+      });
+    }
+
+    // Novo cadastro
+    const newLead = {
+      id: `lead-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      name: name?.trim() || '',
+      email: cleanEmail,
+      registeredAt: new Date().toISOString(),
+      source: source || 'Clube de Mimos (Rodapé)',
+      couponOffered: couponOffered || 'LAVI10',
+      status: 'active'
+    };
+
+    leads.unshift(newLead); // Adiciona no início da lista (mais recentes primeiro)
+    writeNewsletterLeads(leads);
+
+    console.log(`🌸 [LAVISTORE NOVO LEAD CADASTRADO] ${cleanEmail} via ${newLead.source}`);
+
+    return res.status(201).json({
+      success: true,
+      alreadySubscribed: false,
+      coupon: newLead.couponOffered,
+      message: 'Bem-vinda ao Clube Lavistore! Use o cupom LAVI10 no checkout! ✨',
+      lead: newLead,
+      total: leads.length
+    });
+  } catch (err: any) {
+    console.error('[Newsletter] Erro ao processar cadastro:', err);
+    return res.status(500).json({ success: false, error: 'Erro interno ao salvar cadastro.' });
+  }
+});
+
+/**
+ * DELETE /api/newsletter/leads/:id
+ * Remove um cadastro específico do Clube de Mimos
+ */
+app.delete('/api/newsletter/leads/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    let leads = readNewsletterLeads();
+    const initialLen = leads.length;
+    leads = leads.filter((l: any) => l.id !== id && l.email !== id);
+
+    if (leads.length === initialLen) {
+      return res.status(404).json({ success: false, error: 'Lead não encontrado.' });
+    }
+
+    writeNewsletterLeads(leads);
+    return res.json({ success: true, message: 'Cadastro removido com sucesso.', total: leads.length });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 /**
@@ -1622,7 +1825,8 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
     };
 
     storeOrders.unshift(finalizedOrder);
-    if (storeOrders.length > 50) storeOrders.pop();
+    if (storeOrders.length > 200) storeOrders.pop();
+    saveStoredOrders(storeOrders);
 
     // Disparo automático do e-mail para a loja via Nodemailer / SMTP
     const { transporter, isConfigured: isSmtpConfigured } = createMailTransporter();
@@ -1729,6 +1933,7 @@ app.get('/api/mercadopago/payment_status/:id', async (req, res) => {
       if (order) {
         order.mercadoPagoStatus = 'approved';
         order.mercadoPagoStatusDetail = mpData.status_detail || 'accredited';
+        saveStoredOrders(storeOrders);
       }
     }
 
@@ -1772,6 +1977,7 @@ app.post('/api/mercadopago/webhook', async (req, res) => {
           if (order) {
             order.mercadoPagoStatus = mpData.status;
             order.mercadoPagoStatusDetail = mpData.status_detail;
+            saveStoredOrders(storeOrders);
             console.log(`[Mercado Pago Webhook] Pedido #${order.orderId} atualizado para status: ${mpData.status}`);
           }
         }

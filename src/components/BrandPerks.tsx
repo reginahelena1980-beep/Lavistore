@@ -26,12 +26,12 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
       descKey: 'perk1Desc' as keyof HomePageConfig,
       titleLabel: 'Vantagem 1 - Título',
       descLabel: 'Vantagem 1 - Descrição',
-      title: config?.perk1Title.text || 'Mimos Florais em Cada Sacolinha Amarela',
-      titleSize: config?.perk1Title.fontSize || 'base',
-      titleBold: config?.perk1Title.isBold ?? true,
-      description: config?.perk1Desc.text || 'Você sempre ganha adesivos das 3 florzinhas, marcadores fofos e mini surpresas.',
-      descSize: config?.perk1Desc.fontSize || 'xs',
-      descBold: config?.perk1Desc.isBold ?? false
+      title: config?.perk1Title?.text || 'Mimos Florais em Cada Sacolinha Amarela',
+      titleSize: config?.perk1Title?.fontSize || 'base',
+      titleBold: config?.perk1Title?.isBold ?? true,
+      description: config?.perk1Desc?.text || 'Você sempre ganha adesivos das 3 florzinhas, marcadores fofos e mini surpresas.',
+      descSize: config?.perk1Desc?.fontSize || 'xs',
+      descBold: config?.perk1Desc?.isBold ?? false
     },
     {
       icon: config?.perk2Icon ? (
@@ -44,12 +44,12 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
       descKey: 'perk2Desc' as keyof HomePageConfig,
       titleLabel: 'Vantagem 2 - Título',
       descLabel: 'Vantagem 2 - Descrição',
-      title: config?.perk2Title.text || 'Cheirinho Floral & Doce',
-      titleSize: config?.perk2Title.fontSize || 'base',
-      titleBold: config?.perk2Title.isBold ?? true,
-      description: config?.perk2Desc.text || 'Cada sacolinha amarela é borrifada artesanalmente com nossa fragrância suave de lavanda e baunilha.',
-      descSize: config?.perk2Desc.fontSize || 'xs',
-      descBold: config?.perk2Desc.isBold ?? false
+      title: config?.perk2Title?.text || 'Cheirinho Floral & Doce',
+      titleSize: config?.perk2Title?.fontSize || 'base',
+      titleBold: config?.perk2Title?.isBold ?? true,
+      description: config?.perk2Desc?.text || 'Cada sacolinha amarela é borrifada artesanalmente com nossa fragrância suave de lavanda e baunilha.',
+      descSize: config?.perk2Desc?.fontSize || 'xs',
+      descBold: config?.perk2Desc?.isBold ?? false
     },
     {
       icon: config?.perk3Icon ? (
@@ -62,12 +62,12 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
       descKey: 'perk3Desc' as keyof HomePageConfig,
       titleLabel: 'Vantagem 3 - Título',
       descLabel: 'Vantagem 3 - Descrição',
-      title: config?.perk3Title.text || 'Frete Grátis Especial',
-      titleSize: config?.perk3Title.fontSize || 'base',
-      titleBold: config?.perk3Title.isBold ?? true,
-      description: config?.perk3Desc.text || 'Envio gratuito para todo o Brasil em compras a partir de R$ 149 com rastreamento detalhado.',
-      descSize: config?.perk3Desc.fontSize || 'xs',
-      descBold: config?.perk3Desc.isBold ?? false
+      title: config?.perk3Title?.text || 'Frete Grátis Especial',
+      titleSize: config?.perk3Title?.fontSize || 'base',
+      titleBold: config?.perk3Title?.isBold ?? true,
+      description: config?.perk3Desc?.text || 'Envio gratuito para todo o Brasil em compras a partir de R$ 149 com rastreamento detalhado.',
+      descSize: config?.perk3Desc?.fontSize || 'xs',
+      descBold: config?.perk3Desc?.isBold ?? false
     },
     {
       icon: config?.perk4Icon ? (
@@ -80,12 +80,12 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
       descKey: 'perk4Desc' as keyof HomePageConfig,
       titleLabel: 'Vantagem 4 - Título',
       descLabel: 'Vantagem 4 - Descrição',
-      title: config?.perk4Title.text || 'Feito com Amor & Afeto',
-      titleSize: config?.perk4Title.fontSize || 'base',
-      titleBold: config?.perk4Title.isBold ?? true,
-      description: config?.perk4Desc.text || 'Produtos de papelaria selecionados a dedo com gramatura nobre e sacolinhas amarelas exclusivas.',
-      descSize: config?.perk4Desc.fontSize || 'xs',
-      descBold: config?.perk4Desc.isBold ?? false
+      title: config?.perk4Title?.text || 'Feito com Amor & Afeto',
+      titleSize: config?.perk4Title?.fontSize || 'base',
+      titleBold: config?.perk4Title?.isBold ?? true,
+      description: config?.perk4Desc?.text || 'Produtos de papelaria selecionados a dedo com gramatura nobre e sacolinhas amarelas exclusivas.',
+      descSize: config?.perk4Desc?.fontSize || 'xs',
+      descBold: config?.perk4Desc?.isBold ?? false
     }
   ];
 

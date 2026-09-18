@@ -43,7 +43,11 @@ import {
   ShoppingBag,
   Store,
   BarChart3,
-  KeyRound
+  KeyRound,
+  Users,
+  Cloud,
+  CloudUpload,
+  CheckCheck
 } from 'lucide-react';
 import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, Coupon, BagType, RibbonOption } from '../types';
 import { CATEGORIES, BAG_TYPES, RIBBON_OPTIONS } from '../data/categories';
@@ -60,6 +64,7 @@ import { ReviewsManager } from './ReviewsManager';
 import { CouponManager } from './CouponManager';
 import { OrdersManager } from './OrdersManager';
 import { BiFinancialManager } from './BiFinancialManager';
+import { NewsletterLeadsManager } from './NewsletterLeadsManager';
 import { AdminPasswordModal } from './AdminPasswordModal';
 import { AdminProductCatalogView } from './AdminProductCatalogView';
 import { PackagingRibbonManager } from './PackagingRibbonManager';
@@ -102,9 +107,11 @@ interface AdminDashboardProps {
   ribbonOptions?: RibbonOption[];
   onUpdateRibbonOptions?: (ribbonOptions: RibbonOption[]) => void;
   onResetRibbonOptions?: () => void;
-  initialAdminSection?: 'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi';
+  initialAdminSection?: 'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads';
   onGoToStorefront?: () => void;
   onGoToAboutPage?: () => void;
+  onPublishToServer?: () => Promise<boolean> | void;
+  isPublishing?: boolean;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -145,9 +152,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onResetRibbonOptions,
   initialAdminSection = 'products',
   onGoToStorefront,
-  onGoToAboutPage
+  onGoToAboutPage,
+  onPublishToServer,
+  isPublishing = false,
 }) => {
-  const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi'>(initialAdminSection);
+  const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads'>(initialAdminSection);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
@@ -449,136 +458,297 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     reader.readAsText(file);
   };
 
+  const sectionDetails: Record<string, { title: string; subtitle: string; icon: React.ReactNode }> = {
+    orders: {
+      title: 'Pedidos Recebidos',
+      subtitle: 'Histórico de pedidos e compras realizadas',
+      icon: <ShoppingBag className="w-4 h-4 text-purple-600" />
+    },
+    bi: {
+      title: 'BI & Análises Financeiras',
+      subtitle: 'Relatórios, faturamento, custos e margens de lucro',
+      icon: <BarChart3 className="w-4 h-4 text-emerald-600" />
+    },
+    categories: {
+      title: 'Categorias de Produtos',
+      subtitle: 'Organize departamentos e categorias de mimos',
+      icon: <Tag className="w-4 h-4 text-amber-600" />
+    },
+    packaging: {
+      title: 'Sacolinhas & Fitas',
+      subtitle: 'Personalize modelos de embalagem e cores de fita',
+      icon: <ShoppingBag className="w-4 h-4 text-amber-600" />
+    },
+    hero: {
+      title: 'Foto de Capa (Banner)',
+      subtitle: 'Edite o banner principal da página inicial',
+      icon: <ImageIcon className="w-4 h-4 text-purple-600" />
+    },
+    hometexts: {
+      title: 'Textos da Home',
+      subtitle: 'Personalize mensagens, títulos e chamadas da loja',
+      icon: <Edit3 className="w-4 h-4 text-purple-600" />
+    },
+    about: {
+      title: 'Página Sobre Nós',
+      subtitle: 'História, valores e missão da Lavistore',
+      icon: <Heart className="w-4 h-4 text-rose-500" />
+    },
+    reviews: {
+      title: 'Depoimentos & Avaliações',
+      subtitle: 'Feedbacks e depoimentos reais das clientes',
+      icon: <MessageCircle className="w-4 h-4 text-purple-600" />
+    },
+    contact: {
+      title: 'Contato & Rodapé',
+      subtitle: 'WhatsApp, redes sociais, endereço e links do rodapé',
+      icon: <Phone className="w-4 h-4 text-emerald-600" />
+    },
+    filters: {
+      title: 'Filtros da Loja',
+      subtitle: 'Configuração da barra de busca e filtros da vitrine',
+      icon: <Sliders className="w-4 h-4 text-purple-600" />
+    },
+    coupons: {
+      title: 'Cupons de Desconto',
+      subtitle: 'Gerencie cupons ativos, porcentagens e regras',
+      icon: <Ticket className="w-4 h-4 text-pink-500" />
+    },
+    leads: {
+      title: 'Clube de Mimos & Cadastros',
+      subtitle: 'E-mails de clientes cadastrados no Clube (10% OFF) e compradores da loja',
+      icon: <Users className="w-4 h-4 text-amber-500" />
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in font-['Comfortaa'] pb-12">
-      {/* Top Banner & Quick Metrics */}
-      <div className="bg-white/85 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-amber-200/80 shadow-2xs relative overflow-hidden">
-        {/* Background decorative flower */}
-        <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
-          <TrioFlowersIcon size={160} />
-        </div>
-
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative z-10">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100/80 border border-amber-200/80 text-purple-950 text-[11px] font-medium shadow-2xs">
-              <Sparkles className="w-3 h-3 text-amber-600 fill-amber-300" />
-              <span>Painel do Administrador Lavistore</span>
-            </div>
-            <h1 className="font-['Mali'] text-xl sm:text-2xl lg:text-3xl font-bold text-purple-950">
-              Gerenciador Completo de Produtos 🌸
-            </h1>
-            <p className="text-xs text-purple-900/80 font-normal max-w-xl leading-relaxed">
-              Edite fotos, descrições, preços, categorias e estoque de qualquer mimo, além de cadastrar novos itens na sua loja.
-            </p>
+      {/* Top Banner & Quick Metrics - Exibido somente na aba principal de Produtos */}
+      {adminSection === 'products' ? (
+        <div className="bg-white/85 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-amber-200/80 shadow-2xs relative overflow-hidden">
+          {/* Background decorative flower */}
+          <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
+            <TrioFlowersIcon size={160} />
           </div>
 
-          {/* Action buttons - Delicate, Smaller & Minimalist */}
-          <div className="flex flex-wrap items-center gap-2">
-            {onGoToStorefront && (
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative z-10">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100/80 border border-amber-200/80 text-purple-950 text-[11px] font-medium shadow-2xs">
+                <Sparkles className="w-3 h-3 text-amber-600 fill-amber-300" />
+                <span>Painel do Administrador Lavistore</span>
+              </div>
+              <h1 className="font-['Mali'] text-xl sm:text-2xl lg:text-3xl font-bold text-purple-950">
+                Gerenciador Completo de Produtos 🌸
+              </h1>
+              <p className="text-xs text-purple-900/80 font-normal max-w-xl leading-relaxed">
+                Edite fotos, descrições, preços, categorias e estoque de qualquer mimo, além de cadastrar novos itens na sua loja.
+              </p>
+            </div>
+
+            {/* Action buttons - Delicate, Smaller & Minimalist */}
+            <div className="flex flex-wrap items-center gap-2">
+              {onPublishToServer && (
+                <button
+                  id="btn-admin-sync-server"
+                  type="button"
+                  onClick={onPublishToServer}
+                  disabled={isPublishing}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-xs border border-emerald-300 shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                  title="Sincroniza todos os produtos, fotos, cupons e configurações diretamente no servidor para acesso em outros computadores"
+                >
+                  <CloudUpload className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{isPublishing ? 'Salvando...' : 'Salvar no Servidor'}</span>
+                </button>
+              )}
+
+              {onGoToStorefront && (
+                <button
+                  id="btn-admin-goto-storefront"
+                  type="button"
+                  onClick={onGoToStorefront}
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-purple-50 text-purple-950 font-medium text-xs border border-purple-200/80 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Visualizar a vitrine da loja como cliente"
+                >
+                  <Store className="w-3.5 h-3.5 text-purple-700" />
+                  <span>Ver Loja</span>
+                </button>
+              )}
+
               <button
-                id="btn-admin-goto-storefront"
-                type="button"
-                onClick={onGoToStorefront}
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-purple-50 text-purple-950 font-medium text-xs border border-purple-200/80 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Visualizar a vitrine da loja como cliente"
+                onClick={onAddProduct}
+                className="px-3.5 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold text-xs shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
               >
-                <Store className="w-3.5 h-3.5 text-purple-700" />
-                <span>Ver Loja</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Cadastrar Novo Mimo</span>
               </button>
-            )}
 
-            <button
-              onClick={onAddProduct}
-              className="px-3.5 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold text-xs shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Cadastrar Novo Mimo</span>
-            </button>
+              <button
+                id="btn-admin-change-password-header"
+                type="button"
+                onClick={() => setShowPasswordModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-purple-950 font-medium text-xs border border-amber-200/80 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Alterar senha de acesso à gerência"
+              >
+                <KeyRound className="w-3 h-3 text-amber-600" />
+                <span>Alterar Senha</span>
+              </button>
 
-            <button
-              id="btn-admin-change-password-header"
-              type="button"
-              onClick={() => setShowPasswordModal(true)}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-purple-950 font-medium text-xs border border-amber-200/80 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Alterar senha de acesso à gerência"
-            >
-              <KeyRound className="w-3 h-3 text-amber-600" />
-              <span>Alterar Senha</span>
-            </button>
+              <button
+                onClick={onExitAdmin}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-purple-900 font-medium text-xs border border-slate-200 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Lock className="w-3 h-3 text-slate-500" />
+                <span>Sair</span>
+              </button>
+            </div>
+          </div>
 
-            <button
-              onClick={onExitAdmin}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-purple-900 font-medium text-xs border border-slate-200 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Lock className="w-3 h-3 text-slate-500" />
-              <span>Sair</span>
-            </button>
+          {/* 5 Stats Cards for Financial & Inventory Intelligence - Delicate & Minimalist */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-4 relative z-10">
+            {/* Stat 1: Total Products */}
+            <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
+              <div className="flex items-center justify-between text-[11px] text-purple-900/90 font-semibold">
+                <span>Mimos Cadastrados</span>
+                <Package className="w-3.5 h-3.5 text-purple-600" />
+              </div>
+              <p className="font-['Mali'] text-base sm:text-lg font-bold text-purple-950">
+                {products.length} itens
+              </p>
+              <p className="text-[10px] text-slate-500">Catálogo completo</p>
+            </div>
+
+            {/* Stat 2: Total Stock Units */}
+            <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
+              <div className="flex items-center justify-between text-[11px] text-cyan-900/90 font-semibold">
+                <span>Estoque Atual</span>
+                <Layers className="w-3.5 h-3.5 text-cyan-600" />
+              </div>
+              <p className="font-['Mali'] text-base sm:text-lg font-bold text-cyan-950">
+                {totalStock} un.
+              </p>
+              <p className="text-[10px] text-slate-500">{lowStockCount} itens com estoque baixo</p>
+            </div>
+
+            {/* Stat 3: Total Acquisition Cost Invested */}
+            <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
+              <div className="flex items-center justify-between text-[11px] text-amber-900/90 font-semibold">
+                <span>Custo Investido</span>
+                <Calculator className="w-3.5 h-3.5 text-amber-600" />
+              </div>
+              <p className="font-['Mali'] text-base sm:text-lg font-bold text-amber-950">
+                R$ {totalAcquisitionInvested.toFixed(2)}
+              </p>
+              <p className="text-[10px] text-slate-500">Base no custo unitário</p>
+            </div>
+
+            {/* Stat 4: Potential Total Revenue */}
+            <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
+              <div className="flex items-center justify-between text-[11px] text-emerald-900/90 font-semibold">
+                <span>Faturamento Previsto</span>
+                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+              </div>
+              <p className="font-['Mali'] text-base sm:text-lg font-bold text-emerald-950">
+                R$ {totalPotentialRevenue.toFixed(2)}
+              </p>
+              <p className="text-[10px] text-slate-500">Preço de venda final</p>
+            </div>
+
+            {/* Stat 5: Estimated Gross Profit */}
+            <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 col-span-2 sm:col-span-1 hover:border-amber-300 transition-colors">
+              <div className="flex items-center justify-between text-[11px] text-rose-900/90 font-semibold">
+                <span>Lucro Bruto Estimado</span>
+                <TrendingUp className="w-3.5 h-3.5 text-rose-600" />
+              </div>
+              <p className="font-['Mali'] text-base sm:text-lg font-bold text-rose-600">
+                R$ {totalEstimatedGrossProfit.toFixed(2)}
+              </p>
+              <p className="text-[10px] text-emerald-700 font-semibold">Margem média: ~{avgGrossMargin}%</p>
+            </div>
           </div>
         </div>
+      ) : (
+        /* PAINEL MINIMALISTA PARA DEMAIS ABAS (BI, Pedidos, Categorias, Sacolinhas, etc.) */
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-amber-200/80 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <button
+                id="btn-admin-back-to-products"
+                type="button"
+                onClick={() => setAdminSection('products')}
+                className="px-3.5 py-2 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold text-xs shadow-2xs flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
+                title="Voltar ao Gerenciador de Produtos"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Voltar</span>
+              </button>
 
-        {/* 5 Stats Cards for Financial & Inventory Intelligence - Delicate & Minimalist */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-4 relative z-10">
-          {/* Stat 1: Total Products */}
-          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
-            <div className="flex items-center justify-between text-[11px] text-purple-900/90 font-semibold">
-              <span>Mimos Cadastrados</span>
-              <Package className="w-3.5 h-3.5 text-purple-600" />
-            </div>
-            <p className="font-['Mali'] text-base sm:text-lg font-bold text-purple-950">
-              {products.length} itens
-            </p>
-            <p className="text-[10px] text-slate-500">Catálogo completo</p>
-          </div>
+              <div className="h-6 w-px bg-amber-200/80" />
 
-          {/* Stat 2: Total Stock Units */}
-          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
-            <div className="flex items-center justify-between text-[11px] text-cyan-900/90 font-semibold">
-              <span>Estoque Atual</span>
-              <Layers className="w-3.5 h-3.5 text-cyan-600" />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-purple-950 flex items-center gap-2 font-['Mali']">
+                  {sectionDetails[adminSection]?.icon}
+                  {sectionDetails[adminSection]?.title || 'Painel de Gerência'}
+                </span>
+                {sectionDetails[adminSection]?.subtitle && (
+                  <span className="text-[11px] text-slate-500 hidden md:inline">
+                    • {sectionDetails[adminSection]?.subtitle}
+                  </span>
+                )}
+              </div>
             </div>
-            <p className="font-['Mali'] text-base sm:text-lg font-bold text-cyan-950">
-              {totalStock} un.
-            </p>
-            <p className="text-[10px] text-slate-500">{lowStockCount} itens com estoque baixo</p>
-          </div>
 
-          {/* Stat 3: Total Acquisition Cost Invested */}
-          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
-            <div className="flex items-center justify-between text-[11px] text-amber-900/90 font-semibold">
-              <span>Custo Investido</span>
-              <Calculator className="w-3.5 h-3.5 text-amber-600" />
-            </div>
-            <p className="font-['Mali'] text-base sm:text-lg font-bold text-amber-950">
-              R$ {totalAcquisitionInvested.toFixed(2)}
-            </p>
-            <p className="text-[10px] text-slate-500">Base no custo unitário</p>
-          </div>
+            {/* Ações rápidas */}
+            <div className="flex items-center gap-2">
+              {onPublishToServer && (
+                <button
+                  id="btn-admin-sync-server-sub"
+                  type="button"
+                  onClick={onPublishToServer}
+                  disabled={isPublishing}
+                  className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-xs border border-emerald-300 shadow-2xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                  title="Sincronizar no servidor"
+                >
+                  <CloudUpload className="w-3 h-3 text-emerald-600" />
+                  <span className="hidden sm:inline">{isPublishing ? 'Salvando...' : 'Salvar no Servidor'}</span>
+                </button>
+              )}
 
-          {/* Stat 4: Potential Total Revenue */}
-          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 hover:border-amber-300 transition-colors">
-            <div className="flex items-center justify-between text-[11px] text-emerald-900/90 font-semibold">
-              <span>Faturamento Previsto</span>
-              <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-            </div>
-            <p className="font-['Mali'] text-base sm:text-lg font-bold text-emerald-950">
-              R$ {totalPotentialRevenue.toFixed(2)}
-            </p>
-            <p className="text-[10px] text-slate-500">Preço de venda final</p>
-          </div>
+              {onGoToStorefront && (
+                <button
+                  id="btn-admin-goto-storefront-sub"
+                  type="button"
+                  onClick={onGoToStorefront}
+                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-purple-50 text-purple-950 font-medium text-xs border border-purple-200/80 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Visualizar a vitrine da loja como cliente"
+                >
+                  <Store className="w-3.5 h-3.5 text-purple-700" />
+                  <span className="hidden sm:inline">Ver Loja</span>
+                </button>
+              )}
 
-          {/* Stat 5: Estimated Gross Profit */}
-          <div className="bg-white/80 backdrop-blur-xs rounded-xl p-2.5 sm:p-3 border border-amber-200/60 shadow-2xs space-y-0.5 col-span-2 sm:col-span-1 hover:border-amber-300 transition-colors">
-            <div className="flex items-center justify-between text-[11px] text-rose-900/90 font-semibold">
-              <span>Lucro Bruto Estimado</span>
-              <TrendingUp className="w-3.5 h-3.5 text-rose-600" />
+              <button
+                id="btn-admin-change-password-sub"
+                type="button"
+                onClick={() => setShowPasswordModal(true)}
+                className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-purple-950 font-medium text-xs border border-amber-200/80 shadow-2xs flex items-center gap-1 transition-colors cursor-pointer"
+                title="Alterar senha"
+              >
+                <KeyRound className="w-3 h-3 text-amber-600" />
+                <span className="hidden sm:inline">Senha</span>
+              </button>
+
+              <button
+                onClick={onExitAdmin}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-purple-900 font-medium text-xs border border-slate-200 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Sair da gerência"
+              >
+                <Lock className="w-3 h-3 text-slate-500" />
+                <span>Sair</span>
+              </button>
             </div>
-            <p className="font-['Mali'] text-base sm:text-lg font-bold text-rose-600">
-              R$ {totalEstimatedGrossProfit.toFixed(2)}
-            </p>
-            <p className="text-[10px] text-emerald-700 font-semibold">Margem média: ~{avgGrossMargin}%</p>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Notification toast */}
       {copiedNotification && (
@@ -590,180 +760,206 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* PRODUCTS CATALOG SECTION - Repositioned above the section tabs so the selection strip sits directly below it */}
+      {/* MAIN PRODUCTS PAGE: Section Switcher Tabs & Product Catalog */}
       {adminSection === 'products' && (
-        <AdminProductCatalogView
-          products={products}
-          filteredProducts={filteredProducts}
-          categories={categories}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          categoryFilter={categoryFilter}
-          setCategoryFilter={setCategoryFilter}
-          stockFilter={stockFilter}
-          setStockFilter={setStockFilter}
-          handleExportFullStore={handleExportFullStore}
-          handleExportBackup={handleExportBackup}
-          handleImportBackup={handleImportBackup}
-          setShowResetCatalogModal={setShowResetCatalogModal}
-          onAddProduct={onAddProduct}
-          onEditProduct={onEditProduct}
-          onDuplicateProduct={onDuplicateProduct}
-          onDeleteProduct={setProductToDelete}
-          onViewProductLive={onViewProductLive}
-        />
+        <>
+          {/* Section Switcher Tabs - Minimalist, Delicate & Organized */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-white/75 backdrop-blur-md border border-amber-200/70 rounded-2xl shadow-2xs">
+            <button
+              onClick={() => setAdminSection('products')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'products'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span>Produtos ({products.length})</span>
+            </button>
+
+            <button
+              id="btn-tab-admin-orders"
+              onClick={() => setAdminSection('orders')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'orders'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>Pedidos Recebidos</span>
+            </button>
+
+            <button
+              id="btn-tab-admin-bi"
+              onClick={() => setAdminSection('bi')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'bi'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-emerald-500" />
+              <span>BI & Financeiro</span>
+            </button>
+
+            <button
+              onClick={() => setAdminSection('categories')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'categories'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <Tag className="w-3.5 h-3.5" />
+              <span>Categorias</span>
+            </button>
+
+            <button
+              id="admin-tab-packaging-btn"
+              onClick={() => setAdminSection('packaging')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'packaging'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-amber-500" />
+              <span>Sacolinhas & Fitas</span>
+            </button>
+
+            <button
+              onClick={() => setAdminSection('hero')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'hero'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Foto de Capa</span>
+            </button>
+
+            <button
+              onClick={() => setAdminSection('hometexts')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'hometexts'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Textos da Home</span>
+            </button>
+
+            <button
+              onClick={() => setAdminSection('about')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'about'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <Heart className="w-3.5 h-3.5 text-rose-400" />
+              <span>Sobre Nós</span>
+            </button>
+
+            <button
+              onClick={() => setAdminSection('reviews')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'reviews'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>Depoimentos</span>
+            </button>
+
+            <button
+              onClick={() => setAdminSection('contact')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'contact'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <Phone className="w-3.5 h-3.5" />
+              <span>Contato & Rodapé</span>
+            </button>
+
+            <button
+              onClick={() => setAdminSection('filters')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'filters'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Filtros da Loja</span>
+            </button>
+
+            <button
+              id="admin-tab-coupons-btn"
+              onClick={() => setAdminSection('coupons')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'coupons'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <Ticket className="w-3.5 h-3.5 text-pink-400" />
+              <span>Cupons ({coupons.length})</span>
+            </button>
+
+            <button
+              id="admin-tab-leads-btn"
+              onClick={() => setAdminSection('leads')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'leads'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-amber-400" />
+              <span>Clube de Mimos (Clientes)</span>
+            </button>
+          </div>
+
+          <AdminProductCatalogView
+            products={products}
+            filteredProducts={filteredProducts}
+            categories={categories}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
+            stockFilter={stockFilter}
+            setStockFilter={setStockFilter}
+            handleExportFullStore={handleExportFullStore}
+            handleExportBackup={handleExportBackup}
+            handleImportBackup={handleImportBackup}
+            setShowResetCatalogModal={setShowResetCatalogModal}
+            onAddProduct={onAddProduct}
+            onEditProduct={onEditProduct}
+            onDuplicateProduct={onDuplicateProduct}
+            onDeleteProduct={setProductToDelete}
+            onViewProductLive={onViewProductLive}
+          />
+        </>
       )}
 
-      {/* Section Switcher Tabs - Minimalist, Delicate & Organized */}
-      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-white/75 backdrop-blur-md border border-amber-200/70 rounded-2xl shadow-2xs">
-        <button
-          onClick={() => setAdminSection('products')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'products'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <Package className="w-3.5 h-3.5" />
-          <span>Produtos ({products.length})</span>
-        </button>
-
-        <button
-          id="btn-tab-admin-orders"
-          onClick={() => setAdminSection('orders')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'orders'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <ShoppingBag className="w-3.5 h-3.5" />
-          <span>Pedidos Recebidos</span>
-        </button>
-
-        <button
-          id="btn-tab-admin-bi"
-          onClick={() => setAdminSection('bi')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'bi'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5 text-emerald-500" />
-          <span>BI & Financeiro</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('categories')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'categories'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <Tag className="w-3.5 h-3.5" />
-          <span>Categorias</span>
-        </button>
-
-        <button
-          id="admin-tab-packaging-btn"
-          onClick={() => setAdminSection('packaging')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'packaging'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <ShoppingBag className="w-3.5 h-3.5 text-amber-500" />
-          <span>Sacolinhas & Fitas</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('hero')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'hero'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <ImageIcon className="w-3.5 h-3.5" />
-          <span>Foto de Capa</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('hometexts')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'hometexts'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <Edit3 className="w-3.5 h-3.5" />
-          <span>Textos da Home</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('about')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'about'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <Heart className="w-3.5 h-3.5 text-rose-400" />
-          <span>Sobre Nós</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('reviews')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'reviews'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <MessageCircle className="w-3.5 h-3.5" />
-          <span>Depoimentos</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('contact')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'contact'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <Phone className="w-3.5 h-3.5" />
-          <span>Contato & Rodapé</span>
-        </button>
-
-        <button
-          onClick={() => setAdminSection('filters')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'filters'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <Sliders className="w-3.5 h-3.5" />
-          <span>Filtros da Loja</span>
-        </button>
-
-        <button
-          id="admin-tab-coupons-btn"
-          onClick={() => setAdminSection('coupons')}
-          className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-            adminSection === 'coupons'
-              ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
-              : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
-          }`}
-        >
-          <Ticket className="w-3.5 h-3.5 text-pink-400" />
-          <span>Cupons ({coupons.length})</span>
-        </button>
-      </div>
+      {/* CLUBE DE MIMOS & CADASTROS DE CLIENTES (LEADS DE NEWSLETTER E COMPRADORES) */}
+      {adminSection === 'leads' && (
+        <NewsletterLeadsManager
+          onNotify={(msg) => {
+            setCopiedNotification(msg);
+            setTimeout(() => setCopiedNotification(null), 4000);
+          }}
+          onGoToStorefront={onGoToStorefront}
+        />
+      )}
 
       {/* BI & GESTÃO FINANCEIRA (PLANILHAS E APURAÇÃO) */}
       {adminSection === 'bi' && (
@@ -1516,20 +1712,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Helpful Admin Note Card */}
-      <div className="bg-gradient-to-r from-amber-50 via-white to-pink-50 rounded-3xl p-6 border-2 border-amber-200/80 shadow-2xs space-y-2">
-        <h3 className="font-['Mali'] text-base font-bold text-purple-950 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          <span>Dicas do Administrador Lavistore ✨</span>
-        </h3>
-        <ul className="text-xs text-slate-700 font-medium space-y-1.5 list-disc list-inside leading-relaxed">
-          <li><strong>Foto da Página Principal (Capa):</strong> Você pode trocar a foto do banner de entrada da loja clicando na aba <strong>"🖼️ Foto & Textos do Banner Principal (Capa)"</strong> logo acima e enviando qualquer imagem do seu computador ou celular.</li>
-          <li><strong>Precificação Inteligente:</strong> Ao cadastrar ou editar um produto, informe a quantidade inicial e o custo total de aquisição para calcular o custo unitário. Escolha entre aplicar uma margem de mark-up percentual ou definir o valor final manualmente.</li>
-          <li><strong>Visibilidade Segura:</strong> O cliente final visualiza apenas o preço unitário final de venda. Todos os custos e lucros brutos ficam salvos exclusivamente para a administração.</li>
-          <li><strong>Persistência Automática:</strong> Todas as alterações em produtos e fotos são salvas automaticamente no armazenamento do seu navegador.</li>
-          <li><strong>Exportar Backup:</strong> Utilize o botão "Backup JSON" para salvar uma cópia do seu catálogo e transferi-la para qualquer outro dispositivo quando desejar.</li>
-        </ul>
-      </div>
+      {/* Helpful Admin Note Card - Only displayed on main Products page */}
+      {adminSection === 'products' && (
+        <div className="bg-gradient-to-r from-amber-50 via-white to-pink-50 rounded-3xl p-6 border-2 border-amber-200/80 shadow-2xs space-y-2">
+          <h3 className="font-['Mali'] text-base font-bold text-purple-950 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <span>Dicas do Administrador Lavistore ✨</span>
+          </h3>
+          <ul className="text-xs text-slate-700 font-medium space-y-1.5 list-disc list-inside leading-relaxed">
+            <li><strong>Foto da Página Principal (Capa):</strong> Você pode trocar a foto do banner de entrada da loja clicando na aba <strong>"🖼️ Foto & Textos do Banner Principal (Capa)"</strong> logo acima e enviando qualquer imagem do seu computador ou celular.</li>
+            <li><strong>Precificação Inteligente:</strong> Ao cadastrar ou editar um produto, informe a quantidade inicial e o custo total de aquisição para calcular o custo unitário. Escolha entre aplicar uma margem de mark-up percentual ou definir o valor final manualmente.</li>
+            <li><strong>Visibilidade Segura:</strong> O cliente final visualiza apenas o preço unitário final de venda. Todos os custos e lucros brutos ficam salvos exclusivamente para a administração.</li>
+            <li><strong>Persistência Automática:</strong> Todas as alterações em produtos e fotos são salvas automaticamente no armazenamento do seu navegador.</li>
+            <li><strong>Exportar Backup:</strong> Utilize o botão "Backup JSON" para salvar uma cópia do seu catálogo e transferi-la para qualquer outro dispositivo quando desejar.</li>
+          </ul>
+        </div>
+      )}
 
       {/* CUSTOM IN-APP DELETE PRODUCT CONFIRMATION MODAL */}
       {productToDelete && (

@@ -48,9 +48,13 @@ export const HomeTextEditorModal: React.FC<HomeTextEditorModalProps> = ({
   const handleResetToDefault = () => {
     const defaultVal = DEFAULT_HOME_PAGE_CONFIG[fieldKey];
     if (defaultVal) {
-      setText(defaultVal.text);
-      setFontSize(defaultVal.fontSize || 'base');
-      setIsBold(defaultVal.isBold ?? false);
+      if (typeof defaultVal === 'string') {
+        setText(defaultVal);
+      } else {
+        setText(defaultVal.text || '');
+        setFontSize(defaultVal.fontSize || 'base');
+        setIsBold(defaultVal.isBold ?? false);
+      }
     }
   };
 

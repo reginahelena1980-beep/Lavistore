@@ -43,6 +43,8 @@ export const Footer: React.FC<FooterProps> = ({
 }) => {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
+  const [newsletterMessage, setNewsletterMessage] = useState<string | null>(null);
+  const [isSubscribing, setIsSubscribing] = useState(false);
   const newsBadge = config?.newsletterBadge?.text || 'Clube de Mimos Lavistore';
   const newsTitle = config?.newsletterTitle?.text || 'Ganhe 10% OFF na sua primeira compra! 🌸';
   const newsDesc = config?.newsletterDesc?.text || 'Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.';
@@ -72,9 +74,57 @@ export const Footer: React.FC<FooterProps> = ({
     }
   };
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newsletterEmail.trim()) {
+    const cleanEmail = newsletterEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) return;
+
+    setIsSubscribing(true);
+
+    // 1. Persist to localStorage immediately for instant client-side offline support
+    try {
+      const LOCAL_KEY = 'lavistore_newsletter_leads';
+      const existingRaw = localStorage.getItem(LOCAL_KEY);
+      let localLeads = existingRaw ? JSON.parse(existingRaw) : [];
+      if (!Array.isArray(localLeads)) localLeads = [];
+      const alreadyExists = localLeads.some((l: any) => (l.email || '').toLowerCase() === cleanEmail);
+      if (!alreadyExists) {
+        localLeads.unshift({
+          id: `lead-${Date.now()}`,
+          email: cleanEmail,
+          registeredAt: new Date().toISOString(),
+          source: 'Clube de Mimos (Rodapé)',
+          couponOffered: 'LAVI10',
+          status: 'active'
+        });
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(localLeads));
+      }
+    } catch (localErr) {
+      console.warn('[Newsletter] Erro ao gravar lead no localStorage:', localErr);
+    }
+
+    // 2. Persist to Express backend /api/newsletter/subscribe
+    try {
+      const response = await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          source: 'Clube de Mimos (Rodapé)',
+          couponOffered: 'LAVI10'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.message) {
+          setNewsletterMessage(result.message);
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[Newsletter] Erro ao gravar lead no backend:', apiErr);
+    } finally {
+      setIsSubscribing(false);
       setNewsletterSubscribed(true);
     }
   };
@@ -113,7 +163,7 @@ export const Footer: React.FC<FooterProps> = ({
             {newsletterSubscribed ? (
               <div className="bg-white/95 border-2 border-emerald-300 p-3.5 rounded-2xl flex items-center gap-2 text-emerald-800 text-xs font-bold shadow-sm animate-in fade-in">
                 <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Bem-vinda ao Clube Lavistore! Use o cupom <strong className="text-purple-950">LAVI10</strong> no checkout! ✨</span>
+                <span>{newsletterMessage || <>Bem-vinda ao Clube Lavistore! Use o cupom <strong className="text-purple-950">LAVI10</strong> no checkout! ✨</>}</span>
               </div>
             ) : (
               <form onSubmit={handleSubscribe} className="flex gap-2">
@@ -123,14 +173,16 @@ export const Footer: React.FC<FooterProps> = ({
                   value={newsletterEmail}
                   onChange={(e) => setNewsletterEmail(e.target.value)}
                   placeholder="Seu melhor e-mail..."
-                  className="flex-1 px-4 py-3 bg-white/95 border-2 border-purple-200 rounded-2xl text-xs sm:text-sm text-purple-950 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400 shadow-2xs"
+                  disabled={isSubscribing}
+                  className="flex-1 px-4 py-3 bg-white/95 border-2 border-purple-200 rounded-2xl text-xs sm:text-sm text-purple-950 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400 shadow-2xs disabled:opacity-60"
                 />
                 <button
                   type="submit"
-                  className="px-5 py-3 bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#06B6D4] hover:opacity-95 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 flex items-center gap-1.5 shrink-0"
+                  disabled={isSubscribing}
+                  className="px-5 py-3 bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#06B6D4] hover:opacity-95 text-white font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 flex items-center gap-1.5 shrink-0 disabled:opacity-60 cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
-                  <span className="hidden sm:inline">Cadastrar</span>
+                  <span className="hidden sm:inline">{isSubscribing ? 'Cadastrando...' : 'Cadastrar'}</span>
                 </button>
               </form>
             )}

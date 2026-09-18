@@ -840,6 +840,11 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
               return item;
             });
             localStorage.setItem('lavistore_bi_records', JSON.stringify(updatedList));
+            fetch('/api/bi/records', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ records: updatedList })
+            }).catch(() => {});
           }
         } catch (err) {
           console.warn('Erro ao sincronizar registro do BI:', err);

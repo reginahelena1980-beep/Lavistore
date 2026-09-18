@@ -94,8 +94,6 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [stockStatusFilter, setStockStatusFilter] = useState<'all' | 'low' | 'out' | 'ok'>('all');
-  const [vitrineFilter, setVitrineFilter] = useState<'all' | 'published' | 'unpublished'>('all');
   const [sortBy, setSortBy] = useState<'vendaTotal' | 'lucroBruto' | 'saldoEstoqueQtd' | 'produto'>('vendaTotal');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -550,19 +548,8 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
           r.produto.toLowerCase().includes(searchTerm.toLowerCase()) ||
           r.tamCor.toLowerCase().includes(searchTerm.toLowerCase()) ||
           r.descricao.toLowerCase().includes(searchTerm.toLowerCase());
-        // Filtro Status Estoque
-        const matchesStock =
-          stockStatusFilter === 'all' ||
-          (stockStatusFilter === 'low' && r.statusEstoque === 'baixo') ||
-          (stockStatusFilter === 'out' && (r.statusEstoque === 'esgotado' || r.statusEstoque === 'negativo')) ||
-          (stockStatusFilter === 'ok' && r.statusEstoque === 'ok');
-        // Filtro Vitrine E-commerce
-        const matchesVitrine =
-          vitrineFilter === 'all' ||
-          (vitrineFilter === 'published' && isRecordPublished(r)) ||
-          (vitrineFilter === 'unpublished' && !isRecordPublished(r));
 
-        return matchesYear && matchesMonth && matchesSearch && matchesStock && matchesVitrine;
+        return matchesYear && matchesMonth && matchesSearch;
       })
       .sort((a, b) => {
         let valA: any = a[sortBy];
@@ -573,7 +560,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         }
         return sortOrder === 'asc' ? valA - valB : valB - valA;
       });
-  }, [records, products, selectedYear, selectedMonth, searchTerm, stockStatusFilter, vitrineFilter, sortBy, sortOrder]);
+  }, [records, products, selectedYear, selectedMonth, searchTerm, sortBy, sortOrder]);
 
   // KPIs consolidados com base nos registros filtrados
   const kpis: BiConsolidatedKpis = useMemo(() => {
@@ -928,30 +915,37 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         )}
       </div>
 
-      {/* 3. FILTROS INTERATIVOS (PARTE 3 DA SOLICITAÇÃO) */}
-      <div className="bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-7 border-2 border-amber-200 shadow-md space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="font-['Mali'] text-lg sm:text-xl font-bold text-purple-950 flex items-center gap-2">
-            <Filter className="w-5 h-5 text-pink-600" />
-            <span>Filtros Interativos & Período de Apuração</span>
-          </h2>
+      {/* 3. FILTROS INTERATIVOS - Minimalista e Organizado */}
+      <div className="bg-white/95 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-amber-200/80 shadow-2xs space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-100/80 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-amber-100/80 flex items-center justify-center text-purple-950">
+              <Filter className="w-3.5 h-3.5 text-purple-900" />
+            </div>
+            <div>
+              <h2 className="font-['Mali'] text-base font-bold text-purple-950">
+                Filtros & Período de Apuração
+              </h2>
+              <p className="text-[11px] text-slate-500">Filtre por ano, mês ou faça buscas pontuais de produtos</p>
+            </div>
+          </div>
 
-          <span className="text-xs font-bold text-slate-500">
-            Exibindo <strong>{filteredRecords.length}</strong> de <strong>{records.length}</strong> itens
+          <span className="text-xs font-semibold text-slate-500 bg-amber-50/70 border border-amber-200/60 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+            Exibindo <strong className="text-purple-950">{filteredRecords.length}</strong> de <strong className="text-purple-950">{records.length}</strong> itens
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
           {/* Filtro 1: Ano */}
-          <div>
-            <label className="block text-xs font-bold text-purple-950 uppercase tracking-wider mb-1">
-              📅 Selecionar Ano:
+          <div className="lg:col-span-3">
+            <label className="block text-[11px] font-bold text-purple-950 uppercase tracking-wider mb-1">
+              Ano de Apuração:
             </label>
             <select
               id="select-bi-ano"
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-amber-50/60 border-2 border-amber-200 rounded-xl text-xs font-bold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
+              className="w-full px-3 py-2 bg-amber-50/40 hover:bg-amber-50/80 border border-amber-200/90 rounded-xl text-xs font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer transition-colors"
             >
               <option value="all">Todos os Anos</option>
               {availableYears.map(yr => (
@@ -963,15 +957,15 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
           </div>
 
           {/* Filtro 2: Mês */}
-          <div>
-            <label className="block text-xs font-bold text-purple-950 uppercase tracking-wider mb-1">
-              🗓️ Selecionar Mês:
+          <div className="lg:col-span-3">
+            <label className="block text-[11px] font-bold text-purple-950 uppercase tracking-wider mb-1">
+              Mês de Apuração:
             </label>
             <select
               id="select-bi-mes"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-amber-50/60 border-2 border-amber-200 rounded-xl text-xs font-bold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
+              className="w-full px-3 py-2 bg-amber-50/40 hover:bg-amber-50/80 border border-amber-200/90 rounded-xl text-xs font-semibold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer transition-colors"
             >
               <option value="all">Todos os Meses</option>
               {monthsList.map(m => (
@@ -983,9 +977,9 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
           </div>
 
           {/* Filtro 3: Busca Textual */}
-          <div>
-            <label className="block text-xs font-bold text-purple-950 uppercase tracking-wider mb-1">
-              🔍 Buscar Produto / Tam/Cor:
+          <div className="sm:col-span-2 lg:col-span-6">
+            <label className="block text-[11px] font-bold text-purple-950 uppercase tracking-wider mb-1">
+              Buscar Produto / Variação:
             </label>
             <div className="relative">
               <input
@@ -993,87 +987,54 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Ex: Panda, caneta..."
-                className="w-full pl-9 pr-3.5 py-2.5 bg-amber-50/60 border-2 border-amber-200 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="Ex: Panda, caneta, chaveiro..."
+                className="w-full pl-9 pr-8 py-2 bg-amber-50/40 focus:bg-white border border-amber-200/90 rounded-xl text-xs font-medium text-purple-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
               />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                  title="Limpar busca"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
           </div>
-
-          {/* Filtro 4: Status do Saldo em Estoque */}
-          <div>
-            <label className="block text-xs font-bold text-purple-950 uppercase tracking-wider mb-1">
-              📦 Saldo em Estoque:
-            </label>
-            <select
-              id="select-bi-stock-status"
-              value={stockStatusFilter}
-              onChange={(e) => setStockStatusFilter(e.target.value as any)}
-              className="w-full px-3.5 py-2.5 bg-amber-50/60 border-2 border-amber-200 rounded-xl text-xs font-bold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
-            >
-              <option value="all">Todos os Saldos</option>
-              <option value="ok">Estoque Normal (&gt; 5 un.)</option>
-              <option value="low">Estoque Baixo (≤ 5 un.)</option>
-              <option value="out">Esgotados / Zerados</option>
-            </select>
-          </div>
-
-          {/* Filtro 5: Status da Vitrine E-commerce */}
-          <div>
-            <label className="block text-xs font-bold text-purple-950 uppercase tracking-wider mb-1">
-              🛍️ Vitrine E-commerce:
-            </label>
-            <select
-              id="select-bi-vitrine-filter"
-              value={vitrineFilter}
-              onChange={(e) => setVitrineFilter(e.target.value as any)}
-              className="w-full px-3.5 py-2.5 bg-amber-50/60 border-2 border-amber-200 rounded-xl text-xs font-bold text-purple-950 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
-            >
-              <option value="all">Todas as Situações</option>
-              <option value="published">🛍️ Publicados na Vitrine</option>
-              <option value="unpublished">⚪ Não Publicados</option>
-            </select>
-          </div>
         </div>
 
         {/* Resumo do filtro ativo em texto */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-slate-600 font-medium">
-          <div className="flex items-center gap-2">
-            <span>Filtro Ativo:</span>
-            <span className="px-2 py-0.5 bg-amber-100 rounded-md font-bold text-purple-950">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-slate-600 font-medium border-t border-amber-100/60">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-slate-500">Ativo:</span>
+            <span className="px-2 py-0.5 bg-amber-100/80 text-purple-950 rounded-md font-semibold text-[10px]">
               Ano: {selectedYear === 'all' ? 'Todos' : selectedYear}
             </span>
-            <span className="px-2 py-0.5 bg-pink-100 rounded-md font-bold text-purple-950">
+            <span className="px-2 py-0.5 bg-amber-100/80 text-purple-950 rounded-md font-semibold text-[10px]">
               Mês: {selectedMonth === 'all' ? 'Todos' : selectedMonth}
             </span>
             {searchTerm && (
-              <span className="px-2 py-0.5 bg-purple-100 rounded-md font-bold text-purple-950">
+              <span className="px-2 py-0.5 bg-purple-100 text-purple-950 rounded-md font-semibold text-[10px]">
                 Busca: "{searchTerm}"
               </span>
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedYear('all');
-              setSelectedMonth('all');
-              setSearchTerm('');
-              setStockStatusFilter('all');
-            }}
-            className="text-purple-700 hover:text-purple-950 underline font-bold"
-          >
-            Limpar Filtros
-          </button>
+          {(selectedYear !== 'all' || selectedMonth !== 'all' || searchTerm !== '') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedYear('all');
+                setSelectedMonth('all');
+                setSearchTerm('');
+              }}
+              className="text-purple-800 hover:text-purple-950 text-[11px] font-bold hover:underline cursor-pointer"
+            >
+              Limpar Filtros
+            </button>
+          )}
         </div>
       </div>
 

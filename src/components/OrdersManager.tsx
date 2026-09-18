@@ -98,7 +98,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
     fetchOrders();
   }, []);
 
-  const handleUpdateOrderStatus = (orderId: string, newStatus: string) => {
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
     setOrders(prev => {
       const updated = prev.map(o => {
         if (o.orderId === orderId) {
@@ -106,7 +106,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
         }
         return o;
       });
-      // Save locally
+      // Save locally as offline cache
       try {
         localStorage.setItem('lavistore_orders', JSON.stringify(updated));
       } catch (e) {
@@ -114,6 +114,17 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
       }
       return updated;
     });
+
+    // Sincroniza imediatamente com o servidor para refletir em qualquer computador
+    try {
+      await fetch('/api/orders/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, customStatus: newStatus })
+      });
+    } catch (err) {
+      console.warn('Erro ao atualizar status do pedido no servidor:', err);
+    }
   };
 
   const handleCopyOrderSummary = (order: any) => {
