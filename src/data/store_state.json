@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-14T18:14:54.890Z",
+  "updatedAt": "2026-09-18T11:15:27.172Z",
   "adminPassword": "1234",
   "adminPasswordChanged": false,
   "products": [
@@ -207,7 +207,7 @@
     {
       "id": "bag-amarela-solar",
       "name": "Sacolinha Amarela Solar com Alça de Algodão",
-      "price": 16.90,
+      "price": 16.9,
       "color": "#FACC15",
       "bgClass": "from-amber-100 to-yellow-200 border-amber-300",
       "description": "Sacolinha especial em papel encorpado amarelo solar com alça macia e acabamento brilhante.",
@@ -216,7 +216,7 @@
     {
       "id": "bag-amarela-floral",
       "name": "Sacolinha Amarela Floral Trio Lavistore",
-      "price": 18.90,
+      "price": 18.9,
       "color": "#FEF08A",
       "bgClass": "from-yellow-100 to-amber-200 border-yellow-300",
       "description": "Sacolinha amarela pastel com estampa delicada do trio de florzinhas (violeta, turquesa e rosa).",
@@ -225,7 +225,7 @@
     {
       "id": "bag-amarela-kraft",
       "name": "Sacolinha Amarela Kraft Nobre & Laço",
-      "price": 16.90,
+      "price": 16.9,
       "color": "#FDE047",
       "bgClass": "from-amber-50 to-yellow-100 border-amber-300",
       "description": "Sacolinha amarela em kraft reforçado, com papel de seda floral e cheirinho doce artesanal.",
@@ -234,7 +234,7 @@
     {
       "id": "bag-amarela-boutique",
       "name": "Sacolinha Amarela Boutique com Visor Transparente",
-      "price": 19.90,
+      "price": 19.9,
       "color": "#EAB308",
       "bgClass": "from-yellow-200 to-amber-300 border-yellow-400",
       "description": "Sacolinha amarela premium com visor para destacar os mimos florais escolhidos com amor.",
@@ -242,11 +242,32 @@
     }
   ],
   "ribbonOptions": [
-    { "id": "ribbon-lilas", "name": "Fita de Cetim Lilás Violeta", "color": "#8B5CF6" },
-    { "id": "ribbon-turquesa", "name": "Fita de Gorgurão Turquesa Tiffany", "color": "#06B6D4" },
-    { "id": "ribbon-rosa", "name": "Fita de Cetim Rosa Algodão Doce", "color": "#EC4899" },
-    { "id": "ribbon-dourado", "name": "Fio Metalizado Dourado Solar", "color": "#FACC15" },
-    { "id": "ribbon-organza", "name": "Fita de Organza com Brilho Pérola", "color": "#FBCFE8" }
+    {
+      "id": "ribbon-lilas",
+      "name": "Fita de Cetim Lilás Violeta",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "ribbon-turquesa",
+      "name": "Fita de Gorgurão Turquesa Tiffany",
+      "color": "#06B6D4"
+    },
+    {
+      "id": "ribbon-rosa",
+      "name": "Fita de Cetim Rosa Algodão Doce",
+      "color": "#EC4899"
+    },
+    {
+      "id": "ribbon-dourado",
+      "name": "Fio Metalizado Dourado Solar",
+      "color": "#FACC15"
+    },
+    {
+      "id": "ribbon-organza",
+      "name": "Fita de Organza com Brilho Pérola",
+      "color": "#FBCFE8"
+    }
   ],
-  "adminPasswordChangedAt": "2026-09-14T18:14:54.890Z"
+  "adminPasswordChangedAt": "2026-09-18T11:15:27.172Z",
+  "adminRecoveryKey": "LAVISTORE-RECOVERY-2026"
 }

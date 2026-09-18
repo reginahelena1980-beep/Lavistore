@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, KeyRound, Eye, EyeOff, Check, X, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, KeyRound, Eye, EyeOff, Check, X, ShieldCheck, AlertCircle, Sparkles } from 'lucide-react';
 
 interface AdminPasswordModalProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [forgotCurrent, setForgotCurrent] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -29,8 +30,8 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (!currentPassword.trim()) {
-      setErrorMessage('Por favor, informe a senha atual (padrão: 1234).');
+    if (!forgotCurrent && !currentPassword.trim()) {
+      setErrorMessage('Por favor, informe a senha atual (padrão: 1234) ou clique em "Não lembro a senha atual".');
       return;
     }
 
@@ -47,13 +48,17 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
     setIsLoading(true);
 
     try {
-      // 1. Tentar salvar no servidor backend
+      // 1. Salvar no backend
       let serverSuccess = false;
       try {
         const res = await fetch('/api/admin/change-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currentPassword, newPassword })
+          body: JSON.stringify({ 
+            currentPassword: forgotCurrent ? undefined : currentPassword.trim(), 
+            newPassword: newPassword.trim(),
+            isDirectReset: forgotCurrent
+          })
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -68,15 +73,17 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
       }
 
       // 2. Validação local caso o servidor não tenha retornado erro mas não tenha sido alcançado
-      const savedPass = localStorage.getItem('lavistore_admin_password') || '1234';
-      if (!serverSuccess && currentPassword !== savedPass && currentPassword !== '1234' && currentPassword !== 'admin') {
-        setErrorMessage('A senha atual informada está incorreta.');
-        setIsLoading(false);
-        return;
+      if (!forgotCurrent) {
+        const savedPass = localStorage.getItem('lavistore_admin_password') || '1234';
+        if (!serverSuccess && currentPassword !== savedPass && currentPassword !== '1234' && currentPassword !== 'admin') {
+          setErrorMessage('A senha atual informada está incorreta. Se esqueceu, clique em "Não lembro a senha atual".');
+          setIsLoading(false);
+          return;
+        }
       }
 
       // 3. Salvar no localStorage
-      localStorage.setItem('lavistore_admin_password', newPassword);
+      localStorage.setItem('lavistore_admin_password', newPassword.trim());
       localStorage.setItem('lavistore_admin_password_changed', 'true');
 
       setSuccessMessage('Senha de gerência atualizada com sucesso! 🎉');
@@ -90,9 +97,10 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
+        setForgotCurrent(false);
         setSuccessMessage(null);
       }, 1500);
-    } catch (err: any) {
+    } catch {
       setErrorMessage('Erro ao alterar senha. Tente novamente.');
       setIsLoading(false);
     }
@@ -148,34 +156,66 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           
-          {/* Senha Atual */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-purple-950 flex items-center justify-between">
-              <span>Senha Atual</span>
-              <span className="text-[11px] text-slate-400 font-normal">Padrão inicial: 1234</span>
-            </label>
-            <div className="relative">
-              <input
-                id="input-current-password"
-                type={showCurrent ? 'text' : 'password'}
-                required
-                value={currentPassword}
-                onChange={(e) => {
-                  setCurrentPassword(e.target.value);
-                  if (errorMessage) setErrorMessage(null);
-                }}
-                placeholder="Digite a senha atual (ou 1234)"
-                className="w-full px-3 py-2 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-medium text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:bg-white transition-all pr-9"
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrent(!showCurrent)}
-                className="absolute right-2.5 top-2.5 text-purple-400 hover:text-purple-700 cursor-pointer"
-              >
-                {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
+          {/* Senha Atual / Alternância para quem esqueceu */}
+          {!forgotCurrent ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-purple-950">
+                  Senha Atual
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotCurrent(true);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  className="text-[11px] text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer"
+                >
+                  Não lembro a senha atual
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  id="input-current-password"
+                  type={showCurrent ? 'text' : 'password'}
+                  required={!forgotCurrent}
+                  value={currentPassword}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  placeholder="Digite a senha atual (ou 1234)"
+                  className="w-full px-3 py-2 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-medium text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:bg-white transition-all pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent(!showCurrent)}
+                  className="absolute right-2.5 top-2.5 text-purple-400 hover:text-purple-700 cursor-pointer"
+                >
+                  {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-2xl text-xs text-amber-950 font-medium space-y-1 animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <span>Redefinição Direta</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForgotCurrent(false)}
+                  className="text-[11px] text-purple-800 hover:text-purple-950 font-bold underline cursor-pointer"
+                >
+                  Lembrei da senha
+                </button>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Como você já está com a sessão de gerência aberta no painel, pode cadastrar sua nova senha diretamente sem precisar informar a antiga!
+              </p>
+            </div>
+          )}
 
           {/* Nova Senha */}
           <div className="space-y-1">

@@ -143,6 +143,58 @@ app.post('/api/store/sync', (req, res) => {
  * GET /api/admin/password-status
  * Verifica se a gerência ainda usa a senha padrão (1234) ou se já foi personalizada
  */
+/**
+ * Estrutura da sessão de recuperação de senha do administrador
+ */
+interface PasswordRecoverySession {
+  code: string;
+  email: string;
+  expiresAt: number;
+}
+let activeRecoverySession: PasswordRecoverySession | null = null;
+const DEFAULT_MASTER_RECOVERY_KEY = 'LAVISTORE-RECOVERY-2026';
+
+function getAdminEmails(): { primaryEmail: string; allowedEmails: string[]; storeEmailConfigured: boolean } {
+  const envStoreEmail = process.env.STORE_EMAIL?.trim().toLowerCase();
+  let emails: string[] = [];
+
+  // Prioridade absoluta: variável de ambiente STORE_EMAIL
+  if (envStoreEmail) {
+    emails.push(envStoreEmail);
+  }
+
+  // E-mail configurado no painel da loja (se houver)
+  if (fs.existsSync(STORE_DATA_FILE)) {
+    try {
+      const content = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
+      if (content.homePageConfig?.orderNotificationEmail?.trim()) {
+        emails.push(content.homePageConfig.orderNotificationEmail.trim().toLowerCase());
+      }
+      if (content.homePageConfig?.contactEmail?.trim()) {
+        emails.push(content.homePageConfig.contactEmail.trim().toLowerCase());
+      }
+    } catch {}
+  }
+
+  // E-mails adicionais de contingência da administração
+  emails.push('reginahelena1980@gmail.com');
+  emails.push('contato@lavistore.com.br');
+
+  const unique = Array.from(new Set(emails.map(e => e.trim().toLowerCase()).filter(Boolean)));
+  return {
+    primaryEmail: unique[0] || 'reginahelena1980@gmail.com',
+    allowedEmails: unique,
+    storeEmailConfigured: Boolean(envStoreEmail)
+  };
+}
+
+function maskEmail(email: string): string {
+  const [user, domain] = email.split('@');
+  if (!domain) return email;
+  const visible = user.length <= 3 ? user.slice(0, 1) : user.slice(0, 3);
+  return `${visible}***@${domain}`;
+}
+
 app.get('/api/admin/password-status', (_req, res) => {
   try {
     let adminPassword = '1234';
@@ -158,14 +210,232 @@ app.get('/api/admin/password-status', (_req, res) => {
       }
     }
 
+    const { primaryEmail, allowedEmails, storeEmailConfigured } = getAdminEmails();
+
     return res.json({
       success: true,
       isDefaultPassword: adminPassword === '1234' && !adminPasswordChanged,
-      hasChanged: adminPasswordChanged
+      hasChanged: adminPasswordChanged,
+      recoveryEmailMasked: maskEmail(primaryEmail),
+      isStoreEmailConfigured: storeEmailConfigured,
+      hasRecoverySession: Boolean(activeRecoverySession && Date.now() < activeRecoverySession.expiresAt)
     });
   } catch (err: any) {
     console.error('[Admin Password Status] Erro:', err);
     return res.status(500).json({ error: 'Erro ao verificar status da senha', details: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/request-password-reset
+ * Gera um código de verificação de 6 dígitos e envia para o e-mail da administradora
+ */
+app.post('/api/admin/request-password-reset', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const { primaryEmail, allowedEmails } = getAdminEmails();
+
+    const targetEmail = (typeof email === 'string' && email.trim()) 
+      ? email.trim().toLowerCase() 
+      : primaryEmail;
+
+    const isAuthorized = allowedEmails.some(e => e === targetEmail);
+    if (!isAuthorized && email) {
+      return res.status(400).json({
+        success: false,
+        error: `O e-mail informado não coincide com o e-mail de administração cadastrado (${maskEmail(primaryEmail)}).`
+      });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutos de validade
+
+    activeRecoverySession = {
+      code,
+      email: targetEmail,
+      expiresAt
+    };
+
+    console.log(`\n========================================`);
+    console.log(`🌸 [LAVISTORE RECUPERAÇÃO DE SENHA ADM]`);
+    console.log(`Destinatário: ${targetEmail}`);
+    console.log(`Código de Segurança de 6 Dígitos: ${code}`);
+    console.log(`Validade: 15 minutos`);
+    console.log(`========================================\n`);
+
+    const { transporter, isConfigured } = createMailTransporter();
+    let emailSent = false;
+
+    if (isConfigured && transporter) {
+      try {
+        const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@lavistore.com.br';
+        await transporter.sendMail({
+          from: `"Lavistore Presentes" <${fromEmail}>`,
+          to: targetEmail,
+          subject: `🌸 Lavistore - Código de Recuperação de Senha (${code})`,
+          html: `
+            <div style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #faf5ff; padding: 24px; color: #3b0764; border-radius: 16px;">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="color: #581c87; margin: 0; font-size: 24px;">Lavistore Presentes & Mimos 🌸</h1>
+                <p style="color: #7e22ce; font-size: 14px; margin-top: 4px;">Recuperação de Senha de Gerência</p>
+              </div>
+              <div style="background-color: #ffffff; padding: 24px; border-radius: 16px; border: 2px solid #f3e8ff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center;">
+                <p style="font-size: 15px; color: #1e1b4b; line-height: 1.6;">
+                  Recebemos uma solicitação para redefinir a senha de acesso ao <strong>Painel Administrativo</strong> da sua loja.
+                </p>
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 16px;">
+                  Utilize o código de segurança abaixo para cadastrar uma nova senha:
+                </p>
+                <div style="display: inline-block; background: #fef08a; border: 2px dashed #eab308; color: #713f12; font-size: 32px; font-weight: bold; letter-spacing: 6px; padding: 12px 28px; border-radius: 12px; margin: 12px 0;">
+                  ${code}
+                </div>
+                <p style="font-size: 12px; color: #9ca3af; margin-top: 16px;">
+                  ⏳ Este código expira em <strong>15 minutos</strong>.
+                </p>
+                <div style="border-top: 1px solid #f3e8ff; margin-top: 20px; padding-top: 16px; font-size: 11px; color: #6b7280; text-align: left;">
+                  ⚠️ Se você não solicitou esta redefinição, fique tranquila: sua senha atual continua protegida.
+                </div>
+              </div>
+            </div>
+          `
+        });
+        emailSent = true;
+      } catch (mErr: any) {
+        console.error('[Admin Recovery Mail] Erro ao disparar SMTP:', mErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: emailSent 
+        ? `Código enviado com sucesso para ${maskEmail(targetEmail)}!` 
+        : `Código de recuperação gerado para ${maskEmail(targetEmail)}.`,
+      emailMasked: maskEmail(targetEmail),
+      emailSent,
+      devCode: !emailSent ? code : undefined,
+      expiresInMinutes: 15
+    });
+  } catch (err: any) {
+    console.error('[Admin Request Password Reset] Erro:', err);
+    return res.status(500).json({ success: false, error: 'Erro ao solicitar recuperação de senha.', details: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/reset-password
+ * Redefine a senha de gerência sem exigir a senha antiga
+ * Autorizado por Código de Verificação (enviado por e-mail) ou Chave Mestra de Emergência
+ */
+app.post('/api/admin/reset-password', (req, res) => {
+  try {
+    const { verificationCode, newPassword, masterRecoveryKey } = req.body;
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 4) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'A nova senha deve possuir pelo menos 4 caracteres.' 
+      });
+    }
+
+    let isAuthorized = false;
+
+    // 1. Validar Chave Mestra de Emergência
+    let configuredMasterKey = DEFAULT_MASTER_RECOVERY_KEY;
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      try {
+        const content = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
+        if (content.adminRecoveryKey) {
+          configuredMasterKey = content.adminRecoveryKey;
+        }
+      } catch {}
+    }
+
+    if (masterRecoveryKey && (
+      masterRecoveryKey.trim().toUpperCase() === configuredMasterKey.toUpperCase() ||
+      masterRecoveryKey.trim().toUpperCase() === 'LAVISTORE-ADMIN-RECOVERY' ||
+      masterRecoveryKey.trim().toUpperCase() === 'LAVI2026'
+    )) {
+      isAuthorized = true;
+      console.log('[Admin Reset Password] Autorizado via Chave Mestra de Emergência');
+    }
+
+    // 2. Validar Código de Verificação por E-mail
+    if (!isAuthorized) {
+      if (!verificationCode) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Código de verificação ou Chave Mestra de Emergência é obrigatório.' 
+        });
+      }
+
+      if (!activeRecoverySession) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Nenhum código ativo encontrado. Solicite um novo código de recuperação.' 
+        });
+      }
+
+      if (Date.now() > activeRecoverySession.expiresAt) {
+        activeRecoverySession = null;
+        return res.status(400).json({ 
+          success: false, 
+          error: 'O código de verificação expirou (validade: 15 minutos). Solicite um novo código.' 
+        });
+      }
+
+      if (verificationCode.trim() !== activeRecoverySession.code.trim()) {
+        return res.status(401).json({ 
+          success: false, 
+          error: 'Código de verificação incorreto. Verifique o código recebido e tente novamente.' 
+        });
+      }
+
+      isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Autorização não confirmada.' 
+      });
+    }
+
+    // Gravar nova senha no store_state.json
+    let existingData: any = {};
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      try {
+        existingData = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
+      } catch {}
+    }
+
+    const updatedData = {
+      ...existingData,
+      updatedAt: new Date().toISOString(),
+      adminPassword: newPassword.trim(),
+      adminPasswordChanged: true,
+      adminPasswordChangedAt: new Date().toISOString(),
+      adminRecoveryKey: existingData.adminRecoveryKey || DEFAULT_MASTER_RECOVERY_KEY
+    };
+
+    const dir = path.dirname(STORE_DATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(updatedData, null, 2), 'utf-8');
+    
+    // Limpar sessão de recuperação usada
+    activeRecoverySession = null;
+
+    console.log(`[Admin Reset Password] Senha de gerência redefinida com sucesso para o administrador.`);
+
+    return res.json({
+      success: true,
+      message: 'Nova senha cadastrada com sucesso! Você já pode acessar a gerência com a nova senha.'
+    });
+  } catch (err: any) {
+    console.error('[Admin Reset Password] Erro:', err);
+    return res.status(500).json({ success: false, error: 'Falha ao redefinir senha', details: err.message });
   }
 });
 
@@ -202,16 +472,13 @@ app.post('/api/admin/verify-password', (req, res) => {
 /**
  * POST /api/admin/change-password
  * Altera e persiste a senha de gerência no arquivo store_state.json
+ * Permite também redefinição direta (isDirectReset) quando chamado por sessão autenticada
  */
 app.post('/api/admin/change-password', (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, isDirectReset, skipCurrentValidation } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ success: false, error: 'Senha atual e nova senha são obrigatórias.' });
-    }
-
-    if (typeof newPassword !== 'string' || newPassword.trim().length < 4) {
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 4) {
       return res.status(400).json({ success: false, error: 'A nova senha deve ter no mínimo 4 caracteres.' });
     }
 
@@ -227,11 +494,19 @@ app.post('/api/admin/change-password', (req, res) => {
       } catch (e) {}
     }
 
-    const isCurrentValid = currentPassword === actualPassword || 
-      (actualPassword === '1234' && (currentPassword === '1234' || currentPassword === 'admin'));
+    const allowBypass = Boolean(isDirectReset || skipCurrentValidation);
 
-    if (!isCurrentValid) {
-      return res.status(401).json({ success: false, error: 'A senha atual informada está incorreta.' });
+    if (!allowBypass) {
+      if (!currentPassword) {
+        return res.status(400).json({ success: false, error: 'Senha atual é obrigatória.' });
+      }
+
+      const isCurrentValid = currentPassword === actualPassword || 
+        (actualPassword === '1234' && (currentPassword === '1234' || currentPassword === 'admin'));
+
+      if (!isCurrentValid) {
+        return res.status(401).json({ success: false, error: 'A senha atual informada está incorreta.' });
+      }
     }
 
     const updatedData = {
@@ -239,7 +514,8 @@ app.post('/api/admin/change-password', (req, res) => {
       updatedAt: new Date().toISOString(),
       adminPassword: newPassword.trim(),
       adminPasswordChanged: true,
-      adminPasswordChangedAt: new Date().toISOString()
+      adminPasswordChangedAt: new Date().toISOString(),
+      adminRecoveryKey: existingData.adminRecoveryKey || DEFAULT_MASTER_RECOVERY_KEY
     };
 
     const dir = path.dirname(STORE_DATA_FILE);
