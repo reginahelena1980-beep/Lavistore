@@ -34,7 +34,8 @@ import { CategoryEditorModal } from './components/CategoryEditorModal';
 import { DEFAULT_HOME_PAGE_CONFIG, getFontSizeClass, getFontWeightClass } from './utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from './data/filterConfig';
 import { safeSetItem, serializeCart, deserializeCart, serializeFavorites, deserializeFavorites } from './utils/storage';
-import { aggregateProductsForVitrine, findExactBiRecordForOrderItem } from './utils/productGroupingEngine';
+import { aggregateProductsForVitrine, findExactBiRecordForOrderItem, groupBiRecordsByBaseProduct, createParentProductFromBiRecords } from './utils/productGroupingEngine';
+import { DEFAULT_BI_SAMPLE_RECORDS } from './utils/biFinanceEngine';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('catalog');
@@ -426,19 +427,102 @@ export default function App() {
     return false;
   };
 
-  // Na inicialização da loja: carrega dados oficiais do servidor (fonte de verdade compartilhada entre múltiplos computadores)
+  // Na inicialização da loja: sincronização inteligente e não-destrutiva (proteção total contra perda de dados)
   useEffect(() => {
     const initStoreSync = async () => {
+      // 1. Snapshot imediato de segurança de tudo que o usuário já tem no navegador
+      try {
+        const localProdsRaw = localStorage.getItem('lavistore_products');
+        if (localProdsRaw) {
+          localStorage.setItem('lavistore_products_safety_backup', localProdsRaw);
+        }
+      } catch {}
+
       try {
         const res = await fetch('/api/store/data');
         if (res.ok) {
           const json = await res.json();
           if (json?.hasCustomData && json?.data) {
             const d = json.data;
-            // O Servidor é a fonte oficial da verdade compartilhada entre qualquer computador ou dispositivo!
-            if (Array.isArray(d.products) && d.products.length > 0) {
-              setProducts(d.products);
-              try { localStorage.setItem('lavistore_products', JSON.stringify(d.products)); } catch {}
+            const serverProducts: Product[] = Array.isArray(d.products) ? d.products : [];
+
+            // 2. Mesclagem inteligente e não-destrutiva:
+            // O navegador do usuário NUNCA perde produtos novos, fotos reais ou customizações!
+            let finalProducts: Product[] = [...serverProducts];
+
+            try {
+              const localProdsRaw = localStorage.getItem('lavistore_products');
+              if (localProdsRaw) {
+                const localList: Product[] = JSON.parse(localProdsRaw);
+                if (Array.isArray(localList) && localList.length > 0) {
+                  const serverIds = new Set(serverProducts.map(p => p.id));
+                  const serverNames = new Set(serverProducts.map(p => p.name.trim().toLowerCase()));
+
+                  // A. Produtos criados localmente pelo usuário que ainda não constavam no servidor
+                  const userAddedProducts = localList.filter(
+                    lp => !serverIds.has(lp.id) && !serverNames.has(lp.name.trim().toLowerCase())
+                  );
+
+                  // B. Para produtos já existentes: preserva fotos carregadas pelo usuário (base64 ou adicionadas), variações e dados editados
+                  const mergedExisting = serverProducts.map(sp => {
+                    const localMatch = localList.find(
+                      lp => lp.id === sp.id || lp.name.trim().toLowerCase() === sp.name.trim().toLowerCase()
+                    );
+                    if (!localMatch) return sp;
+
+                    const hasUserCustomImages = localMatch.images?.some(
+                      img => img.startsWith('data:') || !sp.images?.includes(img)
+                    );
+
+                    return {
+                      ...sp,
+                      images: (hasUserCustomImages && localMatch.images && localMatch.images.length > 0)
+                        ? localMatch.images
+                        : sp.images,
+                      colors: localMatch.colors && localMatch.colors.length > 0 ? localMatch.colors : sp.colors,
+                      sizes: localMatch.sizes && localMatch.sizes.length > 0 ? localMatch.sizes : sp.sizes,
+                      stock: localMatch.stock !== undefined ? localMatch.stock : sp.stock,
+                      price: localMatch.price || sp.price
+                    };
+                  });
+
+                  finalProducts = [...mergedExisting, ...userAddedProducts];
+
+                  // C. Se o usuário tinha produtos adicionais ou fotos próprias, sincroniza com o servidor
+                  if (userAddedProducts.length > 0) {
+                    handlePublishToServer({ products: finalProducts }, false);
+                  }
+                }
+              }
+            } catch (errLocal) {
+              console.warn('[Sync] Aviso ao mesclar dados locais:', errLocal);
+            }
+
+            // D. Proteção adicional: se houver fotos cadastradas no BI (vitrineImageUrl) que não estão no produto, anexa
+            try {
+              const biRaw = localStorage.getItem('lavistore_bi_records');
+              if (biRaw) {
+                const biList = JSON.parse(biRaw);
+                if (Array.isArray(biList)) {
+                  finalProducts = finalProducts.map(p => {
+                    const biMatch = biList.find(
+                      (b: any) => b.produto && b.produto.trim().toLowerCase() === p.name.trim().toLowerCase() && b.vitrineImageUrl
+                    );
+                    if (biMatch && biMatch.vitrineImageUrl && !p.images.includes(biMatch.vitrineImageUrl)) {
+                      return {
+                        ...p,
+                        images: [biMatch.vitrineImageUrl, ...p.images]
+                      };
+                    }
+                    return p;
+                  });
+                }
+              }
+            } catch {}
+
+            if (finalProducts.length > 0) {
+              setProducts(finalProducts);
+              try { localStorage.setItem('lavistore_products', JSON.stringify(finalProducts)); } catch {}
             }
             if (d.heroConfig) {
               setHeroConfig(prev => ({ ...prev, ...d.heroConfig }));
@@ -481,7 +565,7 @@ export default function App() {
         console.warn('Store sync initialization notice:', err);
       }
 
-      // Se o servidor ainda não possuir dados customizados, sincroniza os dados locais com o servidor
+      // Se o servidor estiver temporariamente indisponível, sincroniza os dados locais com o servidor
       try {
         const localProds = localStorage.getItem('lavistore_products');
         if (localProds) {
@@ -495,6 +579,87 @@ export default function App() {
 
     initStoreSync();
   }, []);
+
+  // Resgate automático de mimos e fotos a partir da planilha do BI
+  const handleRestoreFromBi = async () => {
+    try {
+      let biRecords: any[] = [];
+      const localBi = localStorage.getItem('lavistore_bi_records');
+      if (localBi) {
+        try {
+          const parsed = JSON.parse(localBi);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            biRecords = parsed;
+          }
+        } catch {}
+      }
+
+      if (biRecords.length === 0) {
+        const res = await fetch('/api/bi/records');
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json) && json.length > 0) {
+            biRecords = json;
+          }
+        }
+      }
+
+      if (biRecords.length === 0) {
+        biRecords = DEFAULT_BI_SAMPLE_RECORDS;
+      }
+
+      // Agrupa todos os registros do BI por produto base
+      const grouped = groupBiRecordsByBaseProduct(biRecords);
+      const restoredProducts: Product[] = [];
+
+      grouped.forEach((siblings) => {
+        if (siblings.length === 0) return;
+        const baseName = siblings[0].produto;
+        const existing = products.find(
+          p => p.name.trim().toLowerCase() === baseName.trim().toLowerCase()
+        );
+        const prod = createParentProductFromBiRecords(siblings[0], siblings, existing);
+        restoredProducts.push(prod);
+      });
+
+      // Mescla com produtos que já existiam na vitrine que não estavam no BI
+      const restoredNames = new Set(restoredProducts.map(p => p.name.trim().toLowerCase()));
+      const otherExisting = products.filter(p => !restoredNames.has(p.name.trim().toLowerCase()));
+      const combined = [...restoredProducts, ...otherExisting];
+
+      setProducts(combined);
+      try {
+        localStorage.setItem('lavistore_products', JSON.stringify(combined));
+      } catch {}
+      await handlePublishToServer({ products: combined }, false);
+      showToast(`🌸 ${restoredProducts.length} mimos e fotos restaurados com sucesso do BI! ✨`);
+    } catch (err) {
+      console.error('Erro ao restaurar do BI:', err);
+      showToast('⚠️ Erro ao restaurar mimos do BI.');
+    }
+  };
+
+  // Restauração de cópia de segurança anterior caso necessário
+  const handleRestoreSafetyBackup = async () => {
+    try {
+      const backupRaw = localStorage.getItem('lavistore_products_safety_backup');
+      if (!backupRaw) {
+        showToast('Nenhuma cópia de segurança anterior encontrada.');
+        return;
+      }
+      const parsed = JSON.parse(backupRaw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setProducts(parsed);
+        try {
+          localStorage.setItem('lavistore_products', JSON.stringify(parsed));
+        } catch {}
+        await handlePublishToServer({ products: parsed }, false);
+        showToast(`🌸 Cópia de segurança com ${parsed.length} produtos restaurada com sucesso! ✨`);
+      }
+    } catch (err) {
+      showToast('⚠️ Falha ao ler cópia de segurança.');
+    }
+  };
 
   // CRUD Handlers for Administrator
   const handleSaveProduct = (productData: Product) => {
@@ -988,6 +1153,8 @@ export default function App() {
                   }}
                   onPublishToServer={() => handlePublishToServer(undefined, true)}
                   isPublishing={isPublishingToServer}
+                  onRestoreFromBi={handleRestoreFromBi}
+                  onRestoreSafetyBackup={handleRestoreSafetyBackup}
                   onGoToStorefront={() => {
                     navigateToStorefront('catalog');
                   }}

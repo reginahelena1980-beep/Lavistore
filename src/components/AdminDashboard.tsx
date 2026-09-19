@@ -112,6 +112,8 @@ interface AdminDashboardProps {
   onGoToAboutPage?: () => void;
   onPublishToServer?: () => Promise<boolean> | void;
   isPublishing?: boolean;
+  onRestoreFromBi?: () => void;
+  onRestoreSafetyBackup?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -155,6 +157,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onGoToAboutPage,
   onPublishToServer,
   isPublishing = false,
+  onRestoreFromBi,
+  onRestoreSafetyBackup
 }) => {
   const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads'>(initialAdminSection);
   const [searchTerm, setSearchTerm] = useState('');
@@ -914,6 +918,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             handleExportBackup={handleExportBackup}
             handleImportBackup={handleImportBackup}
             setShowResetCatalogModal={setShowResetCatalogModal}
+            onRestoreFromBi={onRestoreFromBi}
+            onRestoreSafetyBackup={onRestoreSafetyBackup}
             onAddProduct={onAddProduct}
             onEditProduct={onEditProduct}
             onDuplicateProduct={onDuplicateProduct}

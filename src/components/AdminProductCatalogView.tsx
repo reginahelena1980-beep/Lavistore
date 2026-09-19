@@ -16,6 +16,8 @@ interface AdminProductCatalogViewProps {
   handleExportBackup: () => void;
   handleImportBackup: (e: React.ChangeEvent<HTMLInputElement>) => void;
   setShowResetCatalogModal: (show: boolean) => void;
+  onRestoreFromBi?: () => void;
+  onRestoreSafetyBackup?: () => void;
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
   onDuplicateProduct: (product: Product) => void;
@@ -24,6 +26,7 @@ interface AdminProductCatalogViewProps {
 }
 
 export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = ({
+  products,
   filteredProducts,
   categories,
   searchTerm,
@@ -33,8 +36,11 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
   stockFilter,
   setStockFilter,
   handleExportFullStore,
+  handleExportBackup,
   handleImportBackup,
   setShowResetCatalogModal,
+  onRestoreFromBi,
+  onRestoreSafetyBackup,
   onAddProduct,
   onEditProduct,
   onDuplicateProduct,
@@ -192,6 +198,46 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
 
                   <div className="my-1 border-t border-slate-100" />
 
+                  {onRestoreFromBi && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDataMenu(false);
+                        onRestoreFromBi();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs text-purple-900 hover:bg-purple-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <p className="font-bold">Resgatar Mimos do BI</p>
+                        <p className="text-[10px] text-purple-600 font-normal">Sincroniza produtos e fotos da planilha</p>
+                      </div>
+                    </button>
+                  )}
+
+                  {onRestoreSafetyBackup && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDataMenu(false);
+                        onRestoreSafetyBackup();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs text-amber-900 hover:bg-amber-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                        <Database className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <p className="font-bold">Cópia de Segurança Recente</p>
+                        <p className="text-[10px] text-amber-700 font-normal">Restaura snapshot salvo</p>
+                      </div>
+                    </button>
+                  )}
+
+                  <div className="my-1 border-t border-slate-100" />
+
                   <button
                     type="button"
                     onClick={() => {
@@ -224,6 +270,33 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
           </div>
         </div>
       </div>
+
+      {/* Aviso de resgate rápido do BI caso a vitrine esteja com catálogo reduzido */}
+      {products.length < 8 && onRestoreFromBi && (
+        <div className="bg-gradient-to-r from-purple-50 via-pink-50 to-amber-50 border border-purple-200/90 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-purple-950">
+                Resgatar mimos e fotos cadastrados no BI
+              </p>
+              <p className="text-[11px] text-slate-600">
+                Sincronize automaticamente todos os produtos, fotos e variações da sua planilha de estoque com 1 clique.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onRestoreFromBi}
+            className="px-4 py-2 bg-purple-950 hover:bg-purple-900 text-amber-300 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Restaurar Mimos do BI</span>
+          </button>
+        </div>
+      )}
 
       {/* Tabela de Produtos e Precificação Inteligente */}
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-amber-200/70 shadow-2xs overflow-hidden">

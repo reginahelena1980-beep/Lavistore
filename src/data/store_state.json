@@ -75,24 +75,169 @@
     {
       "id": "lav-13",
       "name": "Meia 3/4 Panda Listrada Algodão Confort",
-      "category": "acessorios-mimos",
+      "category": "floral-special",
       "price": 15,
       "originalPrice": 22,
       "rating": 5,
       "reviewCount": 42,
-      "stock": 20,
+      "stock": 40,
       "badge": "Mais Amada 🐼",
+      "hasSizes": true,
+      "sizes": [
+        { "id": "size-p", "label": "P", "stock": 10 },
+        { "id": "size-m", "label": "M", "stock": 10 },
+        { "id": "size-g", "label": "G", "stock": 10 },
+        { "id": "size-gg", "label": "GG", "stock": 10 }
+      ],
       "images": [
         "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80"
       ],
-      "description": "Meia 3/4 fofa com carinha de pandinha e listras em tons suaves. Maciez absoluta e elasticidade perfeita para aquecer os pés com muito estilo e fofura.",
+      "description": "Alerta de fofura extrema para os seus pés! ☁️✨ Nossas Meias de Panda são super quentinhas, macias e trazem a carinha mais amorosa do mundo para te acompanhar em todos os momentos de descanso. É o abraço perfeito para os pés em dias frios, unindo conforto e muita diversão! 🖤🤍",
       "features": [
-        "Bordado/estampa de pandinha super meigo",
-        "Algodão antialérgico macio",
-        "Cano médio-alto 3/4 anatômico",
+        "Bordado e estampa de pandinha super meigo",
+        "Algodão antialérgico macio de toque aconchegante",
+        "Cano médio-alto 3/4 anatômico com punho suave",
         "Embalada com carinho na sacolinha de mimos"
       ],
       "tag": "Mais Amada 🐼"
+    },
+    {
+      "id": "lav-bi-caneta",
+      "name": "Caneta Tinta Invisível",
+      "category": "cadernos-planners",
+      "price": 10,
+      "originalPrice": 12,
+      "rating": 5,
+      "reviewCount": 31,
+      "stock": 10,
+      "badge": "Segredo Mágico 🤫",
+      "images": [
+        "https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1585336261026-41804f58c73c?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "O segredo mais fofo do mundo está aqui! 🤫 Com a nossa Caneta Tinta Invisível, você escreve mensagens secretas que ninguém consegue ver... a não ser que você acenda a luzinha mágica UV que vem na tampinha! ✨ Perfeita para guardar segredinhos, desenhar no escuro e deixar a rotina muito mais divertida. 🌈💙",
+      "features": [
+        "Luzinha UV mágica integrada na tampa",
+        "Tinta especial que só se revela sob a luz negra",
+        "Escreve em papéis, cadernos, cartinhas e tecidos",
+        "Acompanha baterias já instaladas prontas para usar"
+      ],
+      "tag": "Segredo Mágico 🤫"
+    },
+    {
+      "id": "lav-bi-pulseira",
+      "name": "Pulseira luminosa",
+      "category": "washi-adesivos",
+      "price": 5,
+      "originalPrice": 7,
+      "rating": 5,
+      "reviewCount": 26,
+      "stock": 12,
+      "badge": "Brilha Muito ✨",
+      "images": [
+        "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "Um verdadeiro raio de sol (e de estrelinhas!) no seu pulso! 🌙 Nossa Pulseira Luminosa brilha com luzinhas coloridas e alegres para deixar qualquer momento mais festivo. Super fofinha, ajustável e cheia de charme com bichinhos e comidinhas lindas. Venha brilhar com a gente! 💫💖",
+      "features": [
+        "Luzinhas LED coloridas com botão de acionamento",
+        "Fecho com regulagem fácil para pulsos de todas as idades",
+        "Material de silicone macio e flexível",
+        "Perfeita para passeios, noites divertidas e festinhas"
+      ],
+      "tag": "Brilha Muito ✨"
+    },
+    {
+      "id": "lav-bi-anel",
+      "name": "Anel que brilha no escuro",
+      "category": "washi-adesivos",
+      "price": 5,
+      "originalPrice": 7,
+      "rating": 5,
+      "reviewCount": 18,
+      "stock": 20,
+      "badge": "Brilha no Escuro 💍",
+      "images": [
+        "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "Um toque de magia direto para os seus dedos! 💍✨ O Anel que Brilha no Escuro ilumina com piscas coloridos e tem apliques fofinhos (temos frutas, corações e bichinhos!). É o acessório perfeito para dar aquele destaque especial e fofo no look noturno. 🦄💕",
+      "features": [
+        "Efeito luminoso mágico que se destaca no escuro",
+        "Aro anatômico e flexível que não aperta o dedo",
+        "Apliques colecionáveis em relevo fofo 3D",
+        "Super leve, seguro e divertido"
+      ],
+      "tag": "Brilha no Escuro 💍"
+    },
+    {
+      "id": "lav-bi-bolsa",
+      "name": "Bolsa unicornio",
+      "category": "presentes-kits",
+      "price": 15,
+      "originalPrice": 22,
+      "rating": 5,
+      "reviewCount": 39,
+      "stock": 1,
+      "badge": "Pelúcia Fofa 🦄",
+      "images": [
+        "https://images.unsplash.com/photo-1559454403-b8fb88521f11?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "A definição exata de \"iti malia\" em forma de bolsa! ☁️✨ A nossa Bolsa Unicórnio é feita de pelúcia super macia, com detalhes cintilantes de estrelas e luas, cílios delicados e um chifre dourado encantador. Espaçosa e muito aconchegante, é a companheira perfeita para carregar os seus tesouros com muito estilo e fofura! 🌈💖",
+      "features": [
+        "Pelúcia hipoalergênica ultra macia",
+        "Alça tiracolo resistente e ajustável",
+        "Fecho de zíper de alta qualidade com puxador fofo",
+        "Detalhes bordados com chifrinho dourado brilhante"
+      ],
+      "tag": "Pelúcia Fofa 🦄"
+    },
+    {
+      "id": "lav-bi-squish",
+      "name": "Mini Squish",
+      "category": "presentes-kits",
+      "price": 5,
+      "originalPrice": 8,
+      "rating": 5,
+      "reviewCount": 47,
+      "stock": 20,
+      "badge": "Anti-estresse 🐾",
+      "images": [
+        "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "Alerta de explosão de fofura! 🐾 Nossos Mini Squish são aquelas belezinhas emborrachadas super macias que dá vontade de apertar o dia inteiro. Perfeitos para aliviar o estresse, enfeitar a mesa ou levar na mochila para te fazer companhia. Quem você vai escolher para apertar hoje? 🥰✨",
+      "features": [
+        "Silicone macio com retorno elástico relaxante",
+        "Fácil de lavar com água morna e sabão neutro",
+        "Modelos fofinhos de patinhas, gatinhos e sobremesas",
+        "Tamanho compacto ideal para colecionar"
+      ],
+      "tag": "Anti-estresse 🐾"
+    },
+    {
+      "id": "lav-bi-tubo",
+      "name": "Tubo para bolinha de sabão",
+      "category": "presentes-kits",
+      "price": 5,
+      "originalPrice": 7,
+      "rating": 5,
+      "reviewCount": 24,
+      "stock": 10,
+      "badge": "Diversão Pura 🫧",
+      "images": [
+        "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80"
+      ],
+      "description": "Magia pura que cabe na palma da mão! 🫧✨ Com o nosso Tubo para Bolinha de Sabão, a diversão e a alegria estão garantidas. Os tubinhos vêm com tampas super fofas em formato de coração e estrelinha para você criar bolhas gigantes, brilhantes e cheias de encanto. Perfeito para colorir o dia! 🌈💖",
+      "features": [
+        "Tampinha lúdica com varinha em relevo",
+        "Fórmula especial que cria bolhas brilhantes e resistentes",
+        "Frasco selado anti-vazamento",
+        "Cores pastéis adoráveis para presentear"
+      ],
+      "tag": "Diversão Pura 🫧"
     }
   ],
   "categories": [
