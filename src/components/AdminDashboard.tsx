@@ -570,7 +570,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   title="Visualizar a vitrine da loja como cliente"
                 >
                   <Store className="w-3.5 h-3.5 text-purple-700" />
-                  <span>Ver Loja</span>
+                  <span>Vitrine</span>
                 </button>
               )}
 
@@ -670,48 +670,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         /* PAINEL MINIMALISTA PARA DEMAIS ABAS (BI, Pedidos, Categorias, Sacolinhas, etc.) */
         <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-amber-200/80 shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-sm sm:text-base font-bold text-purple-950 flex items-center gap-2 font-['Mali']">
+                {sectionDetails[adminSection]?.icon}
+                {sectionDetails[adminSection]?.title || 'Painel de Gerência'}
+              </span>
+              {sectionDetails[adminSection]?.subtitle && (
+                <span className="text-[11px] sm:text-xs text-slate-500 hidden md:inline">
+                  • {sectionDetails[adminSection]?.subtitle}
+                </span>
+              )}
+            </div>
+
+            {/* Ações do Administrador: Somente Voltar, Vitrine e Sair */}
+            <div className="flex items-center gap-2">
               <button
                 id="btn-admin-back-to-products"
                 type="button"
                 onClick={() => setAdminSection('products')}
-                className="px-3.5 py-2 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold text-xs shadow-2xs flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
-                title="Voltar ao Gerenciador de Produtos"
+                className="px-3.5 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-semibold text-xs shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                title="Voltar para a página principal do administrador"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Voltar</span>
               </button>
-
-              <div className="h-6 w-px bg-amber-200/80" />
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-purple-950 flex items-center gap-2 font-['Mali']">
-                  {sectionDetails[adminSection]?.icon}
-                  {sectionDetails[adminSection]?.title || 'Painel de Gerência'}
-                </span>
-                {sectionDetails[adminSection]?.subtitle && (
-                  <span className="text-[11px] text-slate-500 hidden md:inline">
-                    • {sectionDetails[adminSection]?.subtitle}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Ações rápidas */}
-            <div className="flex items-center gap-2">
-              {onPublishToServer && (
-                <button
-                  id="btn-admin-sync-server-sub"
-                  type="button"
-                  onClick={onPublishToServer}
-                  disabled={isPublishing}
-                  className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-xs border border-emerald-300 shadow-2xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
-                  title="Sincronizar no servidor"
-                >
-                  <CloudUpload className="w-3 h-3 text-emerald-600" />
-                  <span className="hidden sm:inline">{isPublishing ? 'Salvando...' : 'Salvar no Servidor'}</span>
-                </button>
-              )}
 
               {onGoToStorefront && (
                 <button
@@ -722,27 +704,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   title="Visualizar a vitrine da loja como cliente"
                 >
                   <Store className="w-3.5 h-3.5 text-purple-700" />
-                  <span className="hidden sm:inline">Ver Loja</span>
+                  <span>Vitrine</span>
                 </button>
               )}
 
               <button
-                id="btn-admin-change-password-sub"
+                id="btn-admin-exit-sub"
                 type="button"
-                onClick={() => setShowPasswordModal(true)}
-                className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-amber-50 text-purple-950 font-medium text-xs border border-amber-200/80 shadow-2xs flex items-center gap-1 transition-colors cursor-pointer"
-                title="Alterar senha"
-              >
-                <KeyRound className="w-3 h-3 text-amber-600" />
-                <span className="hidden sm:inline">Senha</span>
-              </button>
-
-              <button
                 onClick={onExitAdmin}
                 className="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-purple-900 font-medium text-xs border border-slate-200 shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
                 title="Sair da gerência"
               >
-                <Lock className="w-3 h-3 text-slate-500" />
+                <Lock className="w-3.5 h-3.5 text-slate-500" />
                 <span>Sair</span>
               </button>
             </div>
