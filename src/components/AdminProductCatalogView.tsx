@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Download, Upload, RotateCcw, Sparkles, Plus, Eye, Copy, Edit3, Trash2, ChevronDown, Database, X } from 'lucide-react';
-import { Product, Category } from '../types';
+import { Search, Download, Upload, RotateCcw, Sparkles, Plus, Eye, Copy, Edit3, Trash2, ChevronDown, Database, X, BarChart3 } from 'lucide-react';
+import { Product, Category, BiProductCalculatedRecord } from '../types';
+import { getEffectiveProductBiData } from '../utils/productGroupingEngine';
 
 interface AdminProductCatalogViewProps {
   products: Product[];
@@ -18,6 +19,7 @@ interface AdminProductCatalogViewProps {
   setShowResetCatalogModal: (show: boolean) => void;
   onRestoreFromBi?: () => void;
   onRestoreSafetyBackup?: () => void;
+  biRecords?: BiProductCalculatedRecord[];
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
   onDuplicateProduct: (product: Product) => void;
@@ -41,6 +43,7 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
   setShowResetCatalogModal,
   onRestoreFromBi,
   onRestoreSafetyBackup,
+  biRecords = [],
   onAddProduct,
   onEditProduct,
   onDuplicateProduct,
@@ -343,14 +346,34 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
               </thead>
               <tbody className="divide-y divide-amber-100/60 font-medium text-slate-700">
                 {filteredProducts.map((p) => {
-                  const discount = p.originalPrice 
-                    ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
+                  // Lê dados automaticamente da planilha do BI se existirem; se não existirem, usa os manuais do ADM
+                  const eff = getEffectiveProductBiData(p, biRecords);
+
+                  const discount = eff.originalPrice 
+                    ? Math.round(((eff.originalPrice - eff.price) / eff.originalPrice) * 100)
                     : null;
 
-                  const unitCost = p.unitCost ?? (p.price * 0.4);
-                  const grossProfit = p.grossProfit ?? (p.price - unitCost);
-                  const markupPercent = p.markupPercent ?? (unitCost > 0 ? ((p.price - unitCost) / unitCost) * 100 : 0);
-                  const grossMargin = p.grossMarginPercent ?? (p.price > 0 ? (grossProfit / p.price) * 100 : 0);
+                  const unitCost = eff.unitCost;
+                  const grossProfit = eff.grossProfit;
+                  const markupPercent = eff.markupPercent;
+                  const grossMargin = eff.grossMarginPercent;
+                  const stock = eff.stock;
+                  const initialStock = eff.initialStock;
+                  const price = eff.price;
+                  const acquisitionCostTotal = eff.acquisitionCostTotal;
+
+                  // Objeto com valores unificados para edição
+                  const productForEdit: Product = {
+                    ...p,
+                    stock: eff.stock,
+                    initialStock: eff.initialStock,
+                    unitCost: eff.unitCost,
+                    price: eff.price,
+                    grossProfit: eff.grossProfit,
+                    markupPercent: eff.markupPercent,
+                    grossMarginPercent: eff.grossMarginPercent,
+                    acquisitionCostTotal: eff.acquisitionCostTotal,
+                  };
 
                   return (
                     <tr key={p.id} className="hover:bg-amber-50/40 transition-colors">
@@ -378,7 +401,30 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
 
                       {/* Name & Description Preview */}
                       <td className="py-2.5 px-3 max-w-xs">
-                        <p className="font-bold text-purple-950 text-xs line-clamp-1">{p.name}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                          <p className="font-bold text-purple-950 text-xs">{p.name}</p>
+                          {eff.hasBiData ? (
+                            <span 
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-purple-100 text-purple-800 border border-purple-200"
+                              title={`Sincronizado automaticamente da planilha do BI (${eff.matchingRecords.length} ${eff.matchingRecords.length > 1 ? 'linhas/variações' : 'linha'})`}
+                            >
+                              <BarChart3 className="w-2.5 h-2.5" />
+                              BI Auto
+                            </span>
+                          ) : (
+                            <span 
+                              className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-medium bg-slate-100 text-slate-600 border border-slate-200"
+                              title="Dados inseridos manualmente pelo administrador"
+                            >
+                              Manual
+                            </span>
+                          )}
+                        </div>
+                        {eff.tamCorSummary && (
+                          <p className="text-[10px] text-purple-700 font-medium">
+                            Variações BI: {eff.tamCorSummary}
+                          </p>
+                        )}
                         <p className="text-[10px] text-slate-500 line-clamp-1 font-normal">
                           {p.description}
                         </p>
@@ -402,17 +448,17 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
                       <td className="py-2.5 px-3 text-center">
                         <div className="flex flex-col items-center">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            p.stock > 5 
+                            stock > 5 
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : p.stock > 0
+                              : stock > 0
                               ? 'bg-amber-100 text-amber-800 border border-amber-300'
                               : 'bg-rose-100 text-rose-800 border border-rose-300'
                           }`}>
-                            {p.stock > 0 ? `${p.stock} un.` : 'Esgotado'}
+                            {stock > 0 ? `${stock} un.` : 'Esgotado'}
                           </span>
-                          {p.initialStock && p.initialStock !== p.stock && (
+                          {initialStock && initialStock !== stock && (
                             <span className="text-[9px] text-slate-400 mt-0.5">
-                              Inicial: {p.initialStock} un.
+                              Inicial: {initialStock} un.
                             </span>
                           )}
                         </div>
@@ -424,9 +470,9 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
                           <span className="font-semibold text-slate-800 text-xs">
                             R$ {unitCost.toFixed(2)}
                           </span>
-                          {p.acquisitionCostTotal && (
+                          {acquisitionCostTotal > 0 && (
                             <span className="text-[9px] text-slate-400">
-                              Total: R$ {p.acquisitionCostTotal.toFixed(2)}
+                              Total: R$ {acquisitionCostTotal.toFixed(2)}
                             </span>
                           )}
                         </div>
@@ -436,11 +482,11 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
                       <td className="py-2.5 px-3">
                         <div className="flex flex-col font-semibold text-purple-950">
                           <span className="text-emerald-950 font-bold text-xs">
-                            R$ {p.price.toFixed(2)}
+                            R$ {price.toFixed(2)}
                           </span>
-                          {p.originalPrice && (
+                          {eff.originalPrice && (
                             <span className="text-[9px] text-slate-400 line-through">
-                              De R$ {p.originalPrice.toFixed(2)} (-{discount}%)
+                              De R$ {eff.originalPrice.toFixed(2)} (-{discount}%)
                             </span>
                           )}
                         </div>
@@ -483,7 +529,7 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
 
                           {/* Edit Button */}
                           <button
-                            onClick={() => onEditProduct(p)}
+                            onClick={() => onEditProduct(productForEdit)}
                             title="Editar fotos, descrição e valores"
                             className="px-2 py-1 rounded-lg bg-amber-300 hover:bg-amber-400 text-purple-950 font-semibold text-xs flex items-center gap-1 border border-amber-400/60 shadow-2xs transition-colors cursor-pointer"
                           >

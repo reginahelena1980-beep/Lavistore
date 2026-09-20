@@ -322,3 +322,172 @@ export function aggregateProductsForVitrine(
 
   return Array.from(aggregatedMap.values());
 }
+
+export interface EffectiveProductBiData {
+  hasBiData: boolean;
+  matchingRecords: BiProductCalculatedRecord[];
+  stock: number;
+  initialStock: number;
+  unitCost: number;
+  acquisitionCostTotal: number;
+  price: number;
+  originalPrice?: number;
+  grossProfit: number;
+  markupPercent: number;
+  grossMarginPercent: number;
+  tamCorSummary?: string;
+}
+
+/**
+ * Obtém os dados unificados e sincronizados de um produto para a
+ * Lista de Produtos & Precificação Inteligente e Métricas Administrativas.
+ *
+ * REGRA:
+ * - Se houver dados correspondentes na planilha do BI:
+ *   Lê automaticamente quantidades em estoque, custos, preço de venda e margens do BI.
+ * - Se NÃO houver dados no BI para este produto:
+ *   Usa os valores manuais informados pelo Administrador no cadastro do produto.
+ */
+export function getEffectiveProductBiData(
+  product: Product,
+  allBiRecords: BiProductCalculatedRecord[] = []
+): EffectiveProductBiData {
+  const manualUnitCost = product.unitCost ?? (product.price * 0.4);
+  const manualStock = Number(product.stock ?? 0);
+  const manualInitialStock = Number(product.initialStock ?? manualStock);
+  const manualPrice = Number(product.price ?? 0);
+  const manualGrossProfit = product.grossProfit ?? (manualPrice - manualUnitCost);
+  const manualMarkup = product.markupPercent ?? (manualUnitCost > 0 ? ((manualPrice - manualUnitCost) / manualUnitCost) * 100 : 0);
+  const manualMargin = product.grossMarginPercent ?? (manualPrice > 0 ? (manualGrossProfit / manualPrice) * 100 : 0);
+  const manualAcquisition = product.acquisitionCostTotal ?? (manualUnitCost * manualInitialStock);
+
+  if (!allBiRecords || allBiRecords.length === 0) {
+    return {
+      hasBiData: false,
+      matchingRecords: [],
+      stock: manualStock,
+      initialStock: manualInitialStock,
+      unitCost: manualUnitCost,
+      acquisitionCostTotal: manualAcquisition,
+      price: manualPrice,
+      originalPrice: product.originalPrice,
+      grossProfit: manualGrossProfit,
+      markupPercent: manualMarkup,
+      grossMarginPercent: manualMargin
+    };
+  }
+
+  // Chaves de busca para encontrar correspondência no BI
+  const prodKey = getGroupingKey(product.name);
+  const normName = product.name
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  const matching = allBiRecords.filter(r => {
+    // 1. Por ID do registro de BI vinculado ao produto
+    if (product.biRecordId && r.id === product.biRecordId) return true;
+    // 2. Por ID da vitrine gravado no registro do BI
+    if (r.vitrineProductId && r.vitrineProductId === product.id) return true;
+    // 3. Por correspondência nas variações de tamanho (sizes)
+    if (product.sizes && product.sizes.some(s => s.biRecordId && s.biRecordId === r.id)) return true;
+
+    // 4. Por chave de agrupamento normalizada
+    const rKey = getGroupingKey(r.produto);
+    if (rKey && prodKey && rKey === prodKey) return true;
+
+    // 5. Por nome textual normalizado
+    const rNorm = r.produto
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    if (rNorm === normName) return true;
+
+    // 6. Se um nome começa com o outro (ex: "Meia 3/4 Panda" e "Meia 3/4 Panda Listrada Algodão")
+    if (rNorm.length >= 6 && normName.length >= 6) {
+      if (normName.startsWith(rNorm) || rNorm.startsWith(normName)) return true;
+    }
+
+    return false;
+  });
+
+  // Se NÃO houver registros no BI: retorna dados manuais do ADM
+  if (matching.length === 0) {
+    return {
+      hasBiData: false,
+      matchingRecords: [],
+      stock: manualStock,
+      initialStock: manualInitialStock,
+      unitCost: manualUnitCost,
+      acquisitionCostTotal: manualAcquisition,
+      price: manualPrice,
+      originalPrice: product.originalPrice,
+      grossProfit: manualGrossProfit,
+      markupPercent: manualMarkup,
+      grossMarginPercent: manualMargin
+    };
+  }
+
+  // HÁ DADOS NO BI: Lê automaticamente da planilha!
+  // 1. Quantidade em estoque (saldoEstoqueQtd ou comprada - vendida)
+  const totalStock = matching.reduce((sum, r) => {
+    const s = r.saldoEstoqueQtd !== undefined 
+      ? Number(r.saldoEstoqueQtd) 
+      : Math.max(0, (Number(r.quantidadeComprada) || 0) - (Number(r.quantidadeVendida) || 0));
+    return sum + (isNaN(s) ? 0 : s);
+  }, 0);
+
+  // 2. Quantidade comprada inicial
+  const totalInitial = matching.reduce((sum, r) => sum + (Number(r.quantidadeComprada) || 0), 0);
+
+  // 3. Custo total de aquisição
+  const totalCost = matching.reduce((sum, r) => sum + (Number(r.custoTotal) || 0), 0);
+
+  // 4. Custo unitário
+  let unitCost: number;
+  if (totalInitial > 0 && totalCost > 0) {
+    unitCost = totalCost / totalInitial;
+  } else {
+    const validCosts = matching.map(r => Number(r.custoUnitario) || 0).filter(c => c > 0);
+    unitCost = validCosts.length > 0 
+      ? validCosts.reduce((a, b) => a + b, 0) / validCosts.length 
+      : manualUnitCost;
+  }
+
+  // 5. Preço de venda final
+  const biPriceRec = matching.find(r => Number(r.precoVenda) > 0);
+  const price = biPriceRec ? Number(biPriceRec.precoVenda) : manualPrice;
+
+  // 6. Lucro bruto por unidade
+  const grossProfit = price - unitCost;
+
+  // 7. Mark-up real (%)
+  const markupPercent = unitCost > 0 ? ((price - unitCost) / unitCost) * 100 : 0;
+
+  // 8. Margem de lucro (%)
+  const grossMarginPercent = price > 0 ? (grossProfit / price) * 100 : 0;
+
+  // 9. Resumo das variações/tamanhos descritos no BI
+  const distinctTamCor = Array.from(
+    new Set(matching.map(r => r.tamCor).filter(t => t && t.trim().toLowerCase() !== 'único' && t.trim().toLowerCase() !== 'unico'))
+  );
+  const tamCorSummary = distinctTamCor.length > 0 ? distinctTamCor.join(', ') : undefined;
+
+  return {
+    hasBiData: true,
+    matchingRecords: matching,
+    stock: totalStock,
+    initialStock: totalInitial > 0 ? totalInitial : totalStock,
+    unitCost,
+    acquisitionCostTotal: totalCost > 0 ? totalCost : (unitCost * totalStock),
+    price,
+    originalPrice: product.originalPrice,
+    grossProfit,
+    markupPercent,
+    grossMarginPercent,
+    tamCorSummary
+  };
+}
+

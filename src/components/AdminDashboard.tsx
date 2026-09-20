@@ -49,7 +49,7 @@ import {
   CloudUpload,
   CheckCheck
 } from 'lucide-react';
-import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, Coupon, BagType, RibbonOption } from '../types';
+import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, Coupon, BagType, RibbonOption, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES, BAG_TYPES, RIBBON_OPTIONS } from '../data/categories';
 import { CUSTOMER_REVIEWS } from '../data/reviews';
 import { DEFAULT_COUPONS } from '../data/coupons';
@@ -70,6 +70,7 @@ import { AdminProductCatalogView } from './AdminProductCatalogView';
 import { PackagingRibbonManager } from './PackagingRibbonManager';
 import { DEFAULT_HOME_PAGE_CONFIG } from '../utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from '../data/filterConfig';
+import { getEffectiveProductBiData } from '../utils/productGroupingEngine';
 
 interface AdminDashboardProps {
   products: Product[];
@@ -165,6 +166,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [copiedNotification, setCopiedNotification] = useState<string | null>(null);
+
+  // Registros do BI para unificação automática de dados (quantidades, custos, preços e margens)
+  const [biRecords, setBiRecords] = useState<BiProductCalculatedRecord[]>(() => {
+    try {
+      const local = localStorage.getItem('lavistore_bi_records');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  // Mantém sincronização dos registros do BI em background
+  useEffect(() => {
+    async function loadBiRecords() {
+      try {
+        const res = await fetch('/api/bi/records');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.records && Array.isArray(data.records) && data.records.length > 0) {
+            setBiRecords(data.records);
+            localStorage.setItem('lavistore_bi_records', JSON.stringify(data.records));
+          }
+        }
+      } catch (err) {
+        console.warn('[AdminDashboard] Falha ao carregar registros do BI:', err);
+      }
+    }
+    if (biRecords.length === 0) {
+      loadBiRecords();
+    }
+  }, [biRecords.length]);
 
   const handleExportFullStore = () => {
     const fullBackup = {
@@ -377,19 +411,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   }, [products, searchTerm, categoryFilter, stockFilter]);
 
-  // Financial & Inventory Metrics
-  const totalStock = useMemo(() => products.reduce((acc, p) => acc + (p.stock || 0), 0), [products]);
+  // Financial & Inventory Metrics - integrados dinamicamente com a planilha do BI
+  const totalStock = useMemo(() => {
+    return products.reduce((acc, p) => {
+      const eff = getEffectiveProductBiData(p, biRecords);
+      return acc + (eff.stock || 0);
+    }, 0);
+  }, [products, biRecords]);
   
   const totalAcquisitionInvested = useMemo(() => {
     return products.reduce((acc, p) => {
-      const unitC = p.unitCost ?? (p.price * 0.4);
-      return acc + (unitC * (p.stock || 0));
+      const eff = getEffectiveProductBiData(p, biRecords);
+      return acc + (eff.acquisitionCostTotal || (eff.unitCost * (eff.initialStock || eff.stock)));
     }, 0);
-  }, [products]);
+  }, [products, biRecords]);
 
   const totalPotentialRevenue = useMemo(() => {
-    return products.reduce((acc, p) => acc + (p.price * (p.stock || 0)), 0);
-  }, [products]);
+    return products.reduce((acc, p) => {
+      const eff = getEffectiveProductBiData(p, biRecords);
+      return acc + (eff.price * (eff.stock || 0));
+    }, 0);
+  }, [products, biRecords]);
 
   const totalEstimatedGrossProfit = useMemo(() => {
     return totalPotentialRevenue - totalAcquisitionInvested;
@@ -400,7 +442,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return Math.round((totalEstimatedGrossProfit / totalPotentialRevenue) * 100);
   }, [totalEstimatedGrossProfit, totalPotentialRevenue]);
 
-  const lowStockCount = useMemo(() => products.filter(p => p.stock <= 5).length, [products]);
+  const lowStockCount = useMemo(() => {
+    return products.filter(p => {
+      const eff = getEffectiveProductBiData(p, biRecords);
+      return eff.stock <= 5;
+    }).length;
+  }, [products, biRecords]);
 
   // Export JSON Backup
   const handleExportBackup = () => {
@@ -920,6 +967,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             setShowResetCatalogModal={setShowResetCatalogModal}
             onRestoreFromBi={onRestoreFromBi}
             onRestoreSafetyBackup={onRestoreSafetyBackup}
+            biRecords={biRecords}
             onAddProduct={onAddProduct}
             onEditProduct={onEditProduct}
             onDuplicateProduct={onDuplicateProduct}
@@ -953,6 +1001,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             setCopiedNotification(msg);
             setTimeout(() => setCopiedNotification(null), 4000);
           }}
+          onRecordsChange={setBiRecords}
         />
       )}
 

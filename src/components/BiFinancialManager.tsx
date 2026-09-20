@@ -61,6 +61,7 @@ interface BiFinancialManagerProps {
   onViewProductLive?: (product: Product) => void;
   onGoToStorefront?: () => void;
   onNotify?: (message: string) => void;
+  onRecordsChange?: (records: BiProductCalculatedRecord[]) => void;
 }
 
 export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
@@ -70,7 +71,8 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
   categories = [],
   onViewProductLive,
   onGoToStorefront,
-  onNotify
+  onNotify,
+  onRecordsChange
 }) => {
   // Estado dos registros calculados
   const [records, setRecords] = useState<BiProductCalculatedRecord[]>([]);
@@ -132,6 +134,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
           if (data.records && Array.isArray(data.records) && data.records.length > 0) {
             setRecords(data.records);
             localStorage.setItem('lavistore_bi_records', JSON.stringify(data.records));
+            if (onRecordsChange) onRecordsChange(data.records);
             setIsLoading(false);
             return;
           }
@@ -150,6 +153,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
             const isCorrupted = parsed.some((p: any) => /^\d+[.,]\d+$/.test(String(p.mes || '')));
             if (!isCorrupted) {
               setRecords(parsed);
+              if (onRecordsChange) onRecordsChange(parsed);
               setIsLoading(false);
               return;
             }
@@ -159,6 +163,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
 
       // Se não houver nada, inicializa com os registros modelo da Lavistore (Meias de Panda, Canetas, etc.)
       setRecords(DEFAULT_BI_SAMPLE_RECORDS);
+      if (onRecordsChange) onRecordsChange(DEFAULT_BI_SAMPLE_RECORDS);
       setIsLoading(false);
     }
 
@@ -169,6 +174,9 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
   const persistRecords = async (newRecords: BiProductCalculatedRecord[]) => {
     setRecords(newRecords);
     localStorage.setItem('lavistore_bi_records', JSON.stringify(newRecords));
+    if (onRecordsChange) {
+      onRecordsChange(newRecords);
+    }
 
     try {
       await fetch('/api/bi/records', {
