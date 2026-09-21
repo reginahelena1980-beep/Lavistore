@@ -12,9 +12,11 @@ import {
   Share2,
   Ruler,
   Palette,
-  AlertCircle
+  AlertCircle,
+  MessageSquareHeart,
+  Send
 } from 'lucide-react';
-import { Product } from '../types';
+import { Product, CustomerReview } from '../types';
 
 interface ProductModalProps {
   product: Product | null;
@@ -33,6 +35,8 @@ interface ProductModalProps {
   onToggleFavorite: (product: Product) => void;
   isAdminMode?: boolean;
   onOpenReturnPolicy?: () => void;
+  reviews?: CustomerReview[];
+  onAddReview?: (review: Omit<CustomerReview, 'id' | 'date'>) => Promise<void> | void;
 }
 
 export const ProductModal: React.FC<ProductModalProps> = ({
@@ -43,6 +47,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   onToggleFavorite,
   isAdminMode = false,
   onOpenReturnPolicy,
+  reviews = [],
+  onAddReview,
 }) => {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -51,6 +57,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [isGiftWrapped, setIsGiftWrapped] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Review Form States
+  const [isReviewFormOpen, setIsReviewFormOpen] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
+  const [reviewAuthor, setReviewAuthor] = useState('');
+  const [reviewCity, setReviewCity] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewToast, setReviewToast] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Sync state when product changes
   React.useEffect(() => {
@@ -61,10 +78,62 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setSelectedSizeId(undefined);
       setValidationAttempted(false);
       setIsGiftWrapped(false);
+      setIsReviewFormOpen(false);
+      setFormError(null);
     }
   }, [product?.id]);
 
   if (!product) return null;
+
+  // Filtragem e cálculo estritamente em cima das avaliações REAIS de clientes
+  const productReviews = (reviews || []).filter(
+    r => (r.productId && r.productId === product.id) ||
+         (r.productName && r.productName.trim().toLowerCase() === product.name.trim().toLowerCase())
+  );
+  const hasRealReviews = productReviews.length > 0;
+  const effectiveRating = hasRealReviews
+    ? Number((productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length).toFixed(1))
+    : 0;
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewAuthor.trim()) {
+      setFormError('Por favor, digite seu nome ou como prefere ser chamada(o).');
+      return;
+    }
+    if (!reviewComment.trim()) {
+      setFormError('Por favor, escreva o que você achou deste mimo especial.');
+      return;
+    }
+    setFormError(null);
+    setReviewSubmitting(true);
+
+    try {
+      if (onAddReview) {
+        await onAddReview({
+          productId: product.id,
+          productName: product.name,
+          rating: newRating,
+          author: reviewAuthor.trim(),
+          city: reviewCity.trim(),
+          comment: reviewComment.trim(),
+          verified: true,
+          avatar: '🌸'
+        });
+      }
+      setReviewToast('Sua avaliação foi enviada com sucesso! Muito obrigado pelo carinho! 🌸✨');
+      setReviewAuthor('');
+      setReviewCity('');
+      setReviewComment('');
+      setNewRating(5);
+      setIsReviewFormOpen(false);
+      setTimeout(() => setReviewToast(null), 5000);
+    } catch {
+      setFormError('Ocorreu um erro ao registrar sua avaliação. Tente novamente.');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   // Additional options detection
   const hasSizeOption = Boolean(product.hasSizes && product.sizes && product.sizes.length > 0);
@@ -196,36 +265,63 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             <div>
               {/* Reviews & Actions */}
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-1.5 text-amber-500 text-xs">
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <Star 
-                        key={i} 
-                        className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} 
-                      />
-                    ))}
+                {hasRealReviews ? (
+                  <div className="flex items-center gap-1.5 text-amber-500 text-xs">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star 
+                          key={i} 
+                          className={`w-4 h-4 ${i < Math.floor(effectiveRating) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} 
+                        />
+                      ))}
+                    </div>
+                    <span className="font-bold text-slate-800">{effectiveRating.toFixed(1).replace('.0', '')}</span>
+                    <span className="text-slate-500">
+                      ({productReviews.length} {productReviews.length === 1 ? 'avaliação real' : 'avaliações reais'})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsReviewFormOpen(true)}
+                      className="ml-1 text-[11px] font-bold text-purple-700 hover:text-pink-600 underline cursor-pointer"
+                    >
+                      Avaliar ⭐
+                    </button>
                   </div>
-                  <span className="font-bold text-slate-800">{product.rating}</span>
-                  <span className="text-slate-500">({product.reviewCount} avaliações reais)</span>
-                </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewFormOpen(true)}
+                    className="inline-flex items-center gap-1 text-xs text-purple-700 hover:text-pink-600 font-medium transition-colors cursor-pointer group"
+                  >
+                    <Star className="w-3.5 h-3.5 text-amber-400 group-hover:fill-amber-400 transition-colors" />
+                    <span>Ainda sem avaliações • </span>
+                    <span className="text-[11px] font-bold text-pink-600 underline">Avaliar este mimo ✨</span>
+                  </button>
+                )}
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleShare}
-                    className="p-2 rounded-full hover:bg-purple-50 text-purple-700 transition-colors"
+                    className="p-2 rounded-full hover:bg-purple-50 text-purple-700 transition-colors cursor-pointer"
                     title="Compartilhar"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => onToggleFavorite(product)}
-                    className="p-2 rounded-full hover:bg-pink-50 text-pink-600 transition-colors"
+                    className="p-2 rounded-full hover:bg-pink-50 text-pink-600 transition-colors cursor-pointer"
                     title="Favoritar"
                   >
                     <Heart className={`w-4 h-4 ${isFavorite ? 'fill-pink-500 text-pink-500' : ''}`} />
                   </button>
                 </div>
               </div>
+
+              {reviewToast && (
+                <div className="bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs py-2 px-3 rounded-xl mb-2 text-center font-bold animate-in fade-in">
+                  {reviewToast}
+                </div>
+              )}
 
               {copiedLink && (
                 <div className="bg-pink-100 text-pink-800 text-xs py-1 px-3 rounded-lg mb-2 text-center animate-in fade-in">
@@ -485,6 +581,62 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </span>
                 </div>
               )}
+              {/* Customer Reviews Section */}
+              <div className="mt-5 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-amber-50/40 via-white to-pink-50/40 border border-purple-100/90 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <MessageSquareHeart className="w-4 h-4 text-pink-500" />
+                    <h4 className="text-xs sm:text-sm font-bold text-purple-950">
+                      Avaliações de Clientes {productReviews.length > 0 ? `(${productReviews.length})` : ''}
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewFormOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-pink-100 hover:bg-pink-200 text-pink-800 text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                    <span>Escrever Avaliação</span>
+                  </button>
+                </div>
+
+                {productReviews.length === 0 ? (
+                  <div className="text-center py-3 px-2 text-xs text-slate-500 space-y-1 bg-white/70 rounded-xl border border-purple-50">
+                    <p className="font-semibold text-purple-950">Este mimo ainda não possui avaliações cadastradas.</p>
+                    <p className="text-[11px] text-slate-500">Comprou ou adorou? Seja a primeira pessoa a contar sua experiência!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                    {productReviews.map((rev) => (
+                      <div key={rev.id} className="p-2.5 rounded-xl bg-white border border-purple-100/60 shadow-2xs space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1.5 font-bold text-purple-950">
+                            <span>{rev.author}</span>
+                            {rev.city && <span className="text-[10px] text-slate-400 font-normal">({rev.city})</span>}
+                            {rev.verified && (
+                              <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-md">
+                                Compra verificada ✓
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400">{rev.date}</span>
+                        </div>
+                        <div className="flex text-amber-400">
+                          {[...Array(5)].map((_, idx) => (
+                            <Star 
+                              key={idx} 
+                              className={`w-3 h-3 ${idx < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} 
+                            />
+                          ))}
+                        </div>
+                        <p className="text-xs text-slate-600 italic leading-relaxed">
+                          "{rev.comment}"
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Action Bar: Quantity & Add to Cart */}
@@ -558,6 +710,144 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
         </div>
       </div>
+
+      {/* Modal de Envio de Avaliação do Cliente */}
+      {isReviewFormOpen && (
+        <div 
+          className="fixed inset-0 z-70 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsReviewFormOpen(false);
+          }}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl border border-purple-100 max-w-md w-full p-5 sm:p-6 space-y-4 font-['Comfortaa'] animate-in zoom-in-95 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 shrink-0">
+                  <Star className="w-4 h-4 fill-pink-500 text-pink-500" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-['Mali'] font-bold text-purple-950 text-base leading-tight">Avaliar este Mimo</h3>
+                  <p className="text-[11px] text-slate-500 truncate max-w-[240px] sm:max-w-[280px]">{product.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReviewFormOpen(false)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitReview} className="space-y-3.5">
+              {/* Estrelas interativas */}
+              <div className="space-y-1.5 text-center bg-purple-50/50 p-3 rounded-2xl border border-purple-100">
+                <label className="text-xs font-bold text-purple-950 block">Sua nota para o mimo:</label>
+                <div className="flex items-center justify-center gap-1.5 py-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(null)}
+                      onClick={() => setNewRating(star)}
+                      className="p-1 cursor-pointer transition-transform hover:scale-125 focus:outline-hidden"
+                      title={`${star} estrela${star > 1 ? 's' : ''}`}
+                    >
+                      <Star
+                        className={`w-7 h-7 transition-colors ${
+                          star <= (hoverRating ?? newRating)
+                            ? 'fill-amber-400 text-amber-400 drop-shadow-xs'
+                            : 'text-slate-300'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] font-bold text-pink-600">
+                  {hoverRating === 1 || (!hoverRating && newRating === 1) ? '1 estrela - Insatisfeito' : ''}
+                  {hoverRating === 2 || (!hoverRating && newRating === 2) ? '2 estrelas - Regular' : ''}
+                  {hoverRating === 3 || (!hoverRating && newRating === 3) ? '3 estrelas - Bom' : ''}
+                  {hoverRating === 4 || (!hoverRating && newRating === 4) ? '4 estrelas - Muito bom' : ''}
+                  {hoverRating === 5 || (!hoverRating && newRating === 5) ? '5 estrelas - Amei! Encantador! 💖' : ''}
+                </p>
+              </div>
+
+              {/* Nome */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-purple-950 flex items-center justify-between">
+                  <span>Seu Nome ou Apelido: <span className="text-pink-500">*</span></span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Mariana Silva"
+                  value={reviewAuthor}
+                  onChange={(e) => setReviewAuthor(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-purple-200 text-xs text-purple-950 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-hidden font-medium"
+                />
+              </div>
+
+              {/* Cidade */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-purple-950">
+                  Sua Cidade / Estado: <span className="text-[10px] text-slate-400 font-normal">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: São Paulo - SP"
+                  value={reviewCity}
+                  onChange={(e) => setReviewCity(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-purple-200 text-xs text-purple-950 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-hidden font-medium"
+                />
+              </div>
+
+              {/* Comentário */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-purple-950">
+                  Seu depoimento / comentário: <span className="text-pink-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Conte o que achou da delicadeza do mimo, acabamento, cheirinho..."
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-purple-200 text-xs text-purple-950 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-hidden font-medium resize-none"
+                />
+              </div>
+
+              {formError && (
+                <p className="text-[11px] font-bold text-rose-600 bg-rose-50 p-2 rounded-xl border border-rose-200">
+                  {formError}
+                </p>
+              )}
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-purple-100">
+                <button
+                  type="button"
+                  onClick={() => setIsReviewFormOpen(false)}
+                  disabled={reviewSubmitting}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={reviewSubmitting}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 shadow-md shadow-pink-200 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{reviewSubmitting ? 'Enviando...' : 'Publicar Avaliação 🌸'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

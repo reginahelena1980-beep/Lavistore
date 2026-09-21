@@ -151,33 +151,39 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Content Info */}
       <div className="p-3.5 sm:p-5 flex flex-col flex-1 justify-between gap-3 font-['Comfortaa']">
         <div>
-          {/* Rating and Color Preview */}
-          <div className="flex items-center justify-between gap-2 mb-1.5 text-xs">
-            <div className="flex items-center gap-1 text-amber-500">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-              <span className="font-bold text-slate-800">{product.rating}</span>
-              <span className="text-slate-400 text-[11px]">({product.reviewCount})</span>
-            </div>
+          {/* Rating and Color Preview - Shows rating ONLY if real reviews exist */}
+          {((product.reviewCount && product.reviewCount > 0) || (product.colors && product.colors.length > 1)) && (
+            <div className="flex items-center justify-between gap-2 mb-1.5 text-xs">
+              {product.reviewCount && product.reviewCount > 0 ? (
+                <div className="flex items-center gap-1 text-amber-500">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span className="font-bold text-slate-800">{Number(product.rating || 0).toFixed(1).replace('.0', '')}</span>
+                  <span className="text-slate-400 text-[11px]">({product.reviewCount})</span>
+                </div>
+              ) : (
+                <div />
+              )}
 
-            {/* Colors Preview */}
-            {product.colors && product.colors.length > 1 && (
-              <div className="flex items-center gap-1" title={`${product.colors.length} cores/estampas disponíveis`}>
-                {product.colors.slice(0, 4).map((col, idx) => (
-                  <span
-                    key={col.id || idx}
-                    className={`w-2.5 h-2.5 rounded-full border border-purple-200/80 shadow-2xs overflow-hidden inline-block ${col.bgClass || 'bg-pink-300'}`}
-                    style={col.hex ? { backgroundColor: col.hex } : undefined}
-                    title={col.name}
-                  />
-                ))}
-                {product.colors.length > 4 && (
-                  <span className="text-[9px] font-bold text-slate-400">
-                    +{product.colors.length - 4}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+              {/* Colors Preview */}
+              {product.colors && product.colors.length > 1 && (
+                <div className="flex items-center gap-1" title={`${product.colors.length} cores/estampas disponíveis`}>
+                  {product.colors.slice(0, 4).map((col, idx) => (
+                    <span
+                      key={col.id || idx}
+                      className={`w-2.5 h-2.5 rounded-full border border-purple-200/80 shadow-2xs overflow-hidden inline-block ${col.bgClass || 'bg-pink-300'}`}
+                      style={col.hex ? { backgroundColor: col.hex } : undefined}
+                      title={col.name}
+                    />
+                  ))}
+                  {product.colors.length > 4 && (
+                    <span className="text-[9px] font-bold text-slate-400">
+                      +{product.colors.length - 4}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Product Title */}
           <h3 

@@ -148,8 +148,8 @@ export function createParentProductFromBiRecords(
       productOverrides?.originalPrice ??
       existingProduct?.originalPrice ??
       Number((primaryRecord.precoVenda * 1.25).toFixed(2)),
-    rating: existingProduct?.rating || 5.0,
-    reviewCount: existingProduct?.reviewCount || 18,
+    rating: existingProduct?.rating ?? 0,
+    reviewCount: existingProduct?.reviewCount ?? 0,
     images:
       productOverrides?.images && productOverrides.images.length > 0
         ? productOverrides.images

@@ -153,7 +153,7 @@ export default function App() {
   // Admin Authentication state - Strictly password-protected (never auto-authenticate)
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
 
-  // Editable Reviews State (Persisted in localStorage)
+  // Customer Reviews State (Persisted in localStorage & Server - strictly real customer reviews)
   const [reviews, setReviews] = useState<CustomerReview[]>(() => {
     try {
       const saved = localStorage.getItem('lavistore_reviews');
@@ -170,7 +170,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    return CUSTOMER_REVIEWS;
+    return [];
   });
 
   useEffect(() => {
@@ -180,6 +180,63 @@ export default function App() {
       console.error(e);
     }
   }, [reviews]);
+
+  // Handler para adição de avaliações reais de clientes
+  const handleAddCustomerReview = async (reviewData: Omit<CustomerReview, 'id' | 'date'>) => {
+    const newRev: CustomerReview = {
+      ...reviewData,
+      id: `rev-${Date.now()}`,
+      date: new Date().toLocaleDateString('pt-BR'),
+      verified: true,
+      avatar: reviewData.avatar || '🌸'
+    };
+
+    const updatedReviews = [newRev, ...reviews];
+    setReviews(updatedReviews);
+    try {
+      localStorage.setItem('lavistore_reviews', JSON.stringify(updatedReviews));
+    } catch (e) {}
+
+    // Recalcula dinamicamente rating e reviewCount para o produto avaliado sem alterar nenhum outro campo
+    const updatedProducts = products.map(p => {
+      const isTarget = (newRev.productId && p.id === newRev.productId) ||
+        (newRev.productName && p.name && p.name.trim().toLowerCase() === newRev.productName.trim().toLowerCase());
+
+      if (isTarget) {
+        const matchingRevs = updatedReviews.filter(
+          r => (r.productId && r.productId === p.id) ||
+            (r.productName && r.productName.trim().toLowerCase() === p.name.trim().toLowerCase())
+        );
+        const count = matchingRevs.length;
+        const avg = count > 0 ? Number((matchingRevs.reduce((acc, r) => acc + r.rating, 0) / count).toFixed(1)) : 0;
+        const updated = {
+          ...p,
+          rating: avg,
+          reviewCount: count
+        };
+        if (selectedProduct && selectedProduct.id === p.id) {
+          setSelectedProduct(updated);
+        }
+        return updated;
+      }
+      return p;
+    });
+
+    setProducts(updatedProducts);
+    try {
+      localStorage.setItem('lavistore_products', JSON.stringify(updatedProducts));
+    } catch (e) {}
+
+    try {
+      await fetch('/api/store/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newRev)
+      });
+    } catch (err) {
+      console.warn('Erro ao salvar review no backend:', err);
+    }
+  };
 
   // Admin Modals & Editing state
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -1683,6 +1740,8 @@ export default function App() {
           onToggleFavorite={handleToggleFavorite}
           isAdminMode={false}
           onOpenReturnPolicy={() => setIsReturnPolicyOpen(true)}
+          reviews={reviews}
+          onAddReview={handleAddCustomerReview}
         />
       )}
 

@@ -19,12 +19,19 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
 }) => {
   const badgeText = config?.reviewsBadge?.text || 'Depoimentos Reais';
   const titleText = config?.reviewsTitle?.text || 'Amor em Forma de Pacotinho 🌸';
-  const subtitleText = config?.reviewsSubtitle?.text || 'Veja o que nossas clientes dizem sobre o unboxing perfumado e o carinho dos produtos Lavistore.';
+  const subtitleText = config?.reviewsSubtitle?.text || 'Veja o que nossas clientes dizem sobre o unboxing perfumado e o carinho dos produtos Lavistore Kids.';
   const displayedReviews = reviews || [];
 
   if (displayedReviews.length === 0 && !isAdminEditing) {
     return null;
   }
+
+  const avgScore = displayedReviews.length > 0
+    ? (displayedReviews.reduce((sum, r) => sum + r.rating, 0) / displayedReviews.length).toFixed(1)
+    : '5.0';
+  const defaultAverageText = displayedReviews.length > 0
+    ? `${avgScore} / 5.0 (${displayedReviews.length} ${displayedReviews.length === 1 ? 'avaliação real' : 'avaliações reais de clientes'})`
+    : 'Sem avaliações ainda';
 
   return (
     <section className="py-12 md:py-16 bg-white/40 backdrop-blur-sm border-t border-white/60">
@@ -62,7 +69,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
               ))}
             </div>
             <span className="text-xs font-bold text-slate-700">
-              {config?.reviewsAverageRatingText || '4.9 / 5.0 (Mais de 1.800 avaliações 5 estrelas)'}
+              {config?.reviewsAverageRatingText || defaultAverageText}
             </span>
           </div>
         </div>

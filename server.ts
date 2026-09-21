@@ -140,6 +140,103 @@ app.post('/api/store/sync', (req, res) => {
 });
 
 /**
+ * POST /api/store/reviews
+ * Permite que clientes reais enviem avaliações para produtos.
+ * Recalcula a nota média (rating) e a quantidade de avaliações reais (reviewCount) do produto.
+ */
+app.post('/api/store/reviews', (req, res) => {
+  try {
+    const { author, city, rating, comment, productName, productId } = req.body;
+    if (!comment || !author || !rating) {
+      return res.status(400).json({ error: 'Campos obrigatórios ausentes (autor, nota e comentário).' });
+    }
+
+    let existingContent: any = {};
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      try {
+        existingContent = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
+      } catch (e) {}
+    }
+
+    const newReview = {
+      id: req.body.id || `rev-${Date.now()}`,
+      author: String(author).trim(),
+      city: String(city || '').trim(),
+      rating: Math.min(5, Math.max(1, Number(rating) || 5)),
+      date: req.body.date || new Date().toLocaleDateString('pt-BR'),
+      comment: String(comment).trim(),
+      productName: String(productName || '').trim(),
+      productId: productId ? String(productId).trim() : undefined,
+      verified: true,
+      avatar: req.body.avatar || '🌸'
+    };
+
+    const currentReviews: any[] = Array.isArray(existingContent.reviews) ? existingContent.reviews : [];
+    const updatedReviews = [newReview, ...currentReviews];
+
+    // Atualiza o produto correspondente no store_state.json mantendo todos os outros campos intactos
+    let updatedProducts = existingContent.products;
+    if (Array.isArray(updatedProducts)) {
+      updatedProducts = updatedProducts.map((p: any) => {
+        const matchesProduct = (newReview.productId && p.id === newReview.productId) ||
+          (newReview.productName && p.name && p.name.trim().toLowerCase() === newReview.productName.trim().toLowerCase());
+
+        if (matchesProduct) {
+          const matchingRevs = updatedReviews.filter(
+            (r: any) => (r.productId && r.productId === p.id) ||
+              (r.productName && r.productName.trim().toLowerCase() === p.name.trim().toLowerCase())
+          );
+          const count = matchingRevs.length;
+          const avg = count > 0 ? Number((matchingRevs.reduce((acc: number, r: any) => acc + r.rating, 0) / count).toFixed(1)) : 0;
+          return {
+            ...p,
+            reviewCount: count,
+            rating: avg
+          };
+        }
+        return p;
+      });
+    }
+
+    const payloadToSave = {
+      ...existingContent,
+      updatedAt: new Date().toISOString(),
+      reviews: updatedReviews,
+      products: updatedProducts
+    };
+
+    fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(payloadToSave, null, 2), 'utf-8');
+    console.log(`[Reviews] Nova avaliação cadastrada para "${newReview.productName}" por ${newReview.author}`);
+
+    return res.json({
+      success: true,
+      message: 'Avaliação recebida com sucesso! Obrigado pelo carinho! 🌸',
+      review: newReview,
+      reviews: updatedReviews
+    });
+  } catch (error: any) {
+    console.error('[Store Reviews] Erro ao gravar avaliação:', error);
+    return res.status(500).json({ error: 'Falha ao processar avaliação', details: error.message });
+  }
+});
+
+/**
+ * GET /api/store/reviews
+ * Retorna as avaliações reais salvas.
+ */
+app.get('/api/store/reviews', (_req, res) => {
+  try {
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      const existing = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
+      return res.json({ success: true, reviews: Array.isArray(existing.reviews) ? existing.reviews : [] });
+    }
+    return res.json({ success: true, reviews: [] });
+  } catch (error: any) {
+    return res.status(500).json({ error: 'Falha ao ler avaliações', details: error.message });
+  }
+});
+
+/**
  * GET /api/admin/password-status
  * Verifica se a gerência ainda usa a senha padrão (1234) ou se já foi personalizada
  */

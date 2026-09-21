@@ -9,8 +9,8 @@
       "category": "floral-special",
       "price": 15,
       "originalPrice": 19.9,
-      "rating": 5,
-      "reviewCount": 28,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 20,
       "isFloralSpecial": true,
       "badge": "Exclusivo 🌸",
@@ -32,8 +32,8 @@
       "category": "floral-special",
       "price": 15,
       "originalPrice": 19.9,
-      "rating": 5,
-      "reviewCount": 19,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 20,
       "isFloralSpecial": true,
       "badge": "Colorida ✨",
@@ -55,8 +55,8 @@
       "category": "floral-special",
       "price": 15,
       "originalPrice": 19.9,
-      "rating": 5,
-      "reviewCount": 35,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 20,
       "isFloralSpecial": true,
       "badge": "Divertida 🌈",
@@ -78,16 +78,32 @@
       "category": "floral-special",
       "price": 15,
       "originalPrice": 22,
-      "rating": 5,
-      "reviewCount": 42,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 40,
       "badge": "Mais Amada 🐼",
       "hasSizes": true,
       "sizes": [
-        { "id": "size-p", "label": "P", "stock": 10 },
-        { "id": "size-m", "label": "M", "stock": 10 },
-        { "id": "size-g", "label": "G", "stock": 10 },
-        { "id": "size-gg", "label": "GG", "stock": 10 }
+        {
+          "id": "size-p",
+          "label": "P",
+          "stock": 10
+        },
+        {
+          "id": "size-m",
+          "label": "M",
+          "stock": 10
+        },
+        {
+          "id": "size-g",
+          "label": "G",
+          "stock": 10
+        },
+        {
+          "id": "size-gg",
+          "label": "GG",
+          "stock": 10
+        }
       ],
       "images": [
         "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80"
@@ -107,8 +123,8 @@
       "category": "cadernos-planners",
       "price": 10,
       "originalPrice": 12,
-      "rating": 5,
-      "reviewCount": 31,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 10,
       "badge": "Segredo Mágico 🤫",
       "images": [
@@ -130,8 +146,8 @@
       "category": "washi-adesivos",
       "price": 5,
       "originalPrice": 7,
-      "rating": 5,
-      "reviewCount": 26,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 12,
       "badge": "Brilha Muito ✨",
       "images": [
@@ -153,8 +169,8 @@
       "category": "washi-adesivos",
       "price": 5,
       "originalPrice": 7,
-      "rating": 5,
-      "reviewCount": 18,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 20,
       "badge": "Brilha no Escuro 💍",
       "images": [
@@ -176,8 +192,8 @@
       "category": "presentes-kits",
       "price": 15,
       "originalPrice": 22,
-      "rating": 5,
-      "reviewCount": 39,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 1,
       "badge": "Pelúcia Fofa 🦄",
       "images": [
@@ -199,8 +215,8 @@
       "category": "presentes-kits",
       "price": 5,
       "originalPrice": 8,
-      "rating": 5,
-      "reviewCount": 47,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 20,
       "badge": "Anti-estresse 🐾",
       "images": [
@@ -222,8 +238,8 @@
       "category": "presentes-kits",
       "price": 5,
       "originalPrice": 7,
-      "rating": 5,
-      "reviewCount": 24,
+      "rating": 0,
+      "reviewCount": 0,
       "stock": 10,
       "badge": "Diversão Pura 🫧",
       "images": [
@@ -414,5 +430,6 @@
     }
   ],
   "adminPasswordChangedAt": "2026-09-18T11:15:27.172Z",
-  "adminRecoveryKey": "LAVISTORE-RECOVERY-2026"
+  "adminRecoveryKey": "LAVISTORE-RECOVERY-2026",
+  "reviews": []
 }

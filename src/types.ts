@@ -290,6 +290,7 @@ export interface CustomerReview {
   date: string;
   comment: string;
   productName: string;
+  productId?: string;
   verified: boolean;
   avatar: string;
   photo?: string;
