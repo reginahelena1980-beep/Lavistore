@@ -33,7 +33,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
 
   const [selectedBag, setSelectedBag] = useState<BagType>(currentBags[0]);
   const [selectedRibbon, setSelectedRibbon] = useState<RibbonOption>(currentRibbons[0]);
-  const [selectedItems, setSelectedItems] = useState<Product[]>([products[0], products[1]]);
+  const [selectedItems, setSelectedItems] = useState<Product[]>([]);
   const [cardTheme, setCardTheme] = useState(CARD_TEMPLATES[0].theme);
   const [recipient, setRecipient] = useState('');
   const [sender, setSender] = useState('');
@@ -67,9 +67,9 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
     setMessage(tpl.text);
   };
 
-  const rawSubtotal = selectedBag.price + selectedItems.reduce((acc, item) => acc + item.price, 0);
-  const discount = rawSubtotal * 0.10; // 10% discount on custom kit!
-  const finalPrice = rawSubtotal - discount;
+  const rawSubtotal = (selectedBag?.price || 0) + selectedItems.reduce((acc, item) => acc + item.price, 0);
+  const discount = selectedItems.length > 0 ? rawSubtotal * 0.10 : 0; // 10% discount on custom kit combo!
+  const finalPrice = Math.max(0, rawSubtotal - discount);
 
   const handleFinishKit = () => {
     if (selectedItems.length < 2) {
@@ -491,7 +491,10 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                 Itens na Sacolinha ({selectedItems.length}):
               </p>
               {selectedItems.length === 0 ? (
-                <p className="text-xs text-purple-900 italic">Nenhum mimo selecionado ainda.</p>
+                <div className="bg-white/40 border border-white/60 rounded-xl p-3 text-center">
+                  <p className="text-xs text-purple-950 font-medium">Nenhum mimo selecionado ainda.</p>
+                  <p className="text-[11px] text-purple-900/80 mt-0.5">Avance para o Passo 2 para escolher seus mimos favoritos.</p>
+                </div>
               ) : (
                 <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                   {selectedItems.map((item) => (
@@ -501,7 +504,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                         <span className="font-bold text-purple-950">R$ {item.price.toFixed(2)}</span>
                         <button
                           onClick={() => toggleItemSelection(item)}
-                          className="text-purple-900 hover:text-rose-700 p-0.5"
+                          className="text-purple-900 hover:text-rose-700 p-0.5 cursor-pointer"
                           title="Remover"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -523,12 +526,14 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
             <div className="border-t border-amber-600/30 pt-3 space-y-1.5">
               <div className="flex justify-between text-xs text-purple-900 font-medium">
                 <span>Subtotal avulso:</span>
-                <span className="line-through">R$ {rawSubtotal.toFixed(2)}</span>
+                <span className={discount > 0 ? "line-through" : ""}>R$ {rawSubtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-xs text-purple-950 font-bold bg-white/40 px-2 py-1 rounded-lg">
-                <span>Desconto especial combo (10%):</span>
-                <span>- R$ {discount.toFixed(2)}</span>
-              </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-xs text-purple-950 font-bold bg-white/40 px-2 py-1 rounded-lg">
+                  <span>Desconto especial combo (10%):</span>
+                  <span>- R$ {discount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-baseline pt-1">
                 <span className="text-sm font-bold text-purple-950">Total da Sacolinha:</span>
                 <span className="text-2xl font-black text-purple-950 font-mono">
