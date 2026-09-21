@@ -24,7 +24,7 @@ export const TrioFlowersIcon: React.FC<{ size?: number; className?: string }> = 
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={`shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 ${className}`}
-      aria-label="Logo Trio Florzinhas Desenho de Criança Lavistore"
+      aria-label="Logo Trio Florzinhas Desenho de Criança Lavistore Kids"
     >
       <defs>
         {/* Soft drop shadow */}
@@ -235,8 +235,9 @@ export const LavistoreLogo: React.FC<LavistoreLogoProps> = ({
         <div className="p-0.5 rounded-lg bg-[#FEDE76]">
           <TrioFlowersIcon size={24} />
         </div>
-        <span className="font-['Mali'] font-bold text-base tracking-wide">
-          Lavi<span className="text-[#F43F5E]">store</span>
+        <span className="font-['Mali'] font-bold text-base tracking-wide whitespace-nowrap">
+          Lavi<span className="text-[#F43F5E]">store</span>{' '}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F59E0B] via-[#F43F5E] to-[#8B5CF6] font-extrabold">Kids</span>
         </span>
       </div>
     );
@@ -250,11 +251,12 @@ export const LavistoreLogo: React.FC<LavistoreLogoProps> = ({
           <TrioFlowersIcon size={iconSizes[size]} />
         </div>
         <div>
-          <div className="flex items-baseline justify-center gap-1.5">
-            <span className={`font-['Mali'] font-bold tracking-tight ${titleSizes[size]} ${
+          <div className="flex items-baseline justify-center gap-1.5 flex-wrap">
+            <span className={`font-['Mali'] font-bold tracking-tight whitespace-nowrap ${titleSizes[size]} ${
               isDarkTheme ? 'text-white' : 'text-purple-950'
             }`}>
-              Lavi<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#06B6D4]">store</span>
+              Lavi<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#06B6D4]">store</span>{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F59E0B] via-[#E11D48] to-[#8B5CF6] font-extrabold">Kids</span>
             </span>
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#F5B800] animate-bounce shadow-xs border border-white" />
           </div>
@@ -278,11 +280,12 @@ export const LavistoreLogo: React.FC<LavistoreLogoProps> = ({
         <TrioFlowersIcon size={iconSizes[size]} />
       </div>
       <div>
-        <div className="flex items-baseline gap-1.5">
-          <span className={`font-['Mali'] font-bold tracking-tight ${titleSizes[size]} ${
+        <div className="flex items-baseline gap-1.5 flex-wrap">
+          <span className={`font-['Mali'] font-bold tracking-tight whitespace-nowrap ${titleSizes[size]} ${
             isDarkTheme ? 'text-white' : 'text-purple-950'
           }`}>
-            Lavi<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#06B6D4]">store</span>
+            Lavi<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#06B6D4]">store</span>{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F59E0B] via-[#E11D48] to-[#8B5CF6] font-extrabold">Kids</span>
           </span>
           <div className="flex items-center gap-1 -translate-y-1">
             <span className="inline-block w-2 h-2 rounded-full bg-[#F5B800] shadow-2xs border border-white" title="Flor Amarela" />
