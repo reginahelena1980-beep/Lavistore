@@ -24,9 +24,68 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Arquivo de persistência da loja para publicação oficial
 const STORE_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'store_state.json');
+const ADMIN_VAULT_FILE = path.join(process.cwd(), 'src', 'data', 'admin_persistent_vault.json');
 const BI_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'bi_records.json');
 const NEWSLETTER_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'newsletter_leads.json');
 const ORDERS_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'orders.json');
+
+/**
+ * Helper: Mescla profunda de objetos (preservando sub-objetos como aboutUs, contact, etc.)
+ */
+function deepMergeObjects(target: any, source: any): any {
+  if (!source || typeof source !== 'object') return target;
+  if (!target || typeof target !== 'object') return source;
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    const sVal = source[key];
+    const tVal = target[key];
+    if (sVal !== undefined && sVal !== null) {
+      if (typeof sVal === 'object' && !Array.isArray(sVal) && typeof tVal === 'object' && !Array.isArray(tVal)) {
+        result[key] = deepMergeObjects(tVal, sVal);
+      } else {
+        result[key] = sVal;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Helper: Mescla segura de lista de produtos para evitar perdas de campos editados pelo Admin
+ */
+function mergeProductsLists(incoming: any[], existing: any[]): any[] {
+  if (!Array.isArray(incoming) || incoming.length === 0) return existing;
+  if (!Array.isArray(existing) || existing.length === 0) return incoming;
+
+  const result: any[] = [];
+  const handledIds = new Set<string>();
+
+  for (const item of incoming) {
+    if (!item || !item.id) continue;
+    handledIds.add(item.id);
+    const matchOld = existing.find(e => e.id === item.id || (e.name && item.name && e.name.trim().toLowerCase() === item.name.trim().toLowerCase()));
+    if (matchOld) {
+      result.push({
+        ...matchOld,
+        ...item,
+        images: Array.isArray(item.images) && item.images.length > 0 ? item.images : matchOld.images,
+        sizes: Array.isArray(item.sizes) && item.sizes.length > 0 ? item.sizes : matchOld.sizes,
+        colors: Array.isArray(item.colors) && item.colors.length > 0 ? item.colors : matchOld.colors,
+        features: Array.isArray(item.features) && item.features.length > 0 ? item.features : matchOld.features,
+      });
+    } else {
+      result.push(item);
+    }
+  }
+
+  // Preserva produtos antigos que não foram enviados nesta requisição parcial
+  for (const old of existing) {
+    if (!old || !old.id || handledIds.has(old.id)) continue;
+    result.push(old);
+  }
+
+  return result;
+}
 
 /**
  * Helper: Lê os pedidos persistidos do arquivo JSON de forma segura
@@ -75,11 +134,30 @@ app.get('/api/health', (_req, res) => {
  */
 app.get('/api/store/data', (_req, res) => {
   try {
+    let finalData: any = null;
+
     if (fs.existsSync(STORE_DATA_FILE)) {
       const content = fs.readFileSync(STORE_DATA_FILE, 'utf-8');
-      const parsed = JSON.parse(content);
-      return res.json({ success: true, hasCustomData: true, data: parsed });
+      finalData = JSON.parse(content);
+    } else if (fs.existsSync(ADMIN_VAULT_FILE)) {
+      const content = fs.readFileSync(ADMIN_VAULT_FILE, 'utf-8');
+      finalData = JSON.parse(content);
     }
+
+    if (finalData) {
+      // Anexa os registros de BI se existirem em BI_DATA_FILE para garantir consistência
+      if (fs.existsSync(BI_DATA_FILE)) {
+        try {
+          const biContent = JSON.parse(fs.readFileSync(BI_DATA_FILE, 'utf-8'));
+          if (Array.isArray(biContent)) {
+            finalData.biRecords = biContent;
+          }
+        } catch {}
+      }
+
+      return res.json({ success: true, hasCustomData: true, data: finalData });
+    }
+
     return res.json({ success: true, hasCustomData: false, data: null });
   } catch (error: any) {
     console.error('[Store Data] Erro ao ler store_state.json:', error);
@@ -88,13 +166,70 @@ app.get('/api/store/data', (_req, res) => {
 });
 
 /**
+ * GET /api/admin/vault
+ * Retorna o cofre protegido e imutável de todas as personalizações do Administrador
+ */
+app.get('/api/admin/vault', (_req, res) => {
+  try {
+    if (fs.existsSync(ADMIN_VAULT_FILE)) {
+      const content = fs.readFileSync(ADMIN_VAULT_FILE, 'utf-8');
+      return res.json({ success: true, vault: JSON.parse(content) });
+    }
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      const content = fs.readFileSync(STORE_DATA_FILE, 'utf-8');
+      return res.json({ success: true, vault: JSON.parse(content) });
+    }
+    return res.json({ success: true, vault: null });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Falha ao recuperar cofre do admin', details: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/vault
+ * Grava atomicamente o cofre protegido do Administrador
+ */
+app.post('/api/admin/vault', (req, res) => {
+  try {
+    const vault = req.body;
+    if (!vault || typeof vault !== 'object') {
+      return res.status(400).json({ error: 'Cofre inválido.' });
+    }
+
+    const dir = path.dirname(ADMIN_VAULT_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const vaultWithMeta = {
+      ...vault,
+      lastAdminSavedAt: new Date().toISOString(),
+      isLockedByAdmin: true
+    };
+
+    fs.writeFileSync(ADMIN_VAULT_FILE, JSON.stringify(vaultWithMeta, null, 2), 'utf-8');
+    fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(vaultWithMeta, null, 2), 'utf-8');
+
+    if (Array.isArray(vault.biRecords)) {
+      fs.writeFileSync(BI_DATA_FILE, JSON.stringify(vault.biRecords, null, 2), 'utf-8');
+    }
+
+    return res.json({ success: true, message: 'Cofre do Administrador travado e protegido com sucesso!', savedAt: vaultWithMeta.lastAdminSavedAt });
+  } catch (err: any) {
+    console.error('[Admin Vault] Erro ao gravar cofre:', err);
+    return res.status(500).json({ error: 'Falha ao gravar cofre do admin', details: err.message });
+  }
+});
+
+/**
  * POST /api/store/sync
  * Grava permanentemente todas as fotos, produtos, categorias e textos alterados
  * para que fiquem disponíveis para qualquer visitante no site publicado.
+ * NUNCA descarta campos editados pelo Administrador.
  */
 app.post('/api/store/sync', (req, res) => {
   try {
-    const { products, heroConfig, homePageConfig, categories, reviews, coupons, filterBarConfig, bagTypes, ribbonOptions } = req.body;
+    const { products, heroConfig, homePageConfig, categories, reviews, coupons, filterBarConfig, bagTypes, ribbonOptions, biRecords } = req.body;
 
     // Garante que o diretório existe
     const dir = path.dirname(STORE_DATA_FILE);
@@ -107,30 +242,53 @@ app.post('/api/store/sync', (req, res) => {
       try {
         existingContent = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
       } catch (e) {}
+    } else if (fs.existsSync(ADMIN_VAULT_FILE)) {
+      try {
+        existingContent = JSON.parse(fs.readFileSync(ADMIN_VAULT_FILE, 'utf-8'));
+      } catch (e) {}
     }
+
+    // Mesclagem segura e profunda de produtos
+    const mergedProducts = Array.isArray(products)
+      ? mergeProductsLists(products, existingContent.products || [])
+      : (existingContent.products || []);
+
+    // Mesclagem segura e profunda de configurações visuais e de texto
+    const mergedHeroConfig = heroConfig ? deepMergeObjects(existingContent.heroConfig || {}, heroConfig) : existingContent.heroConfig;
+    const mergedHomePageConfig = homePageConfig ? deepMergeObjects(existingContent.homePageConfig || {}, homePageConfig) : existingContent.homePageConfig;
+    const mergedFilterBarConfig = filterBarConfig ? deepMergeObjects(existingContent.filterBarConfig || {}, filterBarConfig) : existingContent.filterBarConfig;
 
     const payloadToSave = {
       updatedAt: new Date().toISOString(),
+      isLockedByAdmin: true,
       adminPassword: existingContent.adminPassword || '1234',
       adminPasswordChanged: existingContent.adminPasswordChanged || false,
       adminPasswordChangedAt: existingContent.adminPasswordChangedAt || undefined,
-      products: Array.isArray(products) ? products : existingContent.products,
-      heroConfig: heroConfig ? { ...(existingContent.heroConfig || {}), ...heroConfig } : existingContent.heroConfig,
-      homePageConfig: homePageConfig ? { ...(existingContent.homePageConfig || {}), ...homePageConfig } : existingContent.homePageConfig,
-      categories: Array.isArray(categories) ? categories : existingContent.categories,
+      products: mergedProducts,
+      heroConfig: mergedHeroConfig,
+      homePageConfig: mergedHomePageConfig,
+      categories: Array.isArray(categories) && categories.length > 0 ? categories : existingContent.categories,
       reviews: Array.isArray(reviews) ? reviews : existingContent.reviews,
-      coupons: Array.isArray(coupons) ? coupons : existingContent.coupons,
-      bagTypes: Array.isArray(bagTypes) ? bagTypes : existingContent.bagTypes,
-      ribbonOptions: Array.isArray(ribbonOptions) ? ribbonOptions : existingContent.ribbonOptions,
-      filterBarConfig: filterBarConfig ? { ...(existingContent.filterBarConfig || {}), ...filterBarConfig } : existingContent.filterBarConfig,
+      coupons: Array.isArray(coupons) && coupons.length > 0 ? coupons : existingContent.coupons,
+      bagTypes: Array.isArray(bagTypes) && bagTypes.length > 0 ? bagTypes : existingContent.bagTypes,
+      ribbonOptions: Array.isArray(ribbonOptions) && ribbonOptions.length > 0 ? ribbonOptions : existingContent.ribbonOptions,
+      filterBarConfig: mergedFilterBarConfig,
     };
 
+    // Grava no arquivo principal e no cofre imutável de backup
     fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(payloadToSave, null, 2), 'utf-8');
+    fs.writeFileSync(ADMIN_VAULT_FILE, JSON.stringify(payloadToSave, null, 2), 'utf-8');
+
+    // Se foram enviados registros de BI, sincroniza também em BI_DATA_FILE
+    if (Array.isArray(biRecords) && biRecords.length > 0) {
+      fs.writeFileSync(BI_DATA_FILE, JSON.stringify(biRecords, null, 2), 'utf-8');
+    }
+
     console.log(`[Store Data] Loja sincronizada com sucesso em ${STORE_DATA_FILE} (${payloadToSave.updatedAt})`);
 
     return res.json({
       success: true,
-      message: 'Todas as fotos, frases e produtos foram gravados com sucesso para publicação!',
+      message: 'Todas as fotos, frases e produtos foram gravados e travados com sucesso no cofre do Administrador!',
       updatedAt: payloadToSave.updatedAt
     });
   } catch (error: any) {

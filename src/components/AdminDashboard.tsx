@@ -47,7 +47,8 @@ import {
   Users,
   Cloud,
   CloudUpload,
-  CheckCheck
+  CheckCheck,
+  ShieldCheck
 } from 'lucide-react';
 import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, Coupon, BagType, RibbonOption, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES, BAG_TYPES, RIBBON_OPTIONS } from '../data/categories';
@@ -203,8 +204,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleExportFullStore = () => {
     const fullBackup = {
       exportedAt: new Date().toISOString(),
+      isLockedByAdmin: true,
       storeName: 'Lavistore Presentes',
       products,
+      biRecords,
       heroConfig,
       homePageConfig,
       categories,
@@ -469,17 +472,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const imported = JSON.parse(event.target?.result as string);
         if (Array.isArray(imported) && imported.length > 0 && imported[0].name) {
-          if (confirm(`Deseja importar ${imported.length} produtos? Isso atualizará o catálogo atual.`)) {
+          if (confirm(`Deseja importar ${imported.length} produtos? Suas edições anteriores serão preservadas e os novos produtos serão mesclados.`)) {
             onImportProducts(imported);
-            setCopiedNotification(`${imported.length} produtos importados com sucesso! 🎉`);
+            if (onPublishToServer) {
+              await onPublishToServer();
+            }
+            setCopiedNotification(`${imported.length} produtos importados e travados no servidor com sucesso! 🎉`);
             setTimeout(() => setCopiedNotification(null), 3000);
           }
         } else if (imported && typeof imported === 'object' && Array.isArray(imported.products)) {
-          if (confirm(`Deseja restaurar este backup da loja? Isso atualizará produtos, sacolinhas, fitas e configurações.`)) {
+          if (confirm(`Deseja restaurar este backup da loja? Isso atualizará produtos, fotos, textos da home, sacolinhas, fitas, cupons, sobre nós e configurações sem risco de perda.`)) {
             onImportProducts(imported.products);
             if (imported.bagTypes && Array.isArray(imported.bagTypes) && onUpdateBagTypes) {
               onUpdateBagTypes(imported.bagTypes);
@@ -496,7 +502,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             if (imported.coupons && Array.isArray(imported.coupons) && onUpdateCoupons) {
               onUpdateCoupons(imported.coupons);
             }
-            setCopiedNotification(`Backup completo da loja restaurado com sucesso! 🎉`);
+            if (imported.homePageConfig && onUpdateHomePageConfig) {
+              onUpdateHomePageConfig(imported.homePageConfig);
+            }
+            if (imported.heroConfig && onUpdateHeroConfig) {
+              onUpdateHeroConfig(imported.heroConfig);
+            }
+            if (imported.filterBarConfig && onUpdateFilterBarConfig) {
+              onUpdateFilterBarConfig(imported.filterBarConfig);
+            }
+            if (Array.isArray(imported.biRecords)) {
+              setBiRecords(imported.biRecords);
+              try {
+                localStorage.setItem('lavistore_bi_records', JSON.stringify(imported.biRecords));
+                fetch('/api/bi/records', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ records: imported.biRecords })
+                }).catch(() => {});
+              } catch {}
+            }
+            if (onPublishToServer) {
+              await onPublishToServer();
+            }
+            setCopiedNotification(`Backup completo da loja restaurado e blindado no servidor com sucesso! 🛡️✨`);
             setTimeout(() => setCopiedNotification(null), 3500);
           }
         } else {
@@ -507,6 +536,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   const sectionDetails: Record<string, { title: string; subtitle: string; icon: React.ReactNode }> = {
@@ -773,6 +803,76 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* BARRA DE PROTEÇÃO & TRAVAMENTO DE DADOS DO ADMINISTRADOR (BLINDAGEM CONTRA ATUALIZAÇÕES) */}
+      <div className="bg-gradient-to-r from-purple-950 via-purple-900 to-indigo-950 text-white rounded-2xl p-3 sm:p-4 shadow-md border border-purple-800/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-5 h-5 text-amber-300" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-xs sm:text-sm text-amber-200">
+                Proteção do Administrador Ativa
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                <Lock className="w-2.5 h-2.5" /> DADOS TRAVADOS & BLINDADOS
+              </span>
+            </div>
+            <p className="text-[11px] text-purple-200/90 leading-tight mt-0.5">
+              Nenhuma republicação ou atualização substitui suas fotos, descrições, preços e configurações.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          {onPublishToServer && (
+            <button
+              id="btn-admin-shield-sync"
+              type="button"
+              onClick={async () => {
+                if (onPublishToServer) {
+                  await onPublishToServer();
+                  setCopiedNotification('🛡️ Todas as edições foram salvas e blindadas com sucesso no servidor oficial!');
+                  setTimeout(() => setCopiedNotification(null), 3500);
+                }
+              }}
+              disabled={isPublishing}
+              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+              title="Salva todas as fotos, mimos e textos no servidor com blindagem anti-sobrescrita"
+            >
+              <Lock className="w-3.5 h-3.5 text-emerald-100" />
+              <span>{isPublishing ? 'Salvando...' : 'Salvar & Blindar Dados'}</span>
+            </button>
+          )}
+
+          <button
+            id="btn-admin-export-backup-shield"
+            type="button"
+            onClick={handleExportFullStore}
+            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs border border-white/20 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Baixa arquivo JSON com todos os produtos, textos, fotos e planilhas"
+          >
+            <Download className="w-3.5 h-3.5 text-amber-300" />
+            <span>Baixar Backup Completo</span>
+          </button>
+
+          <label
+            id="btn-admin-restore-backup-shield"
+            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs border border-white/20 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Restaura cópia completa salva pelo Administrador"
+          >
+            <Upload className="w-3.5 h-3.5 text-purple-200" />
+            <span>Restaurar Backup</span>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportBackup}
+              className="hidden"
+            />
+          </label>
+        </div>
+      </div>
 
       {/* Notification toast */}
       {copiedNotification && (

@@ -36,6 +36,7 @@ import { DEFAULT_FILTER_BAR_CONFIG } from './data/filterConfig';
 import { safeSetItem, serializeCart, deserializeCart, serializeFavorites, deserializeFavorites } from './utils/storage';
 import { aggregateProductsForVitrine, findExactBiRecordForOrderItem, groupBiRecordsByBaseProduct, createParentProductFromBiRecords } from './utils/productGroupingEngine';
 import { DEFAULT_BI_SAMPLE_RECORDS } from './utils/biFinanceEngine';
+import { mergeProductsSafely, mergeHomePageConfigSafely, saveLocalAdminVault, getLocalAdminVault } from './utils/adminDataProtection';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('catalog');
@@ -444,10 +445,16 @@ export default function App() {
 
   const [isPublishingToServer, setIsPublishingToServer] = useState(false);
 
-  // Sincronização persistente com o servidor para publicação oficial
+  // Sincronização persistente com o servidor para publicação oficial (Proteção blindada do Administrador)
   const handlePublishToServer = async (customPayload?: any, showFeedback = true): Promise<boolean> => {
     setIsPublishingToServer(true);
     try {
+      let biRecordsList: any[] = [];
+      try {
+        const localBi = localStorage.getItem('lavistore_bi_records');
+        if (localBi) biRecordsList = JSON.parse(localBi);
+      } catch {}
+
       const payload = {
         products: customPayload?.products ?? products,
         heroConfig: customPayload?.heroConfig ?? heroConfig,
@@ -458,8 +465,12 @@ export default function App() {
         bagTypes: customPayload?.bagTypes ?? bagTypes,
         ribbonOptions: customPayload?.ribbonOptions ?? ribbonOptions,
         filterBarConfig: customPayload?.filterBarConfig ?? filterBarConfig,
+        biRecords: customPayload?.biRecords ?? (biRecordsList.length > 0 ? biRecordsList : undefined),
         ...customPayload
       };
+
+      // Grava no cofre atômico local do administrador para imunidade total
+      saveLocalAdminVault(payload);
 
       const res = await fetch('/api/store/sync', {
         method: 'POST',
@@ -469,7 +480,7 @@ export default function App() {
 
       if (res.ok) {
         if (showFeedback) {
-          showToast('🌸 Loja sincronizada no servidor com sucesso! Disponível em qualquer computador.');
+          showToast('🛡️ Todas as edições foram salvas e blindadas contra alterações no servidor! ✨');
         }
         setIsPublishingToServer(false);
         return true;
@@ -503,59 +514,30 @@ export default function App() {
             const d = json.data;
             const serverProducts: Product[] = Array.isArray(d.products) ? d.products : [];
 
-            // 2. Mesclagem inteligente e não-destrutiva:
-            // O navegador do usuário NUNCA perde produtos novos, fotos reais ou customizações!
-            let finalProducts: Product[] = [...serverProducts];
-
+            // 2. Resgata a lista atual do cofre local / localStorage
+            let localList: Product[] = [];
             try {
-              const localProdsRaw = localStorage.getItem('lavistore_products');
-              if (localProdsRaw) {
-                const localList: Product[] = JSON.parse(localProdsRaw);
-                if (Array.isArray(localList) && localList.length > 0) {
-                  const serverIds = new Set(serverProducts.map(p => p.id));
-                  const serverNames = new Set(serverProducts.map(p => p.name.trim().toLowerCase()));
-
-                  // A. Produtos criados localmente pelo usuário que ainda não constavam no servidor
-                  const userAddedProducts = localList.filter(
-                    lp => !serverIds.has(lp.id) && !serverNames.has(lp.name.trim().toLowerCase())
-                  );
-
-                  // B. Para produtos já existentes: preserva fotos carregadas pelo usuário (base64 ou adicionadas), variações e dados editados
-                  const mergedExisting = serverProducts.map(sp => {
-                    const localMatch = localList.find(
-                      lp => lp.id === sp.id || lp.name.trim().toLowerCase() === sp.name.trim().toLowerCase()
-                    );
-                    if (!localMatch) return sp;
-
-                    const hasUserCustomImages = localMatch.images?.some(
-                      img => img.startsWith('data:') || !sp.images?.includes(img)
-                    );
-
-                    return {
-                      ...sp,
-                      images: (hasUserCustomImages && localMatch.images && localMatch.images.length > 0)
-                        ? localMatch.images
-                        : sp.images,
-                      colors: localMatch.colors && localMatch.colors.length > 0 ? localMatch.colors : sp.colors,
-                      sizes: localMatch.sizes && localMatch.sizes.length > 0 ? localMatch.sizes : sp.sizes,
-                      stock: localMatch.stock !== undefined ? localMatch.stock : sp.stock,
-                      price: localMatch.price || sp.price
-                    };
-                  });
-
-                  finalProducts = [...mergedExisting, ...userAddedProducts];
-
-                  // C. Se o usuário tinha produtos adicionais ou fotos próprias, sincroniza com o servidor
-                  if (userAddedProducts.length > 0) {
-                    handlePublishToServer({ products: finalProducts }, false);
-                  }
+              const vault = getLocalAdminVault();
+              if (vault?.products && Array.isArray(vault.products) && vault.products.length > 0) {
+                localList = vault.products;
+              } else {
+                const localProdsRaw = localStorage.getItem('lavistore_products') || localStorage.getItem('lavistore_products_safety_backup');
+                if (localProdsRaw) {
+                  const parsed = JSON.parse(localProdsRaw);
+                  if (Array.isArray(parsed)) localList = parsed;
                 }
               }
-            } catch (errLocal) {
-              console.warn('[Sync] Aviso ao mesclar dados locais:', errLocal);
-            }
+            } catch {}
 
-            // D. Proteção adicional: se houver fotos cadastradas no BI (vitrineImageUrl) que não estão no produto, anexa
+            // 3. Mesclagem TOTALMENTE SEGURA:
+            // Os dados editados pelo Administrador (localList) têm prioridade absoluta!
+            // Nenhum campo (nome, preço, descrição, foto, categoria, estoque, tags, tamanhos, cores) é sobrescrito!
+            let finalProducts = mergeProductsSafely(
+              localList.length > 0 ? localList : serverProducts,
+              serverProducts
+            );
+
+            // 4. Proteção adicional: se houver fotos cadastradas no BI (vitrineImageUrl) que não estão no produto, anexa
             try {
               const biRaw = localStorage.getItem('lavistore_bi_records');
               if (biRaw) {
@@ -580,40 +562,69 @@ export default function App() {
             if (finalProducts.length > 0) {
               setProducts(finalProducts);
               try { localStorage.setItem('lavistore_products', JSON.stringify(finalProducts)); } catch {}
+              saveLocalAdminVault({ products: finalProducts });
             }
+
+            // Se o usuário tinha produtos locais ou customizações, salva de volta no servidor para blindar a loja oficial
+            if (localList.length > 0) {
+              handlePublishToServer({ products: finalProducts }, false);
+            }
+
+            // 5. Configurações visuais e de texto: Mesclagem profunda
             if (d.heroConfig) {
-              setHeroConfig(prev => ({ ...prev, ...d.heroConfig }));
-              try { localStorage.setItem('lavistore_hero_config', JSON.stringify(d.heroConfig)); } catch {}
+              setHeroConfig(prev => {
+                const merged = { ...prev, ...d.heroConfig };
+                try { localStorage.setItem('lavistore_hero_config', JSON.stringify(merged)); } catch {}
+                saveLocalAdminVault({ heroConfig: merged });
+                return merged;
+              });
             }
             if (d.homePageConfig) {
-              const mergedHome = { ...DEFAULT_HOME_PAGE_CONFIG, ...d.homePageConfig };
-              setHomePageConfig(mergedHome);
-              try { localStorage.setItem('lavistore_home_page_config', JSON.stringify(mergedHome)); } catch {}
+              setHomePageConfig(prev => {
+                const mergedHome = mergeHomePageConfigSafely(prev, d.homePageConfig);
+                try { localStorage.setItem('lavistore_home_page_config', JSON.stringify(mergedHome)); } catch {}
+                saveLocalAdminVault({ homePageConfig: mergedHome });
+                return mergedHome;
+              });
             }
             if (Array.isArray(d.categories) && d.categories.length > 0) {
-              setCategories(d.categories);
-              try { localStorage.setItem('lavistore_categories', JSON.stringify(d.categories)); } catch {}
+              setCategories(prev => {
+                const safeCats = (prev && prev.length > 0 && prev.some(c => c.name !== 'Todos os Mimos')) ? prev : d.categories;
+                try { localStorage.setItem('lavistore_categories', JSON.stringify(safeCats)); } catch {}
+                saveLocalAdminVault({ categories: safeCats });
+                return safeCats;
+              });
             }
             if (Array.isArray(d.coupons) && d.coupons.length > 0) {
-              setCoupons(d.coupons);
-              try { localStorage.setItem('lavistore_coupons', JSON.stringify(d.coupons)); } catch {}
+              setCoupons(prev => {
+                const safeCoupons = (prev && prev.length > 0) ? prev : d.coupons;
+                try { localStorage.setItem('lavistore_coupons', JSON.stringify(safeCoupons)); } catch {}
+                saveLocalAdminVault({ coupons: safeCoupons });
+                return safeCoupons;
+              });
             }
             if (Array.isArray(d.bagTypes) && d.bagTypes.length > 0) {
               setBagTypes(d.bagTypes);
               try { localStorage.setItem('lavistore_bag_types', JSON.stringify(d.bagTypes)); } catch {}
+              saveLocalAdminVault({ bagTypes: d.bagTypes });
             }
             if (Array.isArray(d.ribbonOptions) && d.ribbonOptions.length > 0) {
               setRibbonOptions(d.ribbonOptions);
               try { localStorage.setItem('lavistore_ribbon_options', JSON.stringify(d.ribbonOptions)); } catch {}
+              saveLocalAdminVault({ ribbonOptions: d.ribbonOptions });
             }
             if (Array.isArray(d.reviews) && d.reviews.length > 0) {
               setReviews(d.reviews);
               try { localStorage.setItem('lavistore_reviews', JSON.stringify(d.reviews)); } catch {}
+              saveLocalAdminVault({ reviews: d.reviews });
             }
             if (d.filterBarConfig) {
-              const mergedFilter = { ...DEFAULT_FILTER_BAR_CONFIG, ...d.filterBarConfig };
-              setFilterBarConfig(mergedFilter);
-              try { localStorage.setItem('lavistore_filter_bar_config', JSON.stringify(mergedFilter)); } catch {}
+              setFilterBarConfig(prev => {
+                const mergedFilter = { ...prev, ...d.filterBarConfig };
+                try { localStorage.setItem('lavistore_filter_bar_config', JSON.stringify(mergedFilter)); } catch {}
+                saveLocalAdminVault({ filterBarConfig: mergedFilter });
+                return mergedFilter;
+              });
             }
             return;
           }
@@ -696,10 +707,24 @@ export default function App() {
     }
   };
 
-  // Restauração de cópia de segurança anterior caso necessário
+  // Restauração de cópia de segurança anterior caso necessário (Restaura do Cofre do Administrador)
   const handleRestoreSafetyBackup = async () => {
     try {
-      const backupRaw = localStorage.getItem('lavistore_products_safety_backup');
+      const vault = getLocalAdminVault();
+      if (vault?.products && Array.isArray(vault.products) && vault.products.length > 0) {
+        setProducts(vault.products);
+        if (vault.homePageConfig) setHomePageConfig(vault.homePageConfig);
+        if (vault.heroConfig) setHeroConfig(vault.heroConfig);
+        if (vault.categories) setCategories(vault.categories);
+        if (vault.coupons) setCoupons(vault.coupons);
+        if (vault.bagTypes) setBagTypes(vault.bagTypes);
+        if (vault.ribbonOptions) setRibbonOptions(vault.ribbonOptions);
+        if (vault.filterBarConfig) setFilterBarConfig(vault.filterBarConfig);
+        await handlePublishToServer(vault, false);
+        showToast(`🌸 Cofre protegido do Administrador restaurado com sucesso! (${vault.products.length} mimos) ✨`);
+        return;
+      }
+      const backupRaw = localStorage.getItem('lavistore_products_safety_backup') || localStorage.getItem('lavistore_products');
       if (!backupRaw) {
         showToast('Nenhuma cópia de segurança anterior encontrada.');
         return;
@@ -711,7 +736,7 @@ export default function App() {
           localStorage.setItem('lavistore_products', JSON.stringify(parsed));
         } catch {}
         await handlePublishToServer({ products: parsed }, false);
-        showToast(`🌸 Cópia de segurança com ${parsed.length} produtos restaurada com sucesso! ✨`);
+        showToast(`🌸 Cópia de segurança com ${parsed.length} produtos restaurada e blindada com sucesso! ✨`);
       }
     } catch (err) {
       showToast('⚠️ Falha ao ler cópia de segurança.');
