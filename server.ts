@@ -22,12 +22,56 @@ const PORT = 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Arquivo de persistência da loja para publicação oficial
+// Diretório dedicado de persistência (fora do escopo de compilação do Vite e ignorado pelo Git)
+const PERSISTENT_DATA_DIR = path.join(process.cwd(), 'persistent_data');
+const PERSISTENT_ADMIN_SETTINGS_FILE = path.join(PERSISTENT_DATA_DIR, 'admin_persistent_settings.json');
+const PERSISTENT_STORE_FILE = path.join(PERSISTENT_DATA_DIR, 'store_state.json');
+const PERSISTENT_ORDERS_FILE = path.join(PERSISTENT_DATA_DIR, 'orders.json');
+const PERSISTENT_BI_FILE = path.join(PERSISTENT_DATA_DIR, 'bi_records.json');
+const PERSISTENT_NEWSLETTER_FILE = path.join(PERSISTENT_DATA_DIR, 'newsletter_leads.json');
+
+// Arquivos de espelho e seed dentro de src/data (para inicialização e compatibilidade de build)
 const STORE_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'store_state.json');
 const ADMIN_VAULT_FILE = path.join(process.cwd(), 'src', 'data', 'admin_persistent_vault.json');
 const BI_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'bi_records.json');
 const NEWSLETTER_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'newsletter_leads.json');
 const ORDERS_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'orders.json');
+
+/**
+ * Helper: Gravação atômica segura de arquivos JSON
+ */
+function safeWriteJsonFile(filePath: string, data: any) {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const tempFile = `${filePath}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tempFile, filePath);
+  } catch (err: any) {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (e: any) {
+      console.error(`[Storage] Erro ao gravar ${filePath}:`, e.message);
+    }
+  }
+}
+
+/**
+ * Helper: Leitura segura de arquivos JSON
+ */
+function safeReadJsonFile(filePath: string): any {
+  try {
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch (err: any) {
+    console.error(`[Storage] Erro ao ler ${filePath}:`, err.message);
+  }
+  return null;
+}
 
 /**
  * Helper: Mescla profunda de objetos (preservando sub-objetos como aboutUs, contact, etc.)
@@ -49,6 +93,109 @@ function deepMergeObjects(target: any, source: any): any {
   }
   return result;
 }
+
+/**
+ * Inicialização e blindagem do armazenamento persistente.
+ * Executa uma mesclagem não-destrutiva: configurações já salvas pelo administrador
+ * NUNCA são sobrescritas pelos arquivos padrão de deploy ou seed.
+ */
+function initializePersistentStorage() {
+  try {
+    if (!fs.existsSync(PERSISTENT_DATA_DIR)) {
+      fs.mkdirSync(PERSISTENT_DATA_DIR, { recursive: true });
+    }
+
+    // Carrega seed inicial de src/data/store_state.json
+    const seedData = safeReadJsonFile(STORE_DATA_FILE) || {};
+
+    // 1. Inicializa ou mescla admin_persistent_settings.json
+    let existingAdminSettings = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE);
+    if (!existingAdminSettings) {
+      const vaultData = safeReadJsonFile(ADMIN_VAULT_FILE);
+      const source = (vaultData && vaultData.isLockedByAdmin) ? vaultData : seedData;
+      existingAdminSettings = {
+        lastAdminSavedAt: source.lastAdminSavedAt || source.updatedAt || new Date().toISOString(),
+        isLockedByAdmin: true,
+        homePageConfig: source.homePageConfig || {},
+        heroConfig: source.heroConfig || {},
+        coupons: Array.isArray(source.coupons) ? source.coupons : [],
+        bagTypes: Array.isArray(source.bagTypes) ? source.bagTypes : [],
+        ribbonOptions: Array.isArray(source.ribbonOptions) ? source.ribbonOptions : [],
+        categories: Array.isArray(source.categories) ? source.categories : [],
+        filterBarConfig: source.filterBarConfig || {},
+        adminPassword: source.adminPassword || '1234',
+        adminPasswordChanged: source.adminPasswordChanged || false,
+        adminPasswordChangedAt: source.adminPasswordChangedAt || undefined
+      };
+      safeWriteJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE, existingAdminSettings);
+      console.log('[Storage] Configurações administrativas inicializadas em persistent_data/admin_persistent_settings.json');
+    } else {
+      // Se já existe, mescla de forma NÃO-DESTRUTIVA: o admin tem prioridade absoluta.
+      const mergedHome = deepMergeObjects(seedData.homePageConfig || {}, existingAdminSettings.homePageConfig || {});
+      const mergedHero = deepMergeObjects(seedData.heroConfig || {}, existingAdminSettings.heroConfig || {});
+      const mergedFilter = deepMergeObjects(seedData.filterBarConfig || {}, existingAdminSettings.filterBarConfig || {});
+
+      existingAdminSettings = {
+        ...existingAdminSettings,
+        isLockedByAdmin: true,
+        homePageConfig: mergedHome,
+        heroConfig: mergedHero,
+        filterBarConfig: mergedFilter,
+        coupons: (Array.isArray(existingAdminSettings.coupons) && existingAdminSettings.coupons.length > 0)
+          ? existingAdminSettings.coupons
+          : (seedData.coupons || []),
+        bagTypes: (Array.isArray(existingAdminSettings.bagTypes) && existingAdminSettings.bagTypes.length > 0)
+          ? existingAdminSettings.bagTypes
+          : (seedData.bagTypes || []),
+        ribbonOptions: (Array.isArray(existingAdminSettings.ribbonOptions) && existingAdminSettings.ribbonOptions.length > 0)
+          ? existingAdminSettings.ribbonOptions
+          : (seedData.ribbonOptions || []),
+        categories: (Array.isArray(existingAdminSettings.categories) && existingAdminSettings.categories.length > 0)
+          ? existingAdminSettings.categories
+          : (seedData.categories || [])
+      };
+      safeWriteJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE, existingAdminSettings);
+      console.log('[Storage] Configurações administrativas blindadas e mescladas com sucesso.');
+    }
+
+    // 2. Inicializa ou mescla persistent_data/store_state.json
+    let persistentStore = safeReadJsonFile(PERSISTENT_STORE_FILE);
+    if (!persistentStore) {
+      persistentStore = {
+        ...seedData,
+        ...existingAdminSettings,
+        updatedAt: seedData.updatedAt || new Date().toISOString(),
+        isLockedByAdmin: true
+      };
+      safeWriteJsonFile(PERSISTENT_STORE_FILE, persistentStore);
+    } else {
+      persistentStore = {
+        ...persistentStore,
+        ...existingAdminSettings,
+        products: (Array.isArray(persistentStore.products) && persistentStore.products.length > 0)
+          ? persistentStore.products
+          : (seedData.products || [])
+      };
+      safeWriteJsonFile(PERSISTENT_STORE_FILE, persistentStore);
+    }
+
+    // 3. Inicializa arquivos de BI, pedidos e leads se ainda não existirem no persistent_data
+    if (!fs.existsSync(PERSISTENT_BI_FILE) && fs.existsSync(BI_DATA_FILE)) {
+      safeWriteJsonFile(PERSISTENT_BI_FILE, safeReadJsonFile(BI_DATA_FILE) || []);
+    }
+    if (!fs.existsSync(PERSISTENT_ORDERS_FILE) && fs.existsSync(ORDERS_DATA_FILE)) {
+      safeWriteJsonFile(PERSISTENT_ORDERS_FILE, safeReadJsonFile(ORDERS_DATA_FILE) || []);
+    }
+    if (!fs.existsSync(PERSISTENT_NEWSLETTER_FILE) && fs.existsSync(NEWSLETTER_DATA_FILE)) {
+      safeWriteJsonFile(PERSISTENT_NEWSLETTER_FILE, safeReadJsonFile(NEWSLETTER_DATA_FILE) || []);
+    }
+  } catch (err: any) {
+    console.error('[Storage] Erro na inicialização do armazenamento persistente:', err.message);
+  }
+}
+
+// Inicializa o cofre persistente
+initializePersistentStorage();
 
 /**
  * Helper: Mescla segura de lista de produtos para evitar perdas de campos editados pelo Admin
@@ -92,13 +239,10 @@ function mergeProductsLists(incoming: any[], existing: any[]): any[] {
  */
 function readStoredOrders(): any[] {
   try {
-    if (fs.existsSync(ORDERS_DATA_FILE)) {
-      const content = fs.readFileSync(ORDERS_DATA_FILE, 'utf-8');
-      const parsed = JSON.parse(content);
-      return Array.isArray(parsed) ? parsed : [];
-    }
+    const orders = safeReadJsonFile(PERSISTENT_ORDERS_FILE) || safeReadJsonFile(ORDERS_DATA_FILE);
+    return Array.isArray(orders) ? orders : [];
   } catch (err: any) {
-    console.error('[Orders] Erro ao ler orders.json:', err.message);
+    console.error('[Orders] Erro ao ler orders:', err.message);
   }
   return [];
 }
@@ -108,13 +252,10 @@ function readStoredOrders(): any[] {
  */
 function saveStoredOrders(orders: any[]) {
   try {
-    const dir = path.dirname(ORDERS_DATA_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(ORDERS_DATA_FILE, JSON.stringify(orders, null, 2), 'utf-8');
+    safeWriteJsonFile(PERSISTENT_ORDERS_FILE, orders);
+    safeWriteJsonFile(ORDERS_DATA_FILE, orders);
   } catch (err: any) {
-    console.error('[Orders] Erro ao gravar orders.json:', err.message);
+    console.error('[Orders] Erro ao gravar orders:', err.message);
   }
 }
 
@@ -129,30 +270,135 @@ app.get('/api/health', (_req, res) => {
 });
 
 /**
+ * GET /api/admin/settings
+ * Retorna exclusivamente as configurações administrativas blindadas
+ */
+app.get('/api/admin/settings', (_req, res) => {
+  try {
+    const adminSettings = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE)
+      || safeReadJsonFile(ADMIN_VAULT_FILE)
+      || safeReadJsonFile(PERSISTENT_STORE_FILE)
+      || safeReadJsonFile(STORE_DATA_FILE);
+
+    if (adminSettings) {
+      return res.json({
+        success: true,
+        isLockedByAdmin: true,
+        settings: adminSettings,
+        savedAt: adminSettings.lastAdminSavedAt || adminSettings.updatedAt
+      });
+    }
+    return res.json({ success: true, isLockedByAdmin: false, settings: null });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Falha ao recuperar configurações do administrador', details: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/settings
+ * Salva as configurações administrativas blindando contra qualquer deploy futuro
+ */
+app.post('/api/admin/settings', (req, res) => {
+  try {
+    const incoming = req.body;
+    if (!incoming || typeof incoming !== 'object') {
+      return res.status(400).json({ error: 'Configurações inválidas.' });
+    }
+
+    const currentSettings = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE) || {};
+    const now = new Date().toISOString();
+
+    const mergedHome = incoming.homePageConfig
+      ? deepMergeObjects(currentSettings.homePageConfig || {}, incoming.homePageConfig)
+      : currentSettings.homePageConfig;
+
+    const mergedHero = incoming.heroConfig
+      ? deepMergeObjects(currentSettings.heroConfig || {}, incoming.heroConfig)
+      : currentSettings.heroConfig;
+
+    const mergedFilter = incoming.filterBarConfig
+      ? deepMergeObjects(currentSettings.filterBarConfig || {}, incoming.filterBarConfig)
+      : currentSettings.filterBarConfig;
+
+    const updatedSettings = {
+      ...currentSettings,
+      ...incoming,
+      homePageConfig: mergedHome,
+      heroConfig: mergedHero,
+      filterBarConfig: mergedFilter,
+      lastAdminSavedAt: now,
+      isLockedByAdmin: true
+    };
+
+    safeWriteJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE, updatedSettings);
+
+    // Atualiza também o store_state consolidado
+    const currentStore = safeReadJsonFile(PERSISTENT_STORE_FILE) || safeReadJsonFile(STORE_DATA_FILE) || {};
+    const updatedStore = {
+      ...currentStore,
+      ...updatedSettings,
+      updatedAt: now
+    };
+    safeWriteJsonFile(PERSISTENT_STORE_FILE, updatedStore);
+
+    // Espelha em src/data para builds estáticos
+    safeWriteJsonFile(STORE_DATA_FILE, updatedStore);
+    safeWriteJsonFile(ADMIN_VAULT_FILE, updatedSettings);
+
+    console.log(`[Admin Settings] Configurações blindadas com sucesso em ${now}`);
+
+    return res.json({
+      success: true,
+      message: 'Configurações administrativas blindadas e gravadas com sucesso!',
+      savedAt: now
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Falha ao salvar configurações do administrador', details: err.message });
+  }
+});
+
+/**
  * GET /api/store/data
- * Retorna as fotos, produtos, frases e configurações salvas para publicação oficial
+ * Retorna as fotos, produtos, frases e configurações salvas para publicação oficial.
+ * As configurações administrativas blindadas SEMPRE têm prioridade absoluta.
  */
 app.get('/api/store/data', (_req, res) => {
   try {
-    let finalData: any = null;
+    let finalData = safeReadJsonFile(PERSISTENT_STORE_FILE)
+      || safeReadJsonFile(STORE_DATA_FILE)
+      || safeReadJsonFile(ADMIN_VAULT_FILE);
 
-    if (fs.existsSync(STORE_DATA_FILE)) {
-      const content = fs.readFileSync(STORE_DATA_FILE, 'utf-8');
-      finalData = JSON.parse(content);
-    } else if (fs.existsSync(ADMIN_VAULT_FILE)) {
-      const content = fs.readFileSync(ADMIN_VAULT_FILE, 'utf-8');
-      finalData = JSON.parse(content);
-    }
+    const adminSettings = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE)
+      || safeReadJsonFile(ADMIN_VAULT_FILE);
 
     if (finalData) {
-      // Anexa os registros de BI se existirem em BI_DATA_FILE para garantir consistência
-      if (fs.existsSync(BI_DATA_FILE)) {
-        try {
-          const biContent = JSON.parse(fs.readFileSync(BI_DATA_FILE, 'utf-8'));
-          if (Array.isArray(biContent)) {
-            finalData.biRecords = biContent;
-          }
-        } catch {}
+      if (adminSettings) {
+        finalData = {
+          ...finalData,
+          isLockedByAdmin: true,
+          lastAdminSavedAt: adminSettings.lastAdminSavedAt || finalData.lastAdminSavedAt || finalData.updatedAt,
+          homePageConfig: adminSettings.homePageConfig || finalData.homePageConfig,
+          heroConfig: adminSettings.heroConfig || finalData.heroConfig,
+          coupons: (Array.isArray(adminSettings.coupons) && adminSettings.coupons.length > 0)
+            ? adminSettings.coupons
+            : finalData.coupons,
+          bagTypes: (Array.isArray(adminSettings.bagTypes) && adminSettings.bagTypes.length > 0)
+            ? adminSettings.bagTypes
+            : finalData.bagTypes,
+          ribbonOptions: (Array.isArray(adminSettings.ribbonOptions) && adminSettings.ribbonOptions.length > 0)
+            ? adminSettings.ribbonOptions
+            : finalData.ribbonOptions,
+          categories: (Array.isArray(adminSettings.categories) && adminSettings.categories.length > 0)
+            ? adminSettings.categories
+            : finalData.categories,
+          filterBarConfig: adminSettings.filterBarConfig || finalData.filterBarConfig,
+        };
+      }
+
+      // Anexa os registros de BI persistidos
+      const biContent = safeReadJsonFile(PERSISTENT_BI_FILE) || safeReadJsonFile(BI_DATA_FILE);
+      if (Array.isArray(biContent)) {
+        finalData.biRecords = biContent;
       }
 
       return res.json({ success: true, hasCustomData: true, data: finalData });
@@ -160,7 +406,7 @@ app.get('/api/store/data', (_req, res) => {
 
     return res.json({ success: true, hasCustomData: false, data: null });
   } catch (error: any) {
-    console.error('[Store Data] Erro ao ler store_state.json:', error);
+    console.error('[Store Data] Erro ao ler dados da loja:', error);
     return res.status(500).json({ error: 'Falha ao recuperar dados da loja', details: error.message });
   }
 });
@@ -171,13 +417,13 @@ app.get('/api/store/data', (_req, res) => {
  */
 app.get('/api/admin/vault', (_req, res) => {
   try {
-    if (fs.existsSync(ADMIN_VAULT_FILE)) {
-      const content = fs.readFileSync(ADMIN_VAULT_FILE, 'utf-8');
-      return res.json({ success: true, vault: JSON.parse(content) });
-    }
-    if (fs.existsSync(STORE_DATA_FILE)) {
-      const content = fs.readFileSync(STORE_DATA_FILE, 'utf-8');
-      return res.json({ success: true, vault: JSON.parse(content) });
+    const vault = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE)
+      || safeReadJsonFile(ADMIN_VAULT_FILE)
+      || safeReadJsonFile(PERSISTENT_STORE_FILE)
+      || safeReadJsonFile(STORE_DATA_FILE);
+
+    if (vault) {
+      return res.json({ success: true, vault });
     }
     return res.json({ success: true, vault: null });
   } catch (err: any) {
@@ -187,7 +433,7 @@ app.get('/api/admin/vault', (_req, res) => {
 
 /**
  * POST /api/admin/vault
- * Grava atomicamente o cofre protegido do Administrador
+ * Grava atomicamente o cofre protegido do Administrador em persistent_data e src/data
  */
 app.post('/api/admin/vault', (req, res) => {
   try {
@@ -196,25 +442,28 @@ app.post('/api/admin/vault', (req, res) => {
       return res.status(400).json({ error: 'Cofre inválido.' });
     }
 
-    const dir = path.dirname(ADMIN_VAULT_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
+    const now = new Date().toISOString();
     const vaultWithMeta = {
       ...vault,
-      lastAdminSavedAt: new Date().toISOString(),
+      lastAdminSavedAt: now,
       isLockedByAdmin: true
     };
 
-    fs.writeFileSync(ADMIN_VAULT_FILE, JSON.stringify(vaultWithMeta, null, 2), 'utf-8');
-    fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(vaultWithMeta, null, 2), 'utf-8');
+    safeWriteJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE, vaultWithMeta);
+    safeWriteJsonFile(PERSISTENT_STORE_FILE, vaultWithMeta);
+    safeWriteJsonFile(ADMIN_VAULT_FILE, vaultWithMeta);
+    safeWriteJsonFile(STORE_DATA_FILE, vaultWithMeta);
 
     if (Array.isArray(vault.biRecords)) {
-      fs.writeFileSync(BI_DATA_FILE, JSON.stringify(vault.biRecords, null, 2), 'utf-8');
+      safeWriteJsonFile(PERSISTENT_BI_FILE, vault.biRecords);
+      safeWriteJsonFile(BI_DATA_FILE, vault.biRecords);
     }
 
-    return res.json({ success: true, message: 'Cofre do Administrador travado e protegido com sucesso!', savedAt: vaultWithMeta.lastAdminSavedAt });
+    return res.json({
+      success: true,
+      message: 'Cofre do Administrador travado e protegido contra qualquer deploy!',
+      savedAt: now
+    });
   } catch (err: any) {
     console.error('[Admin Vault] Erro ao gravar cofre:', err);
     return res.status(500).json({ error: 'Falha ao gravar cofre do admin', details: err.message });
@@ -231,22 +480,13 @@ app.post('/api/store/sync', (req, res) => {
   try {
     const { products, heroConfig, homePageConfig, categories, reviews, coupons, filterBarConfig, bagTypes, ribbonOptions, biRecords } = req.body;
 
-    // Garante que o diretório existe
-    const dir = path.dirname(STORE_DATA_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    const existingContent = safeReadJsonFile(PERSISTENT_STORE_FILE)
+      || safeReadJsonFile(STORE_DATA_FILE)
+      || safeReadJsonFile(ADMIN_VAULT_FILE)
+      || {};
 
-    let existingContent: any = {};
-    if (fs.existsSync(STORE_DATA_FILE)) {
-      try {
-        existingContent = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
-      } catch (e) {}
-    } else if (fs.existsSync(ADMIN_VAULT_FILE)) {
-      try {
-        existingContent = JSON.parse(fs.readFileSync(ADMIN_VAULT_FILE, 'utf-8'));
-      } catch (e) {}
-    }
+    const adminSettings = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE) || {};
+    const now = new Date().toISOString();
 
     // Mesclagem segura e profunda de produtos
     const mergedProducts = Array.isArray(products)
@@ -254,48 +494,95 @@ app.post('/api/store/sync', (req, res) => {
       : (existingContent.products || []);
 
     // Mesclagem segura e profunda de configurações visuais e de texto
-    const mergedHeroConfig = heroConfig ? deepMergeObjects(existingContent.heroConfig || {}, heroConfig) : existingContent.heroConfig;
-    const mergedHomePageConfig = homePageConfig ? deepMergeObjects(existingContent.homePageConfig || {}, homePageConfig) : existingContent.homePageConfig;
-    const mergedFilterBarConfig = filterBarConfig ? deepMergeObjects(existingContent.filterBarConfig || {}, filterBarConfig) : existingContent.filterBarConfig;
+    const mergedHeroConfig = heroConfig
+      ? deepMergeObjects(existingContent.heroConfig || adminSettings.heroConfig || {}, heroConfig)
+      : (adminSettings.heroConfig || existingContent.heroConfig);
+
+    const mergedHomePageConfig = homePageConfig
+      ? deepMergeObjects(existingContent.homePageConfig || adminSettings.homePageConfig || {}, homePageConfig)
+      : (adminSettings.homePageConfig || existingContent.homePageConfig);
+
+    const mergedFilterBarConfig = filterBarConfig
+      ? deepMergeObjects(existingContent.filterBarConfig || adminSettings.filterBarConfig || {}, filterBarConfig)
+      : (adminSettings.filterBarConfig || existingContent.filterBarConfig);
+
+    const mergedCoupons = Array.isArray(coupons) && coupons.length > 0
+      ? coupons
+      : (adminSettings.coupons || existingContent.coupons);
+
+    const mergedBagTypes = Array.isArray(bagTypes) && bagTypes.length > 0
+      ? bagTypes
+      : (adminSettings.bagTypes || existingContent.bagTypes);
+
+    const mergedRibbonOptions = Array.isArray(ribbonOptions) && ribbonOptions.length > 0
+      ? ribbonOptions
+      : (adminSettings.ribbonOptions || existingContent.ribbonOptions);
+
+    const mergedCategories = Array.isArray(categories) && categories.length > 0
+      ? categories
+      : (adminSettings.categories || existingContent.categories);
 
     const payloadToSave = {
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
+      lastAdminSavedAt: now,
       isLockedByAdmin: true,
-      adminPassword: existingContent.adminPassword || '1234',
-      adminPasswordChanged: existingContent.adminPasswordChanged || false,
-      adminPasswordChangedAt: existingContent.adminPasswordChangedAt || undefined,
+      adminPassword: existingContent.adminPassword || adminSettings.adminPassword || '1234',
+      adminPasswordChanged: existingContent.adminPasswordChanged ?? adminSettings.adminPasswordChanged ?? false,
+      adminPasswordChangedAt: existingContent.adminPasswordChangedAt || adminSettings.adminPasswordChangedAt || undefined,
       products: mergedProducts,
       heroConfig: mergedHeroConfig,
       homePageConfig: mergedHomePageConfig,
-      categories: Array.isArray(categories) && categories.length > 0 ? categories : existingContent.categories,
+      categories: mergedCategories,
       reviews: Array.isArray(reviews) ? reviews : existingContent.reviews,
-      coupons: Array.isArray(coupons) && coupons.length > 0 ? coupons : existingContent.coupons,
-      bagTypes: Array.isArray(bagTypes) && bagTypes.length > 0 ? bagTypes : existingContent.bagTypes,
-      ribbonOptions: Array.isArray(ribbonOptions) && ribbonOptions.length > 0 ? ribbonOptions : existingContent.ribbonOptions,
+      coupons: mergedCoupons,
+      bagTypes: mergedBagTypes,
+      ribbonOptions: mergedRibbonOptions,
       filterBarConfig: mergedFilterBarConfig,
     };
 
-    // Grava no arquivo principal e no cofre imutável de backup
-    fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(payloadToSave, null, 2), 'utf-8');
-    fs.writeFileSync(ADMIN_VAULT_FILE, JSON.stringify(payloadToSave, null, 2), 'utf-8');
+    const adminSettingsToSave = {
+      lastAdminSavedAt: now,
+      isLockedByAdmin: true,
+      adminPassword: payloadToSave.adminPassword,
+      adminPasswordChanged: payloadToSave.adminPasswordChanged,
+      adminPasswordChangedAt: payloadToSave.adminPasswordChangedAt,
+      homePageConfig: mergedHomePageConfig,
+      heroConfig: mergedHeroConfig,
+      categories: mergedCategories,
+      coupons: mergedCoupons,
+      bagTypes: mergedBagTypes,
+      ribbonOptions: mergedRibbonOptions,
+      filterBarConfig: mergedFilterBarConfig,
+    };
 
-    // Se foram enviados registros de BI, sincroniza também em BI_DATA_FILE
+    // Grava atomicamente no diretório persistente isolado
+    safeWriteJsonFile(PERSISTENT_STORE_FILE, payloadToSave);
+    safeWriteJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE, adminSettingsToSave);
+
+    // Grava espelhos em src/data
+    safeWriteJsonFile(STORE_DATA_FILE, payloadToSave);
+    safeWriteJsonFile(ADMIN_VAULT_FILE, payloadToSave);
+
+    // Registros de BI
     if (Array.isArray(biRecords) && biRecords.length > 0) {
-      fs.writeFileSync(BI_DATA_FILE, JSON.stringify(biRecords, null, 2), 'utf-8');
+      safeWriteJsonFile(PERSISTENT_BI_FILE, biRecords);
+      safeWriteJsonFile(BI_DATA_FILE, biRecords);
     }
 
-    console.log(`[Store Data] Loja sincronizada com sucesso em ${STORE_DATA_FILE} (${payloadToSave.updatedAt})`);
+    console.log(`[Store Data] Loja sincronizada com sucesso e blindada contra deploys (${now})`);
 
     return res.json({
       success: true,
-      message: 'Todas as fotos, frases e produtos foram gravados e travados com sucesso no cofre do Administrador!',
-      updatedAt: payloadToSave.updatedAt
+      message: 'Todas as fotos, frases, cupons, sacolinhas e configurações foram gravadas e blindadas no cofre persistente!',
+      updatedAt: now,
+      savedAt: now
     });
   } catch (error: any) {
-    console.error('[Store Data] Erro ao gravar store_state.json:', error);
+    console.error('[Store Data] Erro ao sincronizar dados da loja:', error);
     return res.status(500).json({ error: 'Falha ao salvar dados da loja', details: error.message });
   }
 });
+
 
 /**
  * POST /api/store/reviews

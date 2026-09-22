@@ -4,6 +4,8 @@ import {
   Search, 
   Heart, 
   ShoppingBag, 
+  Gift,
+  Package,
   PenTool, 
   X, 
   Menu
@@ -209,19 +211,33 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="btn-open-cart"
               onClick={onOpenCart}
-              className="flex items-center gap-2 bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#FACC15] hover:opacity-95 text-white px-4 py-2 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 active:scale-95 border border-white/50"
+              className="flex items-center gap-2 bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#FACC15] hover:opacity-95 text-white px-3.5 sm:px-4 py-2 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 active:scale-95 border border-white/50"
+              title={config?.headerCartLabel || 'Abrir Sacolinha de Mimos'}
             >
               <div className="relative">
-                <ShoppingBag className="w-4 h-4 text-white" />
+                {config?.headerBagIconType === 'gift' ? (
+                  <Gift className="w-4 h-4 text-white" />
+                ) : config?.headerBagIconType === 'package' ? (
+                  <Package className="w-4 h-4 text-white" />
+                ) : (
+                  <ShoppingBag className="w-4 h-4 text-white" />
+                )}
                 {cartCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-amber-300 text-purple-950 text-[8px] font-extrabold rounded-full flex items-center justify-center shadow-xs border border-white">
                     {cartCount}
                   </span>
                 )}
               </div>
-              <span className="font-bold text-xs text-white drop-shadow-xs">
-                R$ {cartTotal.toFixed(2)}
-              </span>
+              <div className="flex items-center gap-1.5">
+                {config?.headerCartLabel && (
+                  <span className="hidden sm:inline font-bold text-xs text-white/95 drop-shadow-xs">
+                    {config.headerCartLabel}
+                  </span>
+                )}
+                <span className="font-bold text-xs text-white drop-shadow-xs">
+                  R$ {cartTotal.toFixed(2)}
+                </span>
+              </div>
             </button>
           </div>
         </div>

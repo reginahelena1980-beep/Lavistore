@@ -151,6 +151,10 @@ export interface HomePageConfig {
   instagramHandle?: string;
   instagramUrl?: string;
 
+  // Header Cart & Bag Icon customization
+  headerCartLabel?: string;
+  headerBagIconType?: 'shopping-bag' | 'gift' | 'package' | 'basket';
+
   // Floating WhatsApp Chat
   chatConciergeName?: string;
   chatConciergeRole?: string;
@@ -362,6 +366,8 @@ export interface OrderData {
   customerPhone: string;
   customerCpf?: string;
   address: string;
+  city?: string;
+  state?: string;
   paymentMethod: string;
   shippingMethod: string;
   shippingDeadline?: string;
@@ -375,6 +381,10 @@ export interface OrderData {
   hidePrices?: boolean;
   pagSeguroUrl?: string;
   notes?: string;
+  receivedAt?: string;
+  createdAt?: string;
+  customStatus?: string;
+  trackingCode?: string;
   // Mercado Pago Checkout Transparente
   mercadoPagoPaymentId?: string;
   mercadoPagoStatus?: string;

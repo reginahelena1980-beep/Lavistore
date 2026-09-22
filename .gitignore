@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Persistent Admin & Store Data (Preserved across Git deploys & code updates)
+persistent_data/

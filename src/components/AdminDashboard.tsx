@@ -69,6 +69,9 @@ import { NewsletterLeadsManager } from './NewsletterLeadsManager';
 import { AdminPasswordModal } from './AdminPasswordModal';
 import { AdminProductCatalogView } from './AdminProductCatalogView';
 import { PackagingRibbonManager } from './PackagingRibbonManager';
+import { ShieldBackupModal } from './ShieldBackupModal';
+import { ResetCatalogModal } from './ResetCatalogModal';
+import { ResetHeroModal } from './ResetHeroModal';
 import { DEFAULT_HOME_PAGE_CONFIG } from '../utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from '../data/filterConfig';
 import { getEffectiveProductBiData } from '../utils/productGroupingEngine';
@@ -116,6 +119,8 @@ interface AdminDashboardProps {
   isPublishing?: boolean;
   onRestoreFromBi?: () => void;
   onRestoreSafetyBackup?: () => void;
+  onDownloadBackup?: () => void;
+  onRestoreBackup?: (file: File) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -160,7 +165,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onPublishToServer,
   isPublishing = false,
   onRestoreFromBi,
-  onRestoreSafetyBackup
+  onRestoreSafetyBackup,
+  onDownloadBackup,
+  onRestoreBackup
 }) => {
   const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads'>(initialAdminSection);
   const [searchTerm, setSearchTerm] = useState('');
@@ -235,6 +242,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showResetCatalogModal, setShowResetCatalogModal] = useState(false);
   const [showResetHeroModal, setShowResetHeroModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showShieldModal, setShowShieldModal] = useState(false);
 
   // Local state for Hero banner editor
   const [heroForm, setHeroForm] = useState<HeroConfig>({
@@ -628,6 +636,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {/* Action buttons - Delicate, Smaller & Minimalist */}
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                id="btn-admin-shield-backup"
+                type="button"
+                onClick={() => setShowShieldModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 font-semibold text-xs border border-purple-200/90 shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                title="Status da blindagem contra novos deploys e exportação/importação de backups"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                <span>Blindagem & Backup</span>
+              </button>
+
               {onPublishToServer && (
                 <button
                   id="btn-admin-sync-server"
@@ -1918,91 +1937,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* RESET CATALOG MODAL */}
-      {showResetCatalogModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-2xl p-5 sm:p-6 max-w-md w-full border border-amber-200/80 shadow-xl space-y-3.5 animate-in zoom-in-95">
-            <div className="flex items-center gap-2.5 text-amber-600">
-              <div className="p-2.5 bg-amber-100 rounded-xl">
-                <RotateCcw className="w-5 h-5 text-amber-700" />
-              </div>
-              <div>
-                <h3 className="font-['Mali'] text-base font-bold text-purple-950">Restaurar Catálogo Padrão?</h3>
-                <p className="text-[11px] text-slate-500 font-normal">Voltar aos produtos e fotos originais da Lavistore.</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed font-normal">
-              Esta ação redefinirá todos os produtos para a lista inicial original da Lavistore. Se desejar, faça um <strong>Backup JSON</strong> antes.
-            </p>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowResetCatalogModal(false)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-xs hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onResetProducts();
-                  setShowResetCatalogModal(false);
-                  setCopiedNotification('Catálogo padrão original restaurado com sucesso! ✨');
-                  setTimeout(() => setCopiedNotification(null), 3000);
-                }}
-                className="px-3.5 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-medium text-xs shadow-2xs transition-colors cursor-pointer"
-              >
-                Restaurar Catálogo
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ResetCatalogModal
+        isOpen={showResetCatalogModal}
+        onClose={() => setShowResetCatalogModal(false)}
+        onConfirm={() => {
+          onResetProducts();
+          setShowResetCatalogModal(false);
+          setCopiedNotification('Catálogo padrão original restaurado com sucesso! ✨');
+          setTimeout(() => setCopiedNotification(null), 3000);
+        }}
+      />
 
       {/* RESET HERO BANNER MODAL */}
-      {showResetHeroModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-2xl p-5 sm:p-6 max-w-md w-full border border-amber-200/80 shadow-xl space-y-3.5 animate-in zoom-in-95">
-            <div className="flex items-center gap-2.5 text-amber-600">
-              <div className="p-2.5 bg-amber-100 rounded-xl">
-                <RotateCcw className="w-5 h-5 text-amber-700" />
-              </div>
-              <div>
-                <h3 className="font-['Mali'] text-base font-bold text-purple-950">Restaurar Banner Principal?</h3>
-                <p className="text-[11px] text-slate-500 font-normal">Voltar para a imagem e textos padrões de capa.</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed font-normal">
-              Deseja restaurar a foto do trio de florzinhas e textos padrões da capa da página inicial?
-            </p>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowResetHeroModal(false)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-xs hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmResetHeroAction}
-                className="px-3.5 py-1.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-medium text-xs shadow-2xs transition-colors cursor-pointer"
-              >
-                Restaurar Banner
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ResetHeroModal
+        isOpen={showResetHeroModal}
+        onClose={() => setShowResetHeroModal(false)}
+        onConfirm={confirmResetHeroAction}
+      />
 
       {/* ADMIN PASSWORD CHANGE MODAL */}
       <AdminPasswordModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         onSuccess={(msg) => {
+          setCopiedNotification(msg);
+          setTimeout(() => setCopiedNotification(null), 3500);
+        }}
+      />
+
+      {/* SHIELD & BACKUP MODAL */}
+      <ShieldBackupModal
+        isOpen={showShieldModal}
+        onClose={() => setShowShieldModal(false)}
+        onPublishToServer={onPublishToServer}
+        isPublishing={isPublishing}
+        onDownloadBackup={onDownloadBackup || handleExportFullStore}
+        onRestoreBackup={onRestoreBackup}
+        onNotification={(msg) => {
           setCopiedNotification(msg);
           setTimeout(() => setCopiedNotification(null), 3500);
         }}

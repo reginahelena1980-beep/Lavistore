@@ -23,13 +23,14 @@ import {
   PackageCheck
 } from 'lucide-react';
 import { OrderData } from '../types';
+import { fetchOrders as fetchOrdersFromApi, updateOrderStatus } from '../services/storeApiService';
 
 interface OrdersManagerProps {
   onRefreshOrders?: () => void;
 }
 
 export const OrdersManager: React.FC<OrdersManagerProps> = () => {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'shipped'>('all');
@@ -39,18 +40,12 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
   // Load orders from API & localStorage (merge and deduplicate)
   const fetchOrders = async () => {
     setIsLoading(true);
-    let serverList: any[] = [];
-    let localList: any[] = [];
+    let serverList: OrderData[] = [];
+    let localList: OrderData[] = [];
 
-    // 1. Fetch from server API /api/orders
+    // 1. Fetch from server API via storeApiService
     try {
-      const res = await fetch('/api/orders');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.orders)) {
-          serverList = data.orders;
-        }
-      }
+      serverList = await fetchOrdersFromApi();
     } catch (err) {
       console.warn('Erro ao carregar pedidos do servidor:', err);
     }
@@ -69,7 +64,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
     }
 
     // Merge by orderId, preferring server record if present
-    const map = new Map<string, any>();
+    const map = new Map<string, OrderData>();
     localList.forEach(item => {
       if (item && item.orderId) {
         map.set(String(item.orderId), item);
@@ -117,20 +112,16 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
 
     // Sincroniza imediatamente com o servidor para refletir em qualquer computador
     try {
-      await fetch('/api/orders/update-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, customStatus: newStatus })
-      });
+      await updateOrderStatus(orderId, newStatus);
     } catch (err) {
       console.warn('Erro ao atualizar status do pedido no servidor:', err);
     }
   };
 
-  const handleCopyOrderSummary = (order: any) => {
+  const handleCopyOrderSummary = (order: OrderData) => {
     const cleanPhone = String(order.customerPhone || '').replace(/\D/g, '');
     const itemsText = Array.isArray(order.items)
-      ? order.items.map((i: any) => `• ${i.quantity}x ${i.product?.name || i.name} (${i.selectedSize ? `Tam: ${i.selectedSize}` : ''} ${i.selectedColor ? `Cor: ${i.selectedColor}` : ''})`).join('\n')
+      ? order.items.map((i) => `• ${i.quantity}x ${i.product?.name || (i as any).name} (${i.selectedSize ? `Tam: ${i.selectedSize}` : ''} ${i.selectedColor ? `Cor: ${i.selectedColor}` : ''})`).join('\n')
       : 'Itens do pedido';
 
     const text = `🌸 *LAVISTORE - PEDIDO #${order.orderId}* 🌸\n` +

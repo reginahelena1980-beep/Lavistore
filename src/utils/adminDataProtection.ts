@@ -1,4 +1,17 @@
-import { Product, Category, Coupon, BagType, RibbonOption, CustomerReview, FilterBarConfig, HomePageConfig, HeroConfig, BiProductCalculatedRecord } from '../types';
+import { 
+  Product, 
+  Category, 
+  Coupon, 
+  BagType, 
+  RibbonOption, 
+  CustomerReview, 
+  FilterBarConfig, 
+  HomePageConfig, 
+  HeroConfig, 
+  BiProductCalculatedRecord,
+  OrderData,
+  NewsletterLead
+} from '../types';
 
 export const ADMIN_VAULT_KEY = 'lavistore_admin_custom_vault';
 export const ADMIN_LOCK_KEY = 'lavistore_admin_locked';
@@ -18,8 +31,8 @@ export interface AdminCustomVault {
   ribbonOptions?: RibbonOption[];
   reviews?: CustomerReview[];
   filterBarConfig?: FilterBarConfig;
-  orders?: any[];
-  newsletterLeads?: any[];
+  orders?: OrderData[];
+  newsletterLeads?: NewsletterLead[];
 }
 
 /**
@@ -46,7 +59,7 @@ export function saveLocalAdminVault(partialVault: Partial<AdminCustomVault>): Ad
   const existing = getLocalAdminVault() || {};
   const updatedVault: AdminCustomVault = {
     version: (existing.version || 0) + 1,
-    lastAdminSavedAt: new Date().toISOString(),
+    lastAdminSavedAt: partialVault.lastAdminSavedAt || new Date().toISOString(),
     isLockedByAdmin: true,
     ...existing,
     ...partialVault
@@ -72,6 +85,9 @@ export function mergeProductsSafely(
   primaryList: Product[],
   fallbackList: Product[]
 ): Product[] {
+  if (!Array.isArray(primaryList) || primaryList.length === 0) return fallbackList || [];
+  if (!Array.isArray(fallbackList) || fallbackList.length === 0) return primaryList;
+
   const result: Product[] = [];
   const handledIds = new Set<string>();
   const handledNames = new Set<string>();
@@ -121,41 +137,199 @@ export function mergeProductsSafely(
 }
 
 /**
- * Mescla profunda da configuração da Home Page (Sobre Nós, Contato, Rodapé, Frases, Selos)
- * garantindo que campos editados pelo Admin nunca voltem ao padrão original.
+ * Mescla profunda da configuração da Home Page (Sobre Nós, Contato, Rodapé, Frases, Selos, Telefone, E-mail, WhatsApp)
+ * `primary` contém personalizações do Administrador que têm prioridade absoluta sobre `fallback`.
+ * Novos campos adicionados no código/fallback são preservados sem sobrescrever as edições existentes.
  */
 export function mergeHomePageConfigSafely(
-  base: HomePageConfig,
-  overrides?: Partial<HomePageConfig> | null
+  primary: HomePageConfig,
+  fallback?: Partial<HomePageConfig> | null
 ): HomePageConfig {
-  if (!overrides) return { ...base };
+  if (!fallback) return { ...primary };
+  if (!primary) return { ...fallback } as HomePageConfig;
 
-  const merged: any = { ...base };
+  const result: Record<string, unknown> = { ...fallback };
+  const fallbackRecord = fallback as Record<string, unknown>;
 
-  for (const [key, val] of Object.entries(overrides)) {
-    if (val === undefined || val === null) continue;
+  for (const [key, pVal] of Object.entries(primary)) {
+    if (pVal === undefined || pVal === null) continue;
 
-    // Se for objeto com { text, fontSize, isBold }
-    if (typeof val === 'object' && !Array.isArray(val) && 'text' in val) {
-      merged[key] = {
-        ...(merged[key] || {}),
-        ...(val as any)
+    const fVal = fallbackRecord[key];
+
+    // Se for objeto com { text, fontSize, isBold } (FormattedText)
+    if (typeof pVal === 'object' && !Array.isArray(pVal) && 'text' in pVal) {
+      result[key] = {
+        ...(typeof fVal === 'object' && fVal !== null ? fVal : {}),
+        ...pVal
       };
-    } else if (typeof val === 'string' && val.trim() !== '') {
-      merged[key] = val;
-    } else if (typeof val === 'boolean' || typeof val === 'number') {
-      merged[key] = val;
-    } else if (Array.isArray(val)) {
-      merged[key] = val;
-    } else if (typeof val === 'object') {
-      merged[key] = {
-        ...(merged[key] || {}),
-        ...(val as any)
+    } else if (typeof pVal === 'string') {
+      if (pVal.trim() !== '') {
+        result[key] = pVal;
+      }
+    } else if (typeof pVal === 'boolean' || typeof pVal === 'number') {
+      result[key] = pVal;
+    } else if (Array.isArray(pVal)) {
+      result[key] = pVal.length > 0 ? pVal : fVal;
+    } else if (typeof pVal === 'object') {
+      result[key] = {
+        ...(typeof fVal === 'object' && fVal !== null ? fVal : {}),
+        ...pVal
       };
     }
   }
 
-  return merged as HomePageConfig;
+  return result as unknown as HomePageConfig;
+}
+
+/**
+ * Mescla segura da configuração do Hero Banner
+ */
+export function mergeHeroConfigSafely(
+  primary?: Partial<HeroConfig> | null,
+  fallback?: Partial<HeroConfig> | null
+): HeroConfig {
+  const base: HeroConfig = {
+    image: '',
+    badge: 'Presentes & Mimos Criativos 🌸',
+    title: 'Demonstre seu carinho com nossos mimos!',
+    subtitle: 'Presentes criativos, cheirinho doce artesanal e papelaria fofa com acabamento impecável.',
+    ...(fallback || {})
+  };
+
+  if (!primary) return base;
+
+  return {
+    ...base,
+    ...primary,
+    image: primary.image || base.image,
+    badge: primary.badge || base.badge,
+    title: primary.title || base.title,
+    subtitle: primary.subtitle || base.subtitle
+  };
+}
+
+/**
+ * Mescla segura de cupons mantendo os cupons ativos e cadastrados pelo administrador
+ */
+export function mergeCouponsSafely(
+  primary: Coupon[],
+  fallback: Coupon[]
+): Coupon[] {
+  if (!Array.isArray(primary) || primary.length === 0) return fallback || [];
+  if (!Array.isArray(fallback) || fallback.length === 0) return primary;
+
+  const result: Coupon[] = [...primary];
+  const knownCodes = new Set(primary.map(c => c.code.trim().toUpperCase()));
+
+  for (const fb of fallback) {
+    if (!fb || !fb.code) continue;
+    const codeUpper = fb.code.trim().toUpperCase();
+    if (!knownCodes.has(codeUpper)) {
+      knownCodes.add(codeUpper);
+      result.push(fb);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Mescla segura de categorias
+ */
+export function mergeCategoriesSafely(
+  primary: Category[],
+  fallback: Category[]
+): Category[] {
+  if (!Array.isArray(primary) || primary.length === 0) return fallback || [];
+  if (!Array.isArray(fallback) || fallback.length === 0) return primary;
+
+  const result: Category[] = [...primary];
+  const knownIds = new Set(primary.map(c => c.id));
+
+  for (const fb of fallback) {
+    if (!fb || !fb.id) continue;
+    if (!knownIds.has(fb.id)) {
+      knownIds.add(fb.id);
+      result.push(fb);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Mescla segura de modelos de embalagens / sacolinhas
+ */
+export function mergeBagTypesSafely(
+  primary: BagType[],
+  fallback: BagType[]
+): BagType[] {
+  if (!Array.isArray(primary) || primary.length === 0) return fallback || [];
+  if (!Array.isArray(fallback) || fallback.length === 0) return primary;
+
+  const result: BagType[] = [...primary];
+  const knownIds = new Set(primary.map(b => b.id));
+
+  for (const fb of fallback) {
+    if (!fb || !fb.id) continue;
+    if (!knownIds.has(fb.id)) {
+      knownIds.add(fb.id);
+      result.push(fb);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Mescla segura de opções de fitas
+ */
+export function mergeRibbonOptionsSafely(
+  primary: RibbonOption[],
+  fallback: RibbonOption[]
+): RibbonOption[] {
+  if (!Array.isArray(primary) || primary.length === 0) return fallback || [];
+  if (!Array.isArray(fallback) || fallback.length === 0) return primary;
+
+  const result: RibbonOption[] = [...primary];
+  const knownIds = new Set(primary.map(r => r.id));
+
+  for (const fb of fallback) {
+    if (!fb || !fb.id) continue;
+    if (!knownIds.has(fb.id)) {
+      knownIds.add(fb.id);
+      result.push(fb);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Determina se os dados locais do cofre devem ter precedência absoluta sobre a resposta do servidor
+ * (por exemplo, após um novo deploy onde o servidor acabou de inicializar com arquivos padrão de build).
+ */
+export function shouldPreferLocalAdminVault(
+  localVault: Partial<AdminCustomVault> | null,
+  remoteData: { isLockedByAdmin?: boolean; lastAdminSavedAt?: string; updatedAt?: string } | null | undefined
+): boolean {
+  if (!localVault || !localVault.isLockedByAdmin || !localVault.lastAdminSavedAt) {
+    return false;
+  }
+
+  if (!remoteData || !remoteData.isLockedByAdmin) {
+    return true;
+  }
+
+  const localTime = new Date(localVault.lastAdminSavedAt).getTime();
+  const remoteTime = new Date(remoteData.lastAdminSavedAt || remoteData.updatedAt || 0).getTime();
+
+  // Se o cofre local é igual ou mais recente que o servidor, preserva o cofre local
+  if (isNaN(remoteTime) || localTime >= remoteTime) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -180,28 +354,32 @@ export function downloadAdminBackupFile(vault: AdminCustomVault) {
 /**
  * Valida se um objeto JSON importado possui a estrutura de backup do Admin
  */
-export function validateAdminBackup(data: any): { valid: boolean; error?: string; vault?: AdminCustomVault } {
+export function validateAdminBackup(data: unknown): { valid: boolean; error?: string; vault?: AdminCustomVault } {
   if (!data || typeof data !== 'object') {
     return { valid: false, error: 'O arquivo selecionado não contém um formato JSON válido.' };
   }
 
+  const candidate = data as Record<string, unknown>;
+
   const hasAnyKey = 
-    Array.isArray(data.products) || 
-    Array.isArray(data.categories) || 
-    Array.isArray(data.coupons) || 
-    data.homePageConfig || 
-    data.heroConfig || 
-    Array.isArray(data.biRecords);
+    Array.isArray(candidate.products) || 
+    Array.isArray(candidate.categories) || 
+    Array.isArray(candidate.coupons) || 
+    candidate.homePageConfig || 
+    candidate.heroConfig || 
+    Array.isArray(candidate.bagTypes) ||
+    Array.isArray(candidate.ribbonOptions) ||
+    Array.isArray(candidate.biRecords);
 
   if (!hasAnyKey) {
     return { valid: false, error: 'O arquivo JSON não contém dados reconhecíveis da Lavistore (produtos, cupons, textos ou categorias).' };
   }
 
   const vault: AdminCustomVault = {
-    version: (typeof data.version === 'number' ? data.version : 1) + 1,
+    version: (typeof candidate.version === 'number' ? candidate.version : 1) + 1,
     lastAdminSavedAt: new Date().toISOString(),
     isLockedByAdmin: true,
-    ...data
+    ...(candidate as unknown as Partial<AdminCustomVault>)
   };
 
   return { valid: true, vault };

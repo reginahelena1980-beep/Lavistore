@@ -222,6 +222,10 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   instagramHandle: '@lavistore.oficial',
   instagramUrl: 'https://instagram.com/lavistore.oficial',
 
+  // Header Cart & Bag Icon customization
+  headerCartLabel: 'Sacolinha',
+  headerBagIconType: 'shopping-bag',
+
   // Floating WhatsApp Chat Concierge
   chatConciergeName: 'Concierge Lavistore 🌸',
   chatConciergeRole: 'Atendimento Online • Suporte a Presentes',

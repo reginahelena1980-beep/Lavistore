@@ -34,7 +34,7 @@ import {
   Database,
   Ruler
 } from 'lucide-react';
-import { BiProductCalculatedRecord, BiConsolidatedKpis, Product } from '../types';
+import { BiProductCalculatedRecord, BiConsolidatedKpis, Product, Category } from '../types';
 import {
   calculateBiRow,
   calculateConsolidatedKpis,
@@ -57,7 +57,7 @@ interface BiFinancialManagerProps {
   products?: Product[];
   onSaveProduct?: (product: Product) => void;
   onDeleteProduct?: (productId: string) => void;
-  categories?: any[];
+  categories?: Category[];
   onViewProductLive?: (product: Product) => void;
   onGoToStorefront?: () => void;
   onNotify?: (message: string) => void;

@@ -21,7 +21,13 @@ import {
   MessageCircle,
   Database
 } from 'lucide-react';
-import { NewsletterLead } from '../types';
+import { NewsletterLead, OrderData } from '../types';
+import { 
+  fetchNewsletterLeads, 
+  deleteNewsletterLead, 
+  subscribeNewsletter, 
+  fetchOrders 
+} from '../services/storeApiService';
 
 interface NewsletterLeadsManagerProps {
   onNotify?: (message: string) => void;
@@ -49,15 +55,9 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
     let serverList: NewsletterLead[] = [];
     let localList: NewsletterLead[] = [];
 
-    // 1. Fetch from server API
+    // 1. Fetch from server API via storeApiService
     try {
-      const res = await fetch('/api/newsletter/leads');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.leads)) {
-          serverList = data.leads;
-        }
-      }
+      serverList = await fetchNewsletterLeads();
     } catch (err) {
       console.warn('Erro ao carregar leads do servidor:', err);
     }
@@ -96,14 +96,13 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
 
     // Also fetch buyers from orders to provide complete visibility of customers
     try {
-      let orders: any[] = [];
-      const orderRes = await fetch('/api/orders');
-      if (orderRes.ok) {
-        const ordData = await orderRes.json();
-        if (Array.isArray(ordData.orders)) {
-          orders = ordData.orders;
-        }
+      let orders: OrderData[] = [];
+      try {
+        orders = await fetchOrders();
+      } catch {
+        orders = [];
       }
+
       if (orders.length === 0) {
         const localOrders = localStorage.getItem('lavistore_orders');
         if (localOrders) {
@@ -113,7 +112,7 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
 
       // Group buyers by email or phone
       const buyersMap = new Map<string, any>();
-      orders.forEach((ord: any) => {
+      orders.forEach((ord: OrderData) => {
         const emailKey = (ord.customerEmail || ord.customerPhone || ord.orderId).trim().toLowerCase();
         if (!buyersMap.has(emailKey)) {
           buyersMap.set(emailKey, {
@@ -268,9 +267,9 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
     if (!leadToDelete) return;
     const id = leadToDelete.id;
 
-    // Remove from server
+    // Remove from server via storeApiService
     try {
-      await fetch(`/api/newsletter/leads/${id}`, { method: 'DELETE' });
+      await deleteNewsletterLead(id);
     } catch (e) {
       console.warn('Erro ao deletar lead no servidor:', e);
     }
@@ -305,13 +304,9 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
       status: 'active'
     };
 
-    // Save to server
+    // Save to server via storeApiService
     try {
-      await fetch('/api/newsletter/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newLeadItem)
-      });
+      await subscribeNewsletter(newLeadItem.email, newLeadItem.name, newLeadItem.source);
     } catch (e) {
       console.warn('Erro ao salvar no servidor:', e);
     }

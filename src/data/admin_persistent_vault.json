@@ -1,274 +1,6 @@
 {
-  "updatedAt": "2026-09-22T21:20:29.578Z",
+  "lastAdminSavedAt": "2026-09-22T21:20:29.578Z",
   "isLockedByAdmin": true,
-  "adminPassword": "1234",
-  "adminPasswordChanged": false,
-  "adminPasswordChangedAt": "2026-09-18T11:15:27.172Z",
-  "products": [
-    {
-      "id": "lav-74750",
-      "name": "Meia 3/4 Flores",
-      "category": "floral-special",
-      "price": 15,
-      "originalPrice": 19.9,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 20,
-      "isFloralSpecial": true,
-      "badge": "Exclusivo 🌸",
-      "images": [
-        "https://images.unsplash.com/photo-1582966770380-921587181f82?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Meia 3/4 charmosa e delicada com estampa de florzinhas da coleção exclusiva Lavistore. Confeccionada em algodão macio com elasticidade confortável para o dia a dia.",
-      "features": [
-        "Algodão penteado macio e respirável",
-        "Cano 3/4 com ajuste suave sem apertar",
-        "Estampa floral fofa exclusiva Lavistore",
-        "Embalada para presente com cheirinho doce"
-      ],
-      "tag": "Exclusivo 🌸"
-    },
-    {
-      "id": "lav-15329",
-      "name": "Meia 3/ cores",
-      "category": "floral-special",
-      "price": 15,
-      "originalPrice": 19.9,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 20,
-      "isFloralSpecial": true,
-      "badge": "Colorida ✨",
-      "images": [
-        "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Meia cano 3/4 colorida com listras vibrantes e acabamento impecável. Perfeita para compor looks alegres e descontraídos com o toque doce da Lavistore.",
-      "features": [
-        "Cores suaves e alegres",
-        "Algodão macio de toque aconchegante",
-        "Tamanho único confortável",
-        "Acompanha tag colecionável de mimo"
-      ],
-      "tag": "Colorida ✨"
-    },
-    {
-      "id": "lav-03352",
-      "name": "Meia 3/4 Arco-íris",
-      "category": "floral-special",
-      "price": 15,
-      "originalPrice": 19.9,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 20,
-      "isFloralSpecial": true,
-      "badge": "Divertida 🌈",
-      "images": [
-        "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Meia 3/4 arco-íris cheia de boas energias! Com listras coloridas que combinam com qualquer tênis ou sapatinho, trazendo alegria a cada passo.",
-      "features": [
-        "Estampa arco-íris estilosa e divertida",
-        "Conforto térmico para qualquer estação",
-        "Costura plana que não incomoda os dedos",
-        "Cheirinho artesanal doce no pacote"
-      ],
-      "tag": "Divertida 🌈"
-    },
-    {
-      "id": "lav-13",
-      "name": "Meia 3/4 Panda Listrada Algodão Confort",
-      "category": "floral-special",
-      "price": 15,
-      "originalPrice": 22,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 20,
-      "badge": "Mais Amada 🐼",
-      "hasSizes": true,
-      "sizes": [
-        {
-          "id": "size-p",
-          "label": "P",
-          "stock": 10
-        },
-        {
-          "id": "size-m",
-          "label": "M",
-          "stock": 10
-        },
-        {
-          "id": "size-g",
-          "label": "G",
-          "stock": 10
-        },
-        {
-          "id": "size-gg",
-          "label": "GG",
-          "stock": 10
-        }
-      ],
-      "images": [
-        "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Alerta de fofura extrema para os seus pés! ☁️✨ Nossas Meias de Panda são super quentinhas, macias e trazem a carinha mais amorosa do mundo para te acompanhar em todos os momentos de descanso. É o abraço perfeito para os pés em dias frios, unindo conforto e muita diversão! 🖤🤍",
-      "features": [
-        "Bordado e estampa de pandinha super meigo",
-        "Algodão antialérgico macio de toque aconchegante",
-        "Cano médio-alto 3/4 anatômico com punho suave",
-        "Embalada com carinho na sacolinha de mimos"
-      ],
-      "tag": "Mais Amada 🐼"
-    },
-    {
-      "id": "lav-bi-caneta",
-      "name": "Caneta Tinta Invisível",
-      "category": "cadernos-planners",
-      "price": 10,
-      "originalPrice": 12,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 10,
-      "badge": "Segredo Mágico 🤫",
-      "images": [
-        "https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1585336261026-41804f58c73c?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "O segredo mais fofo do mundo está aqui! 🤫 Com a nossa Caneta Tinta Invisível, você escreve mensagens secretas que ninguém consegue ver... a não ser que você acenda a luzinha mágica UV que vem na tampinha! ✨ Perfeita para guardar segredinhos, desenhar no escuro e deixar a rotina muito mais divertida. 🌈💙",
-      "features": [
-        "Luzinha UV mágica integrada na tampa",
-        "Tinta especial que só se revela sob a luz negra",
-        "Escreve em papéis, cadernos, cartinhas e tecidos",
-        "Acompanha baterias já instaladas prontas para usar"
-      ],
-      "tag": "Segredo Mágico 🤫"
-    },
-    {
-      "id": "lav-bi-pulseira",
-      "name": "Pulseira luminosa",
-      "category": "washi-adesivos",
-      "price": 5,
-      "originalPrice": 7,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 12,
-      "badge": "Brilha Muito ✨",
-      "images": [
-        "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Um verdadeiro raio de sol (e de estrelinhas!) no seu pulso! 🌙 Nossa Pulseira Luminosa brilha com luzinhas coloridas e alegres para deixar qualquer momento mais festivo. Super fofinha, ajustável e cheia de charme com bichinhos e comidinhas lindas. Venha brilhar com a gente! 💫💖",
-      "features": [
-        "Luzinhas LED coloridas com botão de acionamento",
-        "Fecho com regulagem fácil para pulsos de todas as idades",
-        "Material de silicone macio e flexível",
-        "Perfeita para passeios, noites divertidas e festinhas"
-      ],
-      "tag": "Brilha Muito ✨"
-    },
-    {
-      "id": "lav-bi-anel",
-      "name": "Anel que brilha no escuro",
-      "category": "washi-adesivos",
-      "price": 5,
-      "originalPrice": 7,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 20,
-      "badge": "Brilha no Escuro 💍",
-      "images": [
-        "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Um toque de magia direto para os seus dedos! 💍✨ O Anel que Brilha no Escuro ilumina com piscas coloridos e tem apliques fofinhos (temos frutas, corações e bichinhos!). É o acessório perfeito para dar aquele destaque especial e fofo no look noturno. 🦄💕",
-      "features": [
-        "Efeito luminoso mágico que se destaca no escuro",
-        "Aro anatômico e flexível que não aperta o dedo",
-        "Apliques colecionáveis em relevo fofo 3D",
-        "Super leve, seguro e divertido"
-      ],
-      "tag": "Brilha no Escuro 💍"
-    },
-    {
-      "id": "lav-bi-bolsa",
-      "name": "Bolsa unicornio",
-      "category": "presentes-kits",
-      "price": 15,
-      "originalPrice": 22,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 1,
-      "badge": "Pelúcia Fofa 🦄",
-      "images": [
-        "https://images.unsplash.com/photo-1559454403-b8fb88521f11?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "A definição exata de \"iti malia\" em forma de bolsa! ☁️✨ A nossa Bolsa Unicórnio é feita de pelúcia super macia, com detalhes cintilantes de estrelas e luas, cílios delicados e um chifre dourado encantador. Espaçosa e muito aconchegante, é a companheira perfeita para carregar os seus tesouros com muito estilo e fofura! 🌈💖",
-      "features": [
-        "Pelúcia hipoalergênica ultra macia",
-        "Alça tiracolo resistente e ajustável",
-        "Fecho de zíper de alta qualidade com puxador fofo",
-        "Detalhes bordados com chifrinho dourado brilhante"
-      ],
-      "tag": "Pelúcia Fofa 🦄"
-    },
-    {
-      "id": "lav-bi-squish",
-      "name": "Mini Squish",
-      "category": "presentes-kits",
-      "price": 5,
-      "originalPrice": 8,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 20,
-      "badge": "Anti-estresse 🐾",
-      "images": [
-        "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Alerta de explosão de fofura! 🐾 Nossos Mini Squish são aquelas belezinhas emborrachadas super macias que dá vontade de apertar o dia inteiro. Perfeitos para aliviar o estresse, enfeitar a mesa ou levar na mochila para te fazer companhia. Quem você vai escolher para apertar hoje? 🥰✨",
-      "features": [
-        "Silicone macio com retorno elástico relaxante",
-        "Fácil de lavar com água morna e sabão neutro",
-        "Modelos fofinhos de patinhas, gatinhos e sobremesas",
-        "Tamanho compacto ideal para colecionar"
-      ],
-      "tag": "Anti-estresse 🐾"
-    },
-    {
-      "id": "lav-bi-tubo",
-      "name": "Tubo para bolinha de sabão",
-      "category": "presentes-kits",
-      "price": 5,
-      "originalPrice": 7,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 10,
-      "badge": "Diversão Pura 🫧",
-      "images": [
-        "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Magia pura que cabe na palma da mão! 🫧✨ Com o nosso Tubo para Bolinha de Sabão, a diversão e a alegria estão garantidas. Os tubinhos vêm com tampas super fofas em formato de coração e estrelinha para você criar bolhas gigantes, brilhantes e cheias de encanto. Perfeito para colorir o dia! 🌈💖",
-      "features": [
-        "Tampinha lúdica com varinha em relevo",
-        "Fórmula especial que cria bolhas brilhantes e resistentes",
-        "Frasco selado anti-vazamento",
-        "Cores pastéis adoráveis para presentear"
-      ],
-      "tag": "Diversão Pura 🫧"
-    }
-  ],
-  "heroConfig": {
-    "badge": "Presentes & Mimos Criativos 🌸",
-    "title": "Demonstre seu carinho com nossos mimos!",
-    "subtitle": "Presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
-    "imageFit": "cover",
-    "imageScale": 100,
-    "imagePosition": "center",
-    "imagePositionX": 50,
-    "imagePositionY": 50,
-    "bannerHeight": "medium"
-  },
   "homePageConfig": {
     "announcementText": "Frete Grátis para todo o Brasil para compras acima de R$ 150.00",
     "announcementCoupon": "TORRI",
@@ -486,53 +218,17 @@
     "headerCartLabel": "Sacolinha de Mimos 🌸",
     "headerBagIconType": "shopping-bag"
   },
-  "categories": [
-    {
-      "id": "todos",
-      "name": "Todos os Mimos",
-      "icon": "✨",
-      "description": "Catálogo completo de fofuras e mimos",
-      "showInFooter": false,
-      "showInFilter": true
-    },
-    {
-      "id": "floral-special",
-      "name": "Meias 3/4 ",
-      "icon": "🌸",
-      "description": "Produtos exclusivos Estilo Bee",
-      "badge": "Exclusivo",
-      "showInFooter": true,
-      "showInFilter": true
-    },
-    {
-      "id": "cadernos-planners",
-      "name": "Papelaria divertida",
-      "icon": "📖",
-      "description": "Papelaria divertida",
-      "badge": "Mais Vendidos",
-      "showInFooter": true,
-      "showInFilter": true
-    },
-    {
-      "id": "washi-adesivos",
-      "name": "Acessórios",
-      "icon": "🎀",
-      "description": "Acessórios",
-      "showInFooter": true,
-      "showInFilter": true,
-      "badge": "Lançamento"
-    },
-    {
-      "id": "presentes-kits",
-      "name": "Presentes e Mimos",
-      "icon": "🎁",
-      "description": "Presentes e mimos",
-      "badge": "Popular",
-      "showInFooter": true,
-      "showInFilter": true
-    }
-  ],
-  "reviews": [],
+  "heroConfig": {
+    "badge": "Presentes & Mimos Criativos 🌸",
+    "title": "Demonstre seu carinho com nossos mimos!",
+    "subtitle": "Presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+    "imageFit": "cover",
+    "imageScale": 100,
+    "imagePosition": "center",
+    "imagePositionX": 50,
+    "imagePositionY": 50,
+    "bannerHeight": "medium"
+  },
   "coupons": [
     {
       "id": "coupon-torri",
@@ -644,6 +340,52 @@
       "color": "#FBCFE8"
     }
   ],
+  "categories": [
+    {
+      "id": "todos",
+      "name": "Todos os Mimos",
+      "icon": "✨",
+      "description": "Catálogo completo de fofuras e mimos",
+      "showInFooter": false,
+      "showInFilter": true
+    },
+    {
+      "id": "floral-special",
+      "name": "Meias 3/4 ",
+      "icon": "🌸",
+      "description": "Produtos exclusivos Estilo Bee",
+      "badge": "Exclusivo",
+      "showInFooter": true,
+      "showInFilter": true
+    },
+    {
+      "id": "cadernos-planners",
+      "name": "Papelaria divertida",
+      "icon": "📖",
+      "description": "Papelaria divertida",
+      "badge": "Mais Vendidos",
+      "showInFooter": true,
+      "showInFilter": true
+    },
+    {
+      "id": "washi-adesivos",
+      "name": "Acessórios",
+      "icon": "🎀",
+      "description": "Acessórios",
+      "showInFooter": true,
+      "showInFilter": true,
+      "badge": "Lançamento"
+    },
+    {
+      "id": "presentes-kits",
+      "name": "Presentes e Mimos",
+      "icon": "🎁",
+      "description": "Presentes e mimos",
+      "badge": "Popular",
+      "showInFooter": true,
+      "showInFilter": true
+    }
+  ],
   "filterBarConfig": {
     "showPriceFilter": true,
     "priceFilterTitle": "Valor:",
@@ -683,5 +425,7 @@
       "nameAsc": true
     }
   },
-  "lastAdminSavedAt": "2026-09-22T21:20:29.578Z"
+  "adminPassword": "1234",
+  "adminPasswordChanged": false,
+  "adminPasswordChangedAt": "2026-09-18T11:15:27.172Z"
 }
