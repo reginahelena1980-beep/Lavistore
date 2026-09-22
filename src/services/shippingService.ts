@@ -119,14 +119,25 @@ export async function calculateMelhorEnvioShipping(
   }
 }
 
-/**
- * Obtém o status de configuração da integração do Melhor Envio
- */
-export async function getShippingConfig(): Promise<{
+export interface ShippingConfigResponse {
   configured: boolean;
   env: string;
+  baseUrl: string;
+  clientId: string;
+  contactEmail: string;
+  userAgent: string;
   fromCep: string;
-}> {
+  tokenSource: string;
+  hasRefreshToken: boolean;
+  updatedAt: string | null;
+  expiresAt: number | null;
+  help?: string;
+}
+
+/**
+ * Obtém o status de configuração da integração oficial do Melhor Envio em Produção
+ */
+export async function getShippingConfig(): Promise<ShippingConfigResponse> {
   try {
     const response = await fetch('/api/shipping/config');
     if (response.ok) {
@@ -137,7 +148,133 @@ export async function getShippingConfig(): Promise<{
   }
   return {
     configured: false,
-    env: 'sandbox',
-    fromCep: '01001-000'
+    env: 'production',
+    baseUrl: 'https://melhorenvio.com.br',
+    clientId: '30288',
+    contactEmail: 'estilobeeadm@gmail.com',
+    userAgent: 'Lavistore (estilobeeadm@gmail.com)',
+    fromCep: '01001-000',
+    tokenSource: 'none',
+    hasRefreshToken: false,
+    updatedAt: null,
+    expiresAt: null
   };
+}
+
+/**
+ * Obtém a URL oficial para autorizar o aplicativo Lavistore no painel de Produção do Melhor Envio
+ */
+export async function getOAuthAuthorizeUrl(redirectUri?: string): Promise<{ authUrl: string; redirectUri: string; clientId: string }> {
+  const query = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : '';
+  const response = await fetch(`/api/shipping/oauth/authorize-url${query}`);
+  if (!response.ok) {
+    throw new Error('Não foi possível gerar a URL de autorização do Melhor Envio.');
+  }
+  return response.json();
+}
+
+/**
+ * Troca o código retornado na autorização pelo token oficial de produção
+ */
+export async function exchangeOAuthCodeApi(code: string, redirectUri?: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch('/api/shipping/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, redirectUri })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Falha ao trocar código de autorização.');
+  }
+  return data;
+}
+
+/**
+ * Renova o token de produção via refresh token
+ */
+export async function refreshMelhorEnvioTokenApi(): Promise<{ success: boolean; message: string }> {
+  const response = await fetch('/api/shipping/oauth/refresh', {
+    method: 'POST'
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Falha ao renovar token do Melhor Envio.');
+  }
+  return data;
+}
+
+/**
+ * Salva diretamente o Bearer Token de Produção no servidor
+ */
+export async function saveManualTokenApi(token: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch('/api/shipping/token/manual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Falha ao salvar token de produção.');
+  }
+  return data;
+}
+
+/**
+ * Consulta a conta oficial conectada no Melhor Envio (Produção)
+ */
+export async function getAccountInfoApi(): Promise<any> {
+  const response = await fetch('/api/shipping/account');
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Falha ao consultar perfil no Melhor Envio.');
+  }
+  return data;
+}
+
+/**
+ * Gera etiquetas de envio no Melhor Envio Produção
+ */
+export async function generateShippingLabelsApi(orderIds: string[], shipmentPayload?: any): Promise<any> {
+  const response = await fetch('/api/shipping/labels/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderIds, shipmentPayload })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Falha ao gerar etiquetas no Melhor Envio.');
+  }
+  return data;
+}
+
+/**
+ * Obtém o link para impressão das etiquetas em PDF no Melhor Envio Produção
+ */
+export async function printShippingLabelsApi(orderIds: string[], mode: 'public' | 'private' = 'public'): Promise<any> {
+  const response = await fetch('/api/shipping/labels/print', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderIds, mode })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Falha ao obter impressão das etiquetas.');
+  }
+  return data;
+}
+
+/**
+ * Rastreia códigos de envio no Melhor Envio Produção
+ */
+export async function trackShippingApi(trackingCodes: string[]): Promise<any> {
+  const response = await fetch('/api/shipping/tracking', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trackingCodes })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Falha ao rastrear encomendas.');
+  }
+  return data;
 }

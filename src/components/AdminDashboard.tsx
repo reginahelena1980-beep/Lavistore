@@ -48,7 +48,8 @@ import {
   Cloud,
   CloudUpload,
   CheckCheck,
-  ShieldCheck
+  ShieldCheck,
+  Truck
 } from 'lucide-react';
 import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, Coupon, BagType, RibbonOption, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES, BAG_TYPES, RIBBON_OPTIONS } from '../data/categories';
@@ -68,6 +69,7 @@ import { BiFinancialManager } from './BiFinancialManager';
 import { NewsletterLeadsManager } from './NewsletterLeadsManager';
 import { AdminPasswordModal } from './AdminPasswordModal';
 import { AdminProductCatalogView } from './AdminProductCatalogView';
+import { MelhorEnvioManager } from './MelhorEnvioManager';
 import { PackagingRibbonManager } from './PackagingRibbonManager';
 import { ShieldBackupModal } from './ShieldBackupModal';
 import { ResetCatalogModal } from './ResetCatalogModal';
@@ -169,7 +171,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onDownloadBackup,
   onRestoreBackup
 }) => {
-  const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads'>(initialAdminSection);
+  const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads' | 'shipping'>(initialAdminSection);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
@@ -607,6 +609,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       title: 'Clube de Mimos & Cadastros',
       subtitle: 'E-mails de clientes cadastrados no Clube (10% OFF) e compradores da loja',
       icon: <Users className="w-4 h-4 text-amber-500" />
+    },
+    shipping: {
+      title: 'Melhor Envio Oficial (Produção)',
+      subtitle: 'Configurações de frete, credenciais oficiais, etiquetas e rastreamento',
+      icon: <Truck className="w-4 h-4 text-amber-500" />
     }
   };
 
@@ -1067,6 +1074,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               <Users className="w-3.5 h-3.5 text-amber-400" />
               <span>Clube de Mimos (Clientes)</span>
+            </button>
+
+            <button
+              id="admin-tab-shipping-btn"
+              onClick={() => setAdminSection('shipping')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'shipping'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5 text-amber-400" />
+              <span>Melhor Envio (Produção)</span>
             </button>
           </div>
 
@@ -1857,6 +1877,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* GESTÃO OFICIAL DO MELHOR ENVIO (PRODUÇÃO) */}
+      {adminSection === 'shipping' && (
+        <MelhorEnvioManager />
       )}
 
       {/* Helpful Admin Note Card - Only displayed on main Products page */}

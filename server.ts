@@ -3,6 +3,24 @@ import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import nodemailer from 'nodemailer';
+import {
+  MELHOR_ENVIO_PRODUCTION_BASE_URL,
+  MELHOR_ENVIO_CLIENT_ID,
+  MELHOR_ENVIO_SUPPORT_EMAIL,
+  MELHOR_ENVIO_USER_AGENT,
+  getStoredTokenData,
+  saveTokenData,
+  generateOAuthAuthorizeUrl,
+  exchangeOAuthCode,
+  refreshMelhorEnvioToken,
+  calculateProductionShipment,
+  addShipmentToCart,
+  checkoutShipments,
+  generateShipmentLabels,
+  printShipmentLabels,
+  trackShipments,
+  getConnectedAccountInfo
+} from './melhorEnvioServer';
 
 /**
  * SERVIDOR EXPRESS LAVISTORE
@@ -1257,18 +1275,27 @@ app.delete('/api/bi/records', (_req, res) => {
 });
 
 /**
- * GET /api/shipping/config - Status das credenciais do Melhor Envio
+ * GET /api/shipping/config - Status das credenciais e ambiente oficial de Produção do Melhor Envio
  */
 app.get('/api/shipping/config', (_req, res) => {
-  const token = process.env.MELHOR_ENVIO_TOKEN;
-  const env = process.env.MELHOR_ENVIO_ENV || 'sandbox';
+  const tokenData = getStoredTokenData();
+  const token = tokenData?.access_token || process.env.MELHOR_ENVIO_TOKEN;
+  const env = 'production';
   const fromCep = process.env.MELHOR_ENVIO_FROM_CEP || DEFAULT_FROM_CEP;
 
   res.json({
     configured: Boolean(token && token.trim().length > 10),
     env,
+    baseUrl: MELHOR_ENVIO_PRODUCTION_BASE_URL,
+    clientId: MELHOR_ENVIO_CLIENT_ID,
+    contactEmail: MELHOR_ENVIO_SUPPORT_EMAIL,
+    userAgent: MELHOR_ENVIO_USER_AGENT,
     fromCep,
-    help: 'Para ativar as cotações reais da sua conta, adicione MELHOR_ENVIO_TOKEN no arquivo .env.'
+    tokenSource: tokenData?.source || (process.env.MELHOR_ENVIO_TOKEN ? 'env' : 'none'),
+    hasRefreshToken: Boolean(tokenData?.refresh_token),
+    updatedAt: tokenData?.updated_at || null,
+    expiresAt: tokenData?.expires_at || null,
+    help: 'Ambiente oficial de Produção do Melhor Envio conectado.'
   });
 });
 
@@ -1334,16 +1361,9 @@ app.get('/api/cep/:cep', async (req, res) => {
 
 /**
  * POST /api/shipping/calculate
- * Endpoint que calcula o frete chamando a API do Melhor Envio
- * 
- * Payload esperado:
- * {
- *   toPostalCode: string,
- *   products: [
- *     { id: string, width: number, height: number, length: number, weight: number, price: number, quantity: number }
- *   ],
- *   fromPostalCode?: string
- * }
+ * Endpoint que calcula o frete chamando a API oficial de Produção do Melhor Envio
+ * (https://melhorenvio.com.br/api/v2/me/shipment/calculate) com headers obrigatórios
+ * e fallback resiliente caso o token ainda esteja pendente de autorização.
  */
 app.post('/api/shipping/calculate', async (req, res) => {
   try {
@@ -1360,7 +1380,7 @@ app.post('/api/shipping/calculate', async (req, res) => {
       return res.status(400).json({ error: 'CEP de destino inválido. Deve conter 8 dígitos.' });
     }
 
-    // Calcula dimensões agregadas ou lista de produtos para o Melhor Envio
+    // Formata os produtos conforme exigido pela API do Melhor Envio
     const formattedProducts = Array.isArray(products) && products.length > 0
       ? products.map((p: any, idx: number) => ({
           id: String(p.id || `item-${idx}`),
@@ -1383,102 +1403,58 @@ app.post('/api/shipping/calculate', async (req, res) => {
           }
         ];
 
-    const token = process.env.MELHOR_ENVIO_TOKEN?.trim();
-    const env = (process.env.MELHOR_ENVIO_ENV || 'sandbox').toLowerCase();
-    const isProduction = env === 'production' || env === 'prod';
-    const baseUrl = isProduction 
-      ? 'https://melhorenvio.com.br' 
-      : 'https://sandbox.melhorenvio.com.br';
+    const tokenData = getStoredTokenData();
+    const token = tokenData?.access_token || process.env.MELHOR_ENVIO_TOKEN?.trim();
 
-    const contactEmail = process.env.MELHOR_ENVIO_EMAIL || 'contato@lavistore.com.br';
-
-    // Se o Token estiver configurado, faz a chamada REAL para a API do Melhor Envio
+    // Se houver token configurado, consulta a API Oficial de Produção
     if (token && token.length > 10) {
-      const melhorEnvioPayload = {
-        from: {
-          postal_code: cleanFromCep
-        },
-        to: {
-          postal_code: cleanToCep
-        },
-        products: formattedProducts,
-        options: {
-          receipt: false,
-          own_hand: false,
-          reverse: false,
-          non_commercial: false
-        }
-      };
-
-      console.log(`[Melhor Envio] Consultando API (${env}): de ${cleanFromCep} para ${cleanToCep}`);
-
+      console.log(`[Melhor Envio Produção] Cotação oficial para destino ${cleanToCep} (Origem: ${cleanFromCep})`);
       try {
-        const apiResponse = await fetch(`${baseUrl}/api/v2/me/shipment/calculate`, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'User-Agent': `Lavistore E-commerce (${contactEmail})`
-          },
-          body: JSON.stringify(melhorEnvioPayload)
-        });
+        const data = await calculateProductionShipment(cleanFromCep, cleanToCep, formattedProducts);
 
-        if (apiResponse.ok) {
-          const data: any = await apiResponse.json();
+        if (Array.isArray(data)) {
+          const validOptions = data
+            .filter((item: any) => !item.error && (item.custom_price || item.price))
+            .map((item: any) => {
+              const price = parseFloat(item.custom_price || item.price);
+              const deliveryDays = item.custom_delivery_time || item.delivery_time || 5;
+              const carrierName = item.company?.name || (item.name?.toLowerCase().includes('jadlog') ? 'Jadlog' : 'Correios');
 
-          if (Array.isArray(data)) {
-            // Mapeia os serviços retornados filtrando os com erros
-            const validOptions = data
-              .filter((item: any) => !item.error && (item.custom_price || item.price))
-              .map((item: any) => {
-                const price = parseFloat(item.custom_price || item.price);
-                const deliveryDays = item.custom_delivery_time || item.delivery_time || 5;
-                const carrierName = item.company?.name || (item.name?.toLowerCase().includes('jadlog') ? 'Jadlog' : 'Correios');
+              return {
+                id: String(item.id),
+                name: `${carrierName} ${item.name}`,
+                price: Math.round(price * 100) / 100,
+                originalPrice: Math.round(price * 100) / 100,
+                deadline: `${deliveryDays} dias úteis`,
+                deliveryDays: deliveryDays,
+                carrier: carrierName,
+                carrierLogo: item.company?.picture,
+                companyName: carrierName
+              };
+            });
 
-                return {
-                  id: String(item.id),
-                  name: `${carrierName} ${item.name}`,
-                  price: Math.round(price * 100) / 100,
-                  originalPrice: Math.round(price * 100) / 100,
-                  deadline: `${deliveryDays} dias úteis`,
-                  deliveryDays: deliveryDays,
-                  carrier: carrierName,
-                  carrierLogo: item.company?.picture,
-                  companyName: carrierName
-                };
-              });
-
-            if (validOptions.length > 0) {
-              return res.json({
-                options: validOptions,
-                fromPostalCode: cleanFromCep,
-                toPostalCode: cleanToCep,
-                isSimulated: false,
-                source: 'melhor_envio_api'
-              });
-            }
+          if (validOptions.length > 0) {
+            return res.json({
+              options: validOptions,
+              fromPostalCode: cleanFromCep,
+              toPostalCode: cleanToCep,
+              isSimulated: false,
+              source: 'melhor_envio_api'
+            });
           }
-        } else {
-          const errText = await apiResponse.text();
-          console.warn(`[Melhor Envio] Resposta não-200 da API (${apiResponse.status}): ${errText}`);
         }
-      } catch (callError) {
-        console.error('[Melhor Envio] Erro na requisição HTTP para Melhor Envio:', callError);
+      } catch (callError: any) {
+        console.warn('[Melhor Envio Produção] Aviso na cotação oficial:', callError.message);
       }
     } else {
-      console.log('[Melhor Envio] Token MELHOR_ENVIO_TOKEN não configurado em .env. Utilizando simulação realista baseada no CEP.');
+      console.log('[Melhor Envio Produção] Token não detectado. Utilizando cotações realistas em contingência.');
     }
 
     // SIMULAÇÃO INTELIGENTE REALISTA (Fallback de alta fidelidade)
-    // Permite que o lojista e clientes testem e calculem fretes com valores realistas
-    // enquanto o Token de Produção/Sandbox estiver sendo inserido.
     const firstDigit = parseInt(cleanToCep[0], 10);
     const totalWeightKg = formattedProducts.reduce((acc: number, p: any) => acc + (p.weight * p.quantity), 0);
     const weightFactor = Math.min(1.8, Math.max(1, 1 + (totalWeightKg - 0.3) * 0.2));
 
-    // Variação de custo baseada na região do Brasil (prefixo de CEP)
-    // 0: SP Capital, 1: SP Interior, 2: RJ/ES, 3: MG, 4: BA/SE, 5: PE/AL/PB/RN, 6: CE/PI/MA/PA/AM, 7: DF/GO/TO, 8: PR/SC, 9: RS
     const regionMultipliers: Record<number, { pacBase: number; sedexBase: number; jadlogBase: number; daysOffset: number }> = {
       0: { pacBase: 12.90, sedexBase: 19.90, jadlogBase: 11.50, daysOffset: 1 }, // SP Capital
       1: { pacBase: 14.50, sedexBase: 22.90, jadlogBase: 13.90, daysOffset: 2 }, // SP Interior
@@ -1546,8 +1522,8 @@ app.post('/api/shipping/calculate', async (req, res) => {
       isSimulated: true,
       source: 'fallback_simulator',
       message: token 
-        ? 'A chave de API retornou sem opções para este CEP, exibindo cotações de contingência.' 
-        : 'Para integrar com as cotações reais da sua conta Melhor Envio, defina MELHOR_ENVIO_TOKEN no seu arquivo .env.'
+        ? 'A chave de Produção retornou sem opções para este CEP, exibindo cotações de contingência.' 
+        : 'Para integrar com as cotações oficiais da sua conta Melhor Envio, autorize o aplicativo ou defina o Token.'
     });
 
   } catch (error: any) {
@@ -1556,6 +1532,214 @@ app.post('/api/shipping/calculate', async (req, res) => {
       error: 'Falha ao processar o cálculo de frete.',
       details: error?.message || 'Erro interno'
     });
+  }
+});
+
+/**
+ * GET /api/shipping/oauth/authorize-url
+ * Gera a URL oficial de autorização OAuth2 do Melhor Envio em Produção
+ */
+app.get('/api/shipping/oauth/authorize-url', (req, res) => {
+  try {
+    const defaultHost = req.get('host') || 'localhost:3000';
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const redirectUri = String(req.query.redirect_uri || `${protocol}://${defaultHost}/api/shipping/oauth/callback`);
+    const state = String(req.query.state || 'lavistore_admin');
+
+    const authUrl = generateOAuthAuthorizeUrl(redirectUri, state);
+    return res.json({
+      authUrl,
+      redirectUri,
+      clientId: MELHOR_ENVIO_CLIENT_ID,
+      baseUrl: MELHOR_ENVIO_PRODUCTION_BASE_URL
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Erro ao gerar URL de autorização', details: err.message });
+  }
+});
+
+/**
+ * GET /api/shipping/oauth/callback
+ * Endpoint de retorno OAuth do Melhor Envio após aprovação do aplicativo oficial
+ */
+app.get('/api/shipping/oauth/callback', async (req, res) => {
+  try {
+    const code = req.query.code as string;
+    const defaultHost = req.get('host') || 'localhost:3000';
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const redirectUri = `${protocol}://${defaultHost}/api/shipping/oauth/callback`;
+
+    if (!code) {
+      return res.redirect('/?tab=admin&shipping_error=codigo_nao_fornecido');
+    }
+
+    await exchangeOAuthCode(code, redirectUri);
+    return res.redirect('/?tab=admin&melhor_envio_connected=true');
+  } catch (err: any) {
+    console.error('[Melhor Envio OAuth Callback] Erro ao trocar código:', err);
+    return res.redirect(`/?tab=admin&shipping_error=${encodeURIComponent(err.message || 'falha_autorizacao')}`);
+  }
+});
+
+/**
+ * POST /api/shipping/oauth/token
+ * Troca do authorization_code por token de acesso via API REST
+ */
+app.post('/api/shipping/oauth/token', async (req, res) => {
+  try {
+    const { code, redirectUri } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: 'Código de autorização é obrigatório.' });
+    }
+
+    const defaultHost = req.get('host') || 'localhost:3000';
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const targetRedirectUri = redirectUri || `${protocol}://${defaultHost}/api/shipping/oauth/callback`;
+
+    const tokenData = await exchangeOAuthCode(code, targetRedirectUri);
+    return res.json({
+      success: true,
+      message: 'Token oficial de produção gerado e salvo com sucesso!',
+      expiresAt: tokenData.expires_at,
+      scope: tokenData.scope
+    });
+  } catch (err: any) {
+    return res.status(400).json({ error: 'Falha ao trocar código por token', details: err.message });
+  }
+});
+
+/**
+ * POST /api/shipping/oauth/refresh
+ * Renova o access_token de produção via refresh_token
+ */
+app.post('/api/shipping/oauth/refresh', async (_req, res) => {
+  try {
+    const refreshed = await refreshMelhorEnvioToken();
+    if (!refreshed) {
+      return res.status(400).json({ error: 'Não foi possível renovar o token. Nenhum refresh_token disponível ou expirado.' });
+    }
+    return res.json({
+      success: true,
+      message: 'Token de produção renovado com sucesso!',
+      expiresAt: refreshed.expires_at
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Erro ao renovar token', details: err.message });
+  }
+});
+
+/**
+ * POST /api/shipping/token/manual
+ * Permite salvar diretamente o Bearer Token de Produção no cofre persistente
+ */
+app.post('/api/shipping/token/manual', (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token || typeof token !== 'string' || token.trim().length < 10) {
+      return res.status(400).json({ error: 'Informe um token de produção válido.' });
+    }
+
+    const saved = saveTokenData({
+      access_token: token.trim(),
+      token_type: 'Bearer',
+      source: 'manual'
+    });
+
+    return res.json({
+      success: true,
+      message: 'Token de produção salvo com sucesso no cofre do servidor!',
+      updatedAt: saved.updated_at
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Falha ao salvar token manual', details: err.message });
+  }
+});
+
+/**
+ * GET /api/shipping/account
+ * Retorna os dados da conta do lojista no Melhor Envio (Produção)
+ */
+app.get('/api/shipping/account', async (_req, res) => {
+  try {
+    const info = await getConnectedAccountInfo();
+    return res.json({ success: true, account: info });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Erro ao consultar conta no Melhor Envio', details: err.message });
+  }
+});
+
+/**
+ * POST /api/shipping/labels/generate
+ * Gera etiquetas de envio na API de Produção do Melhor Envio
+ */
+app.post('/api/shipping/labels/generate', async (req, res) => {
+  try {
+    const { orderIds, shipmentPayload } = req.body;
+    if (!orderIds && !shipmentPayload) {
+      return res.status(400).json({ error: 'Dados do envio ou IDs dos pedidos são obrigatórios.' });
+    }
+
+    let targetOrderIds: string[] = Array.isArray(orderIds) ? orderIds : [];
+
+    if (shipmentPayload) {
+      const cartResult = await addShipmentToCart(shipmentPayload);
+      if (cartResult?.id) {
+        targetOrderIds.push(String(cartResult.id));
+      }
+    }
+
+    if (targetOrderIds.length === 0) {
+      return res.status(400).json({ error: 'Nenhuma ordem válida para gerar etiqueta.' });
+    }
+
+    const checkoutResult = await checkoutShipments(targetOrderIds);
+    const generateResult = await generateShipmentLabels(targetOrderIds);
+
+    return res.json({
+      success: true,
+      orderIds: targetOrderIds,
+      checkout: checkoutResult,
+      generate: generateResult
+    });
+  } catch (err: any) {
+    console.error('[Melhor Envio Etiquetas] Erro ao gerar etiquetas:', err);
+    return res.status(500).json({ error: 'Erro ao gerar etiqueta no Melhor Envio', details: err.message });
+  }
+});
+
+/**
+ * POST /api/shipping/labels/print
+ * Retorna o link oficial para impressão das etiquetas em PDF (Produção)
+ */
+app.post('/api/shipping/labels/print', async (req, res) => {
+  try {
+    const { orderIds, mode = 'public' } = req.body;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ error: 'Informe ao menos um ID de envio.' });
+    }
+
+    const printResult = await printShipmentLabels(orderIds, mode);
+    return res.json({ success: true, print: printResult });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Erro ao obter link de impressão', details: err.message });
+  }
+});
+
+/**
+ * POST /api/shipping/tracking
+ * Rastreia encomendas em tempo real no Melhor Envio Produção
+ */
+app.post('/api/shipping/tracking', async (req, res) => {
+  try {
+    const { trackingCodes } = req.body;
+    if (!Array.isArray(trackingCodes) || trackingCodes.length === 0) {
+      return res.status(400).json({ error: 'Informe ao menos um código de rastreio.' });
+    }
+
+    const trackingResult = await trackShipments(trackingCodes);
+    return res.json({ success: true, tracking: trackingResult });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Erro ao rastrear envio no Melhor Envio', details: err.message });
   }
 });
 
