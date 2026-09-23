@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, 
   Check, 
@@ -96,6 +96,52 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   } | null>(null);
   const [brickActive, setBrickActive] = useState(false);
   const [isBrickReady, setIsBrickReady] = useState(false);
+
+  // Validador estrito da Chave Pública do Mercado Pago (elimina chaves de teste fictícias como TEST-00000000...)
+  const isMercadoPagoKeyValid = (key?: string | null): boolean => {
+    if (!key || typeof key !== 'string') return false;
+    const trimmed = key.trim();
+    return trimmed.length >= 15 && !trimmed.includes('00000000') && trimmed !== 'TEST-00000000-0000-0000-0000-000000000000';
+  };
+
+  // Resolução da Chave Pública de Produção:
+  // 1. Variável de ambiente Vite (import.meta.env.VITE_MP_PUBLIC_KEY / VITE_MERCADO_PAGO_PUBLIC_KEY)
+  // 2. Chave do endpoint oficial /api/mercadopago/config
+  const activePublicKey = useMemo(() => {
+    const envKey = (
+      (import.meta.env.VITE_MP_PUBLIC_KEY as string | undefined)?.trim() ||
+      (import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY as string | undefined)?.trim() ||
+      ''
+    );
+
+    if (isMercadoPagoKeyValid(envKey)) {
+      return envKey;
+    }
+
+    if (isMercadoPagoKeyValid(mpConfig?.publicKey)) {
+      return mpConfig!.publicKey.trim();
+    }
+
+    return '';
+  }, [mpConfig?.publicKey]);
+
+  // Inicialização segura do SDK Mercado Pago JS v2 no frontend
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.MercadoPago) {
+      if (activePublicKey) {
+        try {
+          if (!window.__mercadoPagoInstance) {
+            window.__mercadoPagoInstance = new window.MercadoPago(activePublicKey, { locale: 'pt-BR' });
+            console.info('[Mercado Pago SDK] Inicializado no frontend com Chave Pública válida.');
+          }
+        } catch (err) {
+          console.warn('[Mercado Pago SDK] Aviso ao inicializar instância:', err);
+        }
+      } else {
+        console.info('[Mercado Pago SDK] Chave pública do frontend não injetada ou ausente. O Checkout Transparente operará via backend protegido (Access Token oficial).');
+      }
+    }
+  }, [activePublicKey]);
 
   // Extra gift flag
   const [hidePrices, setHidePrices] = useState(true);
@@ -288,11 +334,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Inicialização do Mercado Pago Payment Brick
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !brickActive) return;
 
     let timer: any;
     const tryInitBrick = async () => {
-      if (typeof window !== 'undefined' && window.MercadoPago && mpConfig?.publicKey) {
+      if (typeof window !== 'undefined' && window.MercadoPago) {
+        if (!activePublicKey) {
+          console.warn('[Mercado Pago Brick] Nenhuma chave pública válida (VITE_MP_PUBLIC_KEY) disponível. O componente visual requer uma chave de produção.');
+          return;
+        }
+
         const container = document.getElementById('paymentBrick_container');
         if (container) {
           try {
@@ -301,7 +352,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 window.paymentBrickController.unmount();
               } catch (e) {}
             }
-            const mp = new window.MercadoPago(mpConfig.publicKey, { locale: 'pt-BR' });
+            const mp = window.__mercadoPagoInstance || new window.MercadoPago(activePublicKey, { locale: 'pt-BR' });
             const bricksBuilder = mp.bricks();
 
             window.paymentBrickController = await bricksBuilder.create(
@@ -359,14 +410,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
     };
 
-    if (brickActive) {
-      timer = setTimeout(tryInitBrick, 300);
-    }
+    timer = setTimeout(tryInitBrick, 300);
 
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [isOpen, brickActive, mpConfig, finalOrderTotal]);
+  }, [isOpen, brickActive, activePublicKey, finalOrderTotal]);
 
   // Processamento unificado no Mercado Pago (Payment Brick ou Formulário Seguro Transparente)
   const executeMercadoPagoPayment = async (customFormData?: any) => {
@@ -498,7 +547,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             cardExpirationMonth: expMonth,
             cardExpirationYear: expYearRaw,
             securityCode: cleanCvv,
-            identificationNumber: cleanCpf
+            identificationNumber: cleanCpf,
+            publicKey: activePublicKey || undefined
           })
         });
 

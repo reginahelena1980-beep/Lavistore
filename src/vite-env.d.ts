@@ -18,5 +18,6 @@ declare module '*.svg' {
 interface Window {
   MercadoPago?: any;
   paymentBrickController?: any;
+  __mercadoPagoInstance?: any;
 }
 

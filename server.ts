@@ -2493,21 +2493,37 @@ app.post('/api/email/test', async (req, res) => {
  * Retorna as credenciais públicas do Mercado Pago para inicializar o Payment Brick
  */
 app.get('/api/mercadopago/config', (_req, res) => {
-  const publicKey = process.env.MERCADO_PAGO_PUBLIC_KEY?.trim() || 'TEST-00000000-0000-0000-0000-000000000000';
+  const rawKey = (
+    process.env.VITE_MP_PUBLIC_KEY?.trim() ||
+    process.env.VITE_MERCADO_PAGO_PUBLIC_KEY?.trim() ||
+    process.env.MERCADO_PAGO_PUBLIC_KEY?.trim() ||
+    ''
+  );
+
+  // Validação estrita: elimina qualquer chave teste fictícia com zeros
+  const isValidPublicKey = Boolean(
+    rawKey &&
+    rawKey.length >= 15 &&
+    !rawKey.includes('00000000') &&
+    rawKey !== 'TEST-00000000-0000-0000-0000-000000000000'
+  );
+
+  const publicKey = isValidPublicKey ? rawKey : '';
   const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
   const isConfigured = Boolean(accessToken && accessToken.length > 10);
 
   res.json({
     publicKey,
     isConfigured,
-    hasCustomPublicKey: Boolean(publicKey && !publicKey.includes('00000000')),
+    hasCustomPublicKey: isValidPublicKey,
     environment: publicKey.startsWith('TEST') ? 'sandbox' : 'production'
   });
 });
 
 /**
  * POST /api/mercadopago/tokenize_card
- * Gera um token seguro de cartão diretamente na API do Mercado Pago usando a Public Key
+ * Gera um token seguro de cartão diretamente na API do Mercado Pago
+ * Utiliza a Public Key de produção ou, como fallback de alta resiliência, o Access Token oficial de produção
  */
 app.post('/api/mercadopago/tokenize_card', async (req, res) => {
   try {
@@ -2517,12 +2533,33 @@ app.post('/api/mercadopago/tokenize_card', async (req, res) => {
       cardExpirationMonth,
       cardExpirationYear,
       securityCode,
-      identificationNumber
+      identificationNumber,
+      publicKey: clientPublicKey
     } = req.body;
 
-    const publicKey = process.env.MERCADO_PAGO_PUBLIC_KEY?.trim();
-    if (!publicKey) {
-      return res.status(400).json({ error: 'Chave pública do Mercado Pago não configurada no servidor.' });
+    const rawKey = (
+      (typeof clientPublicKey === 'string' ? clientPublicKey.trim() : '') ||
+      process.env.VITE_MP_PUBLIC_KEY?.trim() ||
+      process.env.VITE_MERCADO_PAGO_PUBLIC_KEY?.trim() ||
+      process.env.MERCADO_PAGO_PUBLIC_KEY?.trim() ||
+      ''
+    );
+
+    // Validação estrita: descarta chaves fictícias com zeros
+    const isValidKey = Boolean(
+      rawKey &&
+      rawKey.length >= 15 &&
+      !rawKey.includes('00000000') &&
+      rawKey !== 'TEST-00000000-0000-0000-0000-000000000000'
+    );
+    const resolvedPublicKey = isValidKey ? rawKey : '';
+
+    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+
+    if (!resolvedPublicKey && (!accessToken || accessToken.length < 10)) {
+      return res.status(400).json({ 
+        error: 'Credenciais do Mercado Pago não configuradas no ambiente. Configure VITE_MP_PUBLIC_KEY ou MERCADO_PAGO_ACCESS_TOKEN.' 
+      });
     }
 
     const cleanCardNumber = String(cardNumber || '').replace(/\D/g, '');
@@ -2560,39 +2597,83 @@ app.post('/api/mercadopago/tokenize_card', async (req, res) => {
       security_code: String(securityCode || '').trim()
     };
 
-    const mpResp = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${publicKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(tokenPayload)
-    });
+    let mpResp: Response;
+    if (resolvedPublicKey) {
+      // 1. Tokenização via Chave Pública válida do Mercado Pago
+      mpResp = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${resolvedPublicKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tokenPayload)
+      });
+    } else {
+      // 2. Fallback seguro: Tokenização oficial autenticada via Access Token de Produção
+      mpResp = await fetch('https://api.mercadopago.com/v1/card_tokens', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(tokenPayload)
+      });
+    }
 
     const mpData: any = await mpResp.json();
 
     if (!mpResp.ok || !mpData.id) {
-      const errorMsg = mpData.message || (mpData.cause && mpData.cause[0] ? mpData.cause[0].description : 'Dados do cartão incorretos ou não autorizados.');
+      const errorMsg = mpData.message || (mpData.cause && mpData.cause[0] ? mpData.cause[0].description : 'Dados do cartão incorretos ou não autorizados pelo Mercado Pago.');
+      console.warn('[Mercado Pago Tokenize] Erro retornado pela API:', mpData);
       return res.status(mpResp.status || 400).json({ error: errorMsg, details: mpData });
     }
 
-    // Busca método de pagamento a partir dos 6 primeiros dígitos (BIN)
+    // Identificação precisa da bandeira do cartão (BIN matching robusto)
     let paymentMethodId = 'visa';
-    try {
-      const bin = cleanCardNumber.substring(0, 6);
-      if (bin.length >= 6) {
-        const binResp = await fetch(`https://api.mercadopago.com/v1/payment_methods/search?public_key=${publicKey}&bins=${bin}`);
+    const bin = cleanCardNumber.substring(0, 6);
+    if (bin.startsWith('4')) {
+      paymentMethodId = 'visa';
+    } else if (
+      bin.startsWith('51') || bin.startsWith('52') || bin.startsWith('53') || 
+      bin.startsWith('54') || bin.startsWith('55') || 
+      (parseInt(bin.substring(0, 4), 10) >= 2221 && parseInt(bin.substring(0, 4), 10) <= 2720)
+    ) {
+      paymentMethodId = 'master';
+    } else if (bin.startsWith('34') || bin.startsWith('37')) {
+      paymentMethodId = 'amex';
+    } else if (
+      bin.startsWith('606282') || bin.startsWith('4011') || bin.startsWith('431274') || 
+      bin.startsWith('438935') || bin.startsWith('451416') || bin.startsWith('457393') || 
+      bin.startsWith('457631') || bin.startsWith('504175') || bin.startsWith('627780') || 
+      bin.startsWith('636297') || bin.startsWith('636368') || bin.startsWith('65500') || 
+      bin.startsWith('6516') || bin.startsWith('650')
+    ) {
+      paymentMethodId = 'elo';
+    } else if (bin.startsWith('30') || bin.startsWith('36') || bin.startsWith('38')) {
+      paymentMethodId = 'diners';
+    } else if (bin.startsWith('6011') || bin.startsWith('65')) {
+      paymentMethodId = 'discover';
+    } else if (bin.startsWith('35')) {
+      paymentMethodId = 'jcb';
+    } else if (bin.startsWith('60')) {
+      paymentMethodId = 'hipercard';
+    }
+
+    // Consulta BIN no Mercado Pago se houver chave pública
+    if (resolvedPublicKey) {
+      try {
+        const binResp = await fetch(`https://api.mercadopago.com/v1/payment_methods/search?public_key=${resolvedPublicKey}&bins=${bin}`);
         const binData: any = await binResp.json();
         if (binData.results && binData.results.length > 0) {
           paymentMethodId = binData.results[0].id;
         }
+      } catch (binErr) {
+        console.warn('[Mercado Pago] Falha na identificação do BIN:', binErr);
       }
-    } catch (binErr) {
-      console.warn('[Mercado Pago] Falha na identificação do BIN:', binErr);
     }
 
     res.json({
       token: mpData.id,
       payment_method_id: paymentMethodId,
-      first_six_digits: mpData.first_six_digits,
-      last_four_digits: mpData.last_four_digits,
+      first_six_digits: mpData.first_six_digits || bin,
+      last_four_digits: mpData.last_four_digits || cleanCardNumber.slice(-4),
       luhn_validation: mpData.luhn_validation
     });
   } catch (err: any) {
