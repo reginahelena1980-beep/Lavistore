@@ -18,6 +18,11 @@ import {
   NewsletterLead
 } from '../types';
 import { AdminCustomVault } from '../utils/adminDataProtection';
+import { 
+  loadStoreConfigFromFirestore, 
+  saveStoreConfigToFirestore 
+} from './firestoreConfigService';
+import { isFirebaseReady } from './firebase';
 
 export interface StoreDataPayload {
   updatedAt?: string;
@@ -99,6 +104,56 @@ export interface GenericApiResponse {
 }
 
 /**
+ * Recupera as configurações soberanas da loja com estratégia READ-FIRST rigorosa:
+ * 1. Consulta o Firestore via getDoc()
+ * 2. Se o documento existir, ele é a fonte única e absoluta da verdade (imune a qualquer deploy/build)
+ * 3. Se NÃO existir (primeira instalação da loja), NÃO executa setDoc nem grava dados fakes;
+ *    apenas retorna o fallback seguro em memória/API Express
+ */
+export async function fetchSovereignStoreConfig(): Promise<{
+  source: 'firestore' | 'server' | 'none';
+  data: Partial<AdminCustomVault> | null;
+  isLockedByAdmin: boolean;
+}> {
+  // 1. READ-FIRST no Firestore (Nunca faz seed/setDoc se não existir)
+  if (isFirebaseReady()) {
+    try {
+      const firestoreResult = await loadStoreConfigFromFirestore();
+      if (firestoreResult.exists && firestoreResult.data) {
+        console.info('[StoreAPI] 👑 Configurações soberanas obtidas diretamente do Firestore (Fonte Soberana da Verdade).');
+        return {
+          source: 'firestore',
+          data: firestoreResult.data,
+          isLockedByAdmin: true
+        };
+      }
+    } catch (err) {
+      console.warn('[StoreAPI] Erro ao consultar Firestore na inicialização:', err);
+    }
+  }
+
+  // 2. Consulta à API Express / cofre persistente como fallback secundário
+  try {
+    const res = await fetchStoreData();
+    if (res && res.hasCustomData && res.data) {
+      return {
+        source: 'server',
+        data: res.data,
+        isLockedByAdmin: Boolean(res.data.isLockedByAdmin)
+      };
+    }
+  } catch (err) {
+    console.warn('[StoreAPI] Falha ao consultar endpoint Express da loja:', err);
+  }
+
+  return {
+    source: 'none',
+    data: null,
+    isLockedByAdmin: false
+  };
+}
+
+/**
  * Recupera os dados oficiais da loja e configurações administrativas
  */
 export async function fetchStoreData(): Promise<StoreDataResponse> {
@@ -110,9 +165,21 @@ export async function fetchStoreData(): Promise<StoreDataResponse> {
 }
 
 /**
- * Sincroniza e grava atomicamente os dados da loja no cofre do servidor
+ * Sincroniza e grava atomicamente os dados da loja no cofre do servidor e no Firestore
+ * (Apenas executado sob ação explícita do administrador no painel)
  */
 export async function syncStoreData(payload: SyncStorePayload): Promise<SyncStoreResponse> {
+  // 1. Gravação protegida no Firestore (Apenas sob comando explícito do usuário/Admin)
+  if (isFirebaseReady()) {
+    try {
+      await saveStoreConfigToFirestore(payload as Partial<AdminCustomVault>);
+      console.info('[StoreAPI] 🛡️ Configurações sincronizadas no Firebase Firestore.');
+    } catch (fsErr) {
+      console.warn('[StoreAPI] Aviso ao persistir no Firestore:', fsErr);
+    }
+  }
+
+  // 2. Gravação no servidor Express
   const res = await fetch('/api/store/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

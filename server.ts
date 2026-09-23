@@ -130,10 +130,12 @@ function initializePersistentStorage() {
     let existingAdminSettings = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE);
     if (!existingAdminSettings) {
       const vaultData = safeReadJsonFile(ADMIN_VAULT_FILE);
-      const source = (vaultData && vaultData.isLockedByAdmin) ? vaultData : seedData;
+      const isGenuineAdmin = Boolean(vaultData && vaultData.isLockedByAdmin && vaultData.lastAdminSavedAt);
+      const source = isGenuineAdmin ? vaultData : seedData;
+
       existingAdminSettings = {
-        lastAdminSavedAt: source.lastAdminSavedAt || source.updatedAt || new Date().toISOString(),
-        isLockedByAdmin: true,
+        lastAdminSavedAt: isGenuineAdmin ? source.lastAdminSavedAt : undefined,
+        isLockedByAdmin: isGenuineAdmin,
         homePageConfig: source.homePageConfig || {},
         heroConfig: source.heroConfig || {},
         coupons: Array.isArray(source.coupons) ? source.coupons : [],
@@ -146,19 +148,15 @@ function initializePersistentStorage() {
         adminPasswordChangedAt: source.adminPasswordChangedAt || undefined
       };
       safeWriteJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE, existingAdminSettings);
-      console.log('[Storage] Configurações administrativas inicializadas em persistent_data/admin_persistent_settings.json');
+      console.log(`[Storage] Configurações administrativas inicializadas (isLockedByAdmin=${isGenuineAdmin})`);
     } else {
-      // Se já existe, mescla de forma NÃO-DESTRUTIVA: o admin tem prioridade absoluta.
-      const mergedHome = deepMergeObjects(seedData.homePageConfig || {}, existingAdminSettings.homePageConfig || {});
-      const mergedHero = deepMergeObjects(seedData.heroConfig || {}, existingAdminSettings.heroConfig || {});
-      const mergedFilter = deepMergeObjects(seedData.filterBarConfig || {}, existingAdminSettings.filterBarConfig || {});
-
+      // Se já existe, as edições do administrador têm prioridade absoluta sobre qualquer arquivo estático de build
       existingAdminSettings = {
         ...existingAdminSettings,
-        isLockedByAdmin: true,
-        homePageConfig: mergedHome,
-        heroConfig: mergedHero,
-        filterBarConfig: mergedFilter,
+        isLockedByAdmin: Boolean(existingAdminSettings.isLockedByAdmin),
+        homePageConfig: existingAdminSettings.homePageConfig || seedData.homePageConfig || {},
+        heroConfig: existingAdminSettings.heroConfig || seedData.heroConfig || {},
+        filterBarConfig: existingAdminSettings.filterBarConfig || seedData.filterBarConfig || {},
         coupons: (Array.isArray(existingAdminSettings.coupons) && existingAdminSettings.coupons.length > 0)
           ? existingAdminSettings.coupons
           : (seedData.coupons || []),
@@ -173,7 +171,7 @@ function initializePersistentStorage() {
           : (seedData.categories || [])
       };
       safeWriteJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE, existingAdminSettings);
-      console.log('[Storage] Configurações administrativas blindadas e mescladas com sucesso.');
+      console.log('[Storage] Configurações administrativas blindadas e preservadas intactas.');
     }
 
     // 2. Inicializa ou mescla persistent_data/store_state.json
@@ -182,8 +180,8 @@ function initializePersistentStorage() {
       persistentStore = {
         ...seedData,
         ...existingAdminSettings,
-        updatedAt: seedData.updatedAt || new Date().toISOString(),
-        isLockedByAdmin: true
+        updatedAt: existingAdminSettings.lastAdminSavedAt || seedData.updatedAt || undefined,
+        isLockedByAdmin: Boolean(existingAdminSettings.isLockedByAdmin)
       };
       safeWriteJsonFile(PERSISTENT_STORE_FILE, persistentStore);
     } else {
@@ -390,11 +388,12 @@ app.get('/api/store/data', (_req, res) => {
       || safeReadJsonFile(ADMIN_VAULT_FILE);
 
     if (finalData) {
+      const isLocked = Boolean(adminSettings?.isLockedByAdmin || finalData?.isLockedByAdmin);
       if (adminSettings) {
         finalData = {
           ...finalData,
-          isLockedByAdmin: true,
-          lastAdminSavedAt: adminSettings.lastAdminSavedAt || finalData.lastAdminSavedAt || finalData.updatedAt,
+          isLockedByAdmin: isLocked,
+          lastAdminSavedAt: adminSettings.lastAdminSavedAt || finalData.lastAdminSavedAt,
           homePageConfig: adminSettings.homePageConfig || finalData.homePageConfig,
           heroConfig: adminSettings.heroConfig || finalData.heroConfig,
           coupons: (Array.isArray(adminSettings.coupons) && adminSettings.coupons.length > 0)
@@ -419,7 +418,7 @@ app.get('/api/store/data', (_req, res) => {
         finalData.biRecords = biContent;
       }
 
-      return res.json({ success: true, hasCustomData: true, data: finalData });
+      return res.json({ success: true, hasCustomData: isLocked, data: finalData });
     }
 
     return res.json({ success: true, hasCustomData: false, data: null });

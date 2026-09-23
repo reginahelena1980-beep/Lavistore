@@ -53,6 +53,7 @@ import {
 } from './utils/adminDataProtection';
 import {
   fetchStoreData,
+  fetchSovereignStoreConfig,
   syncStoreData,
   saveAdminSettings,
   fetchBiRecords,
@@ -568,13 +569,16 @@ export default function App() {
       const localVault = getLocalAdminVault();
 
       try {
-        const json = await fetchStoreData();
-        if (json?.hasCustomData && json?.data) {
-          const d = json.data;
+        // READ-FIRST: Consulta soberana no Firestore (getDoc puro), com fallback seguro para API Express
+        const sovereignResult = await fetchSovereignStoreConfig();
 
-            // Determina se devemos preferir o cofre local do administrador
-            // (ex: logo após um deploy novo de código ou quando o local tem dados mais recentes)
-            const preferLocal = shouldPreferLocalAdminVault(localVault, d);
+        if (sovereignResult.data) {
+          const d = sovereignResult.data;
+          const isFromFirestore = sovereignResult.source === 'firestore';
+
+          // Se veio do Firestore, o documento é soberano absoluto e imune a qualquer build/deploy.
+          // Se veio da API Express/servidor, avalia se o cofre local possui versão mais recente.
+          const preferLocal = isFromFirestore ? false : shouldPreferLocalAdminVault(localVault, d);
 
             // 1. PRODUTOS: Mesclagem segura garantindo que nenhuma edição do admin seja perdida
             const serverProducts: Product[] = Array.isArray(d.products) ? d.products : [];
