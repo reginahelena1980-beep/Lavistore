@@ -17,9 +17,9 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
   isAdminEditing = false,
   onEditField
 }) => {
-  const badgeText = config?.reviewsBadge?.text || 'Depoimentos Reais';
-  const titleText = config?.reviewsTitle?.text || 'Amor em Forma de Pacotinho 🌸';
-  const subtitleText = config?.reviewsSubtitle?.text || 'Veja o que nossas clientes dizem sobre o unboxing perfumado e o carinho dos produtos Lavistore Kids.';
+  const badgeText = config?.reviewsBadge?.text?.trim() || (isAdminEditing ? 'Depoimentos' : 'Depoimentos de Clientes');
+  const titleText = config?.reviewsTitle?.text?.trim() || (isAdminEditing ? 'Avaliações' : 'O que nossas clientes dizem');
+  const subtitleText = config?.reviewsSubtitle?.text?.trim() || '';
   const displayedReviews = reviews || [];
 
   if (displayedReviews.length === 0 && !isAdminEditing) {

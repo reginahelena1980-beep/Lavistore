@@ -11,14 +11,20 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ config }) =>
   const [isOpen, setIsOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
 
+  const rawNumber = config?.whatsappNumber?.trim() || '';
+  // Se não houver número configurado pelo admin, não exibe o botão flutuante com dados fictícios
+  if (!rawNumber || rawNumber.length < 8) {
+    return null;
+  }
+
   const isDirectMode = (config?.whatsappMode || 'direct') === 'direct';
-  const buttonLabel = config?.chatButtonLabel || config?.whatsappButtonLabel || 'Dúvidas? Fale Conosco';
-  const directWaUrl = formatWhatsAppLink(config?.whatsappNumber, config?.whatsappDefaultMessage);
+  const buttonLabel = config?.chatButtonLabel?.trim() || config?.whatsappButtonLabel?.trim() || 'Fale Conosco';
+  const directWaUrl = formatWhatsAppLink(rawNumber, config?.whatsappDefaultMessage);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     const msgToSend = chatMessage.trim() || config?.whatsappDefaultMessage || 'Olá Lavistore!';
-    const waUrl = formatWhatsAppLink(config?.whatsappNumber, msgToSend);
+    const waUrl = formatWhatsAppLink(rawNumber, msgToSend);
     
     // Abre de forma síncrona diretamente no clique do usuário para não ser bloqueado
     window.open(waUrl, '_blank', 'noopener,noreferrer');
@@ -36,7 +42,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ config }) =>
           target="_blank"
           rel="noopener noreferrer"
           className="group flex items-center gap-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-4 py-3 rounded-full shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
-          title={`Falar no WhatsApp oficial (${config?.whatsappNumber || '(11) 98765-4321'})`}
+          title={`Falar no WhatsApp oficial (${rawNumber})`}
         >
           <MessageCircle className="w-5 h-5 text-white shrink-0" />
           <span className="text-xs font-bold hidden sm:inline">
@@ -65,10 +71,10 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ config }) =>
               </div>
               <div>
                 <h4 className="font-bold text-sm">
-                  {config?.chatConciergeName || config?.whatsappChatTitle || 'Concierge Lavistore 🌸'}
+                  {config?.chatConciergeName?.trim() || config?.whatsappChatTitle?.trim() || 'Atendimento Lavistore'}
                 </h4>
                 <p className="text-[9px] text-pink-100">
-                  {config?.chatConciergeRole || config?.whatsappChatSubtitle || 'Atendimento Online • Suporte a Presentes'}
+                  {config?.chatConciergeRole?.trim() || config?.whatsappChatSubtitle?.trim() || 'Suporte ao Cliente'}
                 </p>
               </div>
             </div>
@@ -85,10 +91,10 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ config }) =>
           <div className="p-4 space-y-3 bg-[#FAF7FD] min-h-[140px] flex flex-col justify-end text-xs">
             <div className="bg-white p-3.5 rounded-2xl rounded-bl-xs border border-purple-100 shadow-2xs space-y-1.5 self-start max-w-[90%]">
               <p className="font-bold text-purple-950">
-                {config?.chatWelcomeTitle || config?.whatsappWelcomeGreeting || 'Olá, bem-vinda à Lavistore! 🌷'}
+                {config?.chatWelcomeTitle?.trim() || config?.whatsappWelcomeGreeting?.trim() || 'Olá! Como podemos ajudar?'}
               </p>
               <p className="text-slate-600 leading-relaxed text-[11px]">
-                {config?.chatWelcomeBody || config?.whatsappWelcomeMessage || 'Posso ajudar você a escolher um mimo perfeito, tirar dúvidas sobre o frete ou montar uma caixa personalizada?'}
+                {config?.chatWelcomeBody?.trim() || config?.whatsappWelcomeMessage?.trim() || 'Envie sua dúvida ou pedido para iniciarmos o atendimento no WhatsApp.'}
               </p>
               <span className="text-[8px] text-slate-400 block text-right">Agora mesmo</span>
             </div>

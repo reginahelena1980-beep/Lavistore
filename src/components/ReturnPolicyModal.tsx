@@ -171,7 +171,7 @@ export const ReturnPolicyModal: React.FC<ReturnPolicyModalProps> = ({
               <li className="flex items-start gap-2.5">
                 <span className="w-5 h-5 rounded-full bg-purple-200 text-purple-900 font-bold flex items-center justify-center shrink-0 text-[11px] mt-0.5">1</span>
                 <div>
-                  <strong>Entre em contato:</strong> Mande uma mensagem no nosso WhatsApp <strong>{config?.whatsappNumber || '(11) 98765-4321'}</strong> ou e-mail <strong>{config?.contactEmail || 'contato@lavistore.com.br'}</strong> informando seu nome ou número do pedido.
+                  <strong>Entre em contato:</strong> Mande uma mensagem {config?.whatsappNumber?.trim() ? <>no nosso WhatsApp <strong>{config.whatsappNumber.trim()}</strong></> : null} {config?.contactEmail?.trim() ? <>{config?.whatsappNumber?.trim() ? 'ou' : 'no nosso'} e-mail <strong>{config.contactEmail.trim()}</strong></> : null} {!config?.whatsappNumber?.trim() && !config?.contactEmail?.trim() ? 'pelos nossos canais de atendimento oficiais' : ''} informando seu nome ou número do pedido.
                 </div>
               </li>
               <li className="flex items-start gap-2.5">

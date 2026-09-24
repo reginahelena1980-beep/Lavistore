@@ -7,14 +7,34 @@ interface BrandPerksProps {
   config?: HomePageConfig;
   isAdminEditing?: boolean;
   onEditField?: (fieldKey: keyof HomePageConfig, label: string) => void;
+  isConfigLoading?: boolean;
 }
 
 export const BrandPerks: React.FC<BrandPerksProps> = ({
   config,
   isAdminEditing = false,
-  onEditField
+  onEditField,
+  isConfigLoading = false
 }) => {
-  const perks = [
+  if (isConfigLoading) {
+    return (
+      <section className="py-10 bg-white/60 backdrop-blur-md border-y border-amber-200/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-5 rounded-3xl bg-white/80 border border-amber-200 flex flex-col items-center text-center animate-pulse">
+                <div className="w-12 h-12 rounded-2xl bg-amber-200/50 mb-3.5" />
+                <div className="h-4 w-32 bg-amber-200/50 rounded mb-2" />
+                <div className="h-3 w-44 bg-amber-200/50 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const allPerks = [
     {
       icon: config?.perk1Icon ? (
         <span className="text-xl leading-none">{config.perk1Icon}</span>
@@ -26,10 +46,10 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
       descKey: 'perk1Desc' as keyof HomePageConfig,
       titleLabel: 'Vantagem 1 - Título',
       descLabel: 'Vantagem 1 - Descrição',
-      title: config?.perk1Title?.text || 'Mimos Florais em Cada Sacolinha Amarela',
+      title: config?.perk1Title?.text?.trim() || (isAdminEditing ? 'Vantagem 1' : ''),
       titleSize: config?.perk1Title?.fontSize || 'base',
       titleBold: config?.perk1Title?.isBold ?? true,
-      description: config?.perk1Desc?.text || 'Você sempre ganha adesivos das 3 florzinhas, marcadores fofos e mini surpresas.',
+      description: config?.perk1Desc?.text?.trim() || (isAdminEditing ? 'Clique para adicionar uma descrição' : ''),
       descSize: config?.perk1Desc?.fontSize || 'xs',
       descBold: config?.perk1Desc?.isBold ?? false
     },
@@ -44,10 +64,10 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
       descKey: 'perk2Desc' as keyof HomePageConfig,
       titleLabel: 'Vantagem 2 - Título',
       descLabel: 'Vantagem 2 - Descrição',
-      title: config?.perk2Title?.text || 'Cheirinho Floral & Doce',
+      title: config?.perk2Title?.text?.trim() || (isAdminEditing ? 'Vantagem 2' : ''),
       titleSize: config?.perk2Title?.fontSize || 'base',
       titleBold: config?.perk2Title?.isBold ?? true,
-      description: config?.perk2Desc?.text || 'Cada sacolinha amarela é borrifada artesanalmente com nossa fragrância suave de lavanda e baunilha.',
+      description: config?.perk2Desc?.text?.trim() || (isAdminEditing ? 'Clique para adicionar uma descrição' : ''),
       descSize: config?.perk2Desc?.fontSize || 'xs',
       descBold: config?.perk2Desc?.isBold ?? false
     },
@@ -62,10 +82,10 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
       descKey: 'perk3Desc' as keyof HomePageConfig,
       titleLabel: 'Vantagem 3 - Título',
       descLabel: 'Vantagem 3 - Descrição',
-      title: config?.perk3Title?.text || 'Frete Grátis Especial',
+      title: config?.perk3Title?.text?.trim() || (isAdminEditing ? 'Vantagem 3' : ''),
       titleSize: config?.perk3Title?.fontSize || 'base',
       titleBold: config?.perk3Title?.isBold ?? true,
-      description: config?.perk3Desc?.text || 'Envio gratuito para todo o Brasil em compras a partir de R$ 149 com rastreamento detalhado.',
+      description: config?.perk3Desc?.text?.trim() || (isAdminEditing ? 'Clique para adicionar uma descrição' : ''),
       descSize: config?.perk3Desc?.fontSize || 'xs',
       descBold: config?.perk3Desc?.isBold ?? false
     },
@@ -80,14 +100,20 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
       descKey: 'perk4Desc' as keyof HomePageConfig,
       titleLabel: 'Vantagem 4 - Título',
       descLabel: 'Vantagem 4 - Descrição',
-      title: config?.perk4Title?.text || 'Feito com Amor & Afeto',
+      title: config?.perk4Title?.text?.trim() || (isAdminEditing ? 'Vantagem 4' : ''),
       titleSize: config?.perk4Title?.fontSize || 'base',
       titleBold: config?.perk4Title?.isBold ?? true,
-      description: config?.perk4Desc?.text || 'Produtos de papelaria selecionados a dedo com gramatura nobre e sacolinhas amarelas exclusivas.',
+      description: config?.perk4Desc?.text?.trim() || (isAdminEditing ? 'Clique para adicionar uma descrição' : ''),
       descSize: config?.perk4Desc?.fontSize || 'xs',
       descBold: config?.perk4Desc?.isBold ?? false
     }
   ];
+
+  const perks = isAdminEditing ? allPerks : allPerks.filter(p => p.title || p.description);
+
+  if (perks.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-10 bg-white/60 backdrop-blur-md border-y border-amber-200/60">

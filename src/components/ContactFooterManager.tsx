@@ -194,10 +194,10 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={formData.whatsappNumber || DEFAULT_HOME_PAGE_CONFIG.whatsappNumber}
+                    value={formData.whatsappNumber ?? ''}
                     onChange={(e) => updateField('whatsappNumber', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: (11) 98765-4321"
+                    placeholder="Ex: (11) 99999-9999"
                   />
                   <span className="text-[10px] text-slate-500 block mt-0.5">
                     Este número é exibido no rodapé e utilizado para abrir conversas de atendimento.
@@ -211,10 +211,10 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   </label>
                   <input
                     type="email"
-                    value={formData.contactEmail || DEFAULT_HOME_PAGE_CONFIG.contactEmail}
+                    value={formData.contactEmail ?? ''}
                     onChange={(e) => updateField('contactEmail', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: contato@lavistore.com.br"
+                    placeholder="Ex: contato@sualoja.com.br"
                   />
                 </div>
               </div>
@@ -227,7 +227,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={formData.businessHours || DEFAULT_HOME_PAGE_CONFIG.businessHours}
+                    value={formData.businessHours ?? ''}
                     onChange={(e) => updateField('businessHours', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
                     placeholder="Ex: Seg. a Sex.: 09h às 18h"
@@ -241,7 +241,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={formData.responseTime || DEFAULT_HOME_PAGE_CONFIG.responseTime}
+                    value={formData.responseTime ?? ''}
                     onChange={(e) => updateField('responseTime', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
                     placeholder="Ex: Tempo médio de resposta: ~10 min"
@@ -257,10 +257,10 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={formData.instagramHandle || DEFAULT_HOME_PAGE_CONFIG.instagramHandle}
+                    value={formData.instagramHandle ?? ''}
                     onChange={(e) => updateField('instagramHandle', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: @lavistore.oficial"
+                    placeholder="Ex: @sualoja"
                   />
                 </div>
 
@@ -271,10 +271,10 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={formData.instagramUrl || DEFAULT_HOME_PAGE_CONFIG.instagramUrl}
+                    value={formData.instagramUrl ?? ''}
                     onChange={(e) => updateField('instagramUrl', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                    placeholder="Ex: https://instagram.com/lavistore.oficial"
+                    placeholder="Ex: https://instagram.com/sualoja"
                   />
                 </div>
               </div>
@@ -295,10 +295,10 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   </label>
                   <input
                     type="email"
-                    value={formData.orderNotificationEmail || DEFAULT_HOME_PAGE_CONFIG.orderNotificationEmail || ''}
+                    value={formData.orderNotificationEmail ?? ''}
                     onChange={(e) => updateField('orderNotificationEmail', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-pink-50/40 border-2 border-pink-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-pink-400 focus:outline-none"
-                    placeholder="Ex: reginahelena1980@gmail.com"
+                    placeholder="Ex: seuemail@loja.com"
                   />
                   <span className="text-[10px] text-slate-500 block mt-0.5">
                     Para este e-mail serão disparados os relatórios de pedidos gerados na loja com dados completos.
@@ -327,10 +327,16 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   <div>
                     <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">Número Vinculado ao Botão</span>
                     <p className="text-base font-bold text-emerald-950 flex items-center gap-1.5">
-                      <span>{formData.whatsappNumber || DEFAULT_HOME_PAGE_CONFIG.whatsappNumber}</span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900">
-                        Ativo
-                      </span>
+                      <span>{formData.whatsappNumber || 'Nenhum número cadastrado'}</span>
+                      {formData.whatsappNumber ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900">
+                          Ativo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                          Não configurado
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -622,7 +628,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   <li><strong>7 dias corridos:</strong> Direito de arrependimento da cliente com reembolso integral (produto + frete).</li>
                   <li><strong>30 dias corridos:</strong> Troca garantida sem burocracia por avaria no frete ou defeito.</li>
                   <li><strong>Logística Reversa Grátis:</strong> Código de postagem sem custo para a cliente.</li>
-                  <li><strong>Canais Automáticos:</strong> As solicitações de troca são direcionadas para o seu WhatsApp (<strong>{formData.whatsappNumber || '(11) 98765-4321'}</strong>) e e-mail (<strong>{formData.contactEmail || 'contato@lavistore.com.br'}</strong>).</li>
+                  <li><strong>Canais Automáticos:</strong> As solicitações de troca são direcionadas para o seu WhatsApp ({formData.whatsappNumber ? <strong>{formData.whatsappNumber}</strong> : <span className="text-slate-500 italic">não informado</span>}) e e-mail ({formData.contactEmail ? <strong>{formData.contactEmail}</strong> : <span className="text-slate-500 italic">não informado</span>}).</li>
                 </ul>
               </div>
             </div>

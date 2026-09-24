@@ -62,6 +62,8 @@ import {
   submitProductReview
 } from './services/storeApiService';
 
+const TEST_PRODUCT_IDS = new Set(['lav-74750', 'lav-15329', 'lav-03352', 'lav-01', 'lav-02']);
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('catalog');
   const [selectedCategory, setSelectedCategory] = useState('todos');
@@ -109,6 +111,9 @@ export default function App() {
     return DEFAULT_HOME_PAGE_CONFIG;
   });
 
+  // Loading state for sovereign Firestore / server configuration
+  const [isConfigLoading, setIsConfigLoading] = useState<boolean>(true);
+
   // Active inline field editing modal
   const [activeEditingField, setActiveEditingField] = useState<{
     fieldKey: keyof HomePageConfig;
@@ -119,9 +124,9 @@ export default function App() {
   const [heroConfig, setHeroConfig] = useState<HeroConfig>(() => {
     const defaultHero: HeroConfig = {
       image: defaultHeroImg,
-      badge: "Presentes & Mimos Criativos 🌸",
-      title: "Demonstre seu carinho com nossos mimos!",
-      subtitle: "Presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+      badge: "",
+      title: "",
+      subtitle: "",
       imageFit: 'cover',
       imageScale: 100,
       imagePosition: 'center',
@@ -163,17 +168,17 @@ export default function App() {
     return DEFAULT_FILTER_BAR_CONFIG;
   });
 
-  // Editable Products State (Persisted in localStorage with default fallback)
+  // Editable Products State (Persisted in localStorage with default fallback, excluding any test products)
   const [products, setProducts] = useState<Product[]>(() => {
+    const testIds = new Set(['lav-74750', 'lav-15329', 'lav-03352', 'lav-01', 'lav-02']);
     try {
       const saved = localStorage.getItem('lavistore_products');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // If cached products are the old template mock products (lav-01, lav-02), discard and use PRODUCTS
-          const hasOldDummyProducts = parsed.some((p: Product) => p.id === 'lav-01' || p.id === 'lav-02');
-          if (!hasOldDummyProducts) {
-            return parsed;
+          const clean = parsed.filter((p: Product) => p && p.id && !testIds.has(p.id) && !p.name?.toLowerCase().includes('teste'));
+          if (clean.length > 0) {
+            return clean;
           }
         }
       }
@@ -290,7 +295,7 @@ export default function App() {
       const saved = localStorage.getItem('lavistore_favs');
       return deserializeFavorites(saved, products);
     } catch {
-      return [PRODUCTS[0], PRODUCTS[3]].filter(Boolean);
+      return [];
     }
   });
 
@@ -592,10 +597,18 @@ export default function App() {
               } catch {}
             }
 
-            const finalProducts = mergeProductsSafely(
+            const rawFinalProducts = mergeProductsSafely(
               localProds.length > 0 ? localProds : serverProducts,
               serverProducts
             );
+
+            // Filtra produtos de teste garantindo apenas os produtos e mimos reais da loja
+            const finalProducts = rawFinalProducts.filter(p => {
+              if (!p || !p.name) return false;
+              const lowerName = p.name.toLowerCase();
+              const lowerId = (p.id || '').toLowerCase();
+              return !lowerName.includes('teste') && !TEST_PRODUCT_IDS.has(lowerId);
+            });
 
             if (finalProducts.length > 0) {
               setProducts(finalProducts);
@@ -697,6 +710,8 @@ export default function App() {
           }
       } catch (err) {
         console.warn('Store sync initialization notice:', err);
+      } finally {
+        setIsConfigLoading(false);
       }
 
       // Se o servidor estiver temporariamente indisponível, sincroniza os dados locais com o servidor
@@ -705,7 +720,13 @@ export default function App() {
         if (localProds) {
           const parsed = JSON.parse(localProds);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setProducts(parsed);
+            const sanitized = parsed.filter((p: Product) => {
+              if (!p || !p.name) return false;
+              const lowerName = p.name.toLowerCase();
+              const lowerId = (p.id || '').toLowerCase();
+              return !lowerName.includes('teste') && !TEST_PRODUCT_IDS.has(lowerId);
+            });
+            setProducts(sanitized);
           }
         }
       } catch {}
@@ -1216,6 +1237,7 @@ export default function App() {
           onOpenProduct={setSelectedProduct}
           config={homePageConfig}
           onOpenReturnPolicy={() => setIsReturnPolicyOpen(true)}
+          isConfigLoading={isConfigLoading}
         />
       )}
 
@@ -1389,12 +1411,14 @@ export default function App() {
               bannerHeight={heroConfig.bannerHeight}
               config={homePageConfig}
               isAdminEditing={false}
+              isConfigLoading={isConfigLoading}
             />
 
             {/* Brand Perks Row */}
             <BrandPerks 
               config={homePageConfig}
               isAdminEditing={false}
+              isConfigLoading={isConfigLoading}
             />
 
             {/* Catalog Section */}
@@ -2103,6 +2127,7 @@ export default function App() {
             }}
             onNavigateToAdmin={navigateToAdmin}
             onOpenReturnPolicy={() => setIsReturnPolicyOpen(true)}
+            isConfigLoading={isConfigLoading}
           />
         </>
       )}

@@ -32,6 +32,7 @@ interface HeaderProps {
   onOpenAdminDashboard?: () => void;
   config?: HomePageConfig;
   onOpenReturnPolicy?: () => void;
+  isConfigLoading?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -49,7 +50,8 @@ export const Header: React.FC<HeaderProps> = ({
   products,
   onOpenProduct,
   config,
-  onOpenReturnPolicy
+  onOpenReturnPolicy,
+  isConfigLoading = false
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -66,35 +68,37 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-amber-100/60 shadow-xs font-['Comfortaa']">
       {/* Top Notification Bar - Clean Soft Pink with Centered Promo */}
-      <div className="bg-[#FDF2F4] border-b border-pink-100/80 text-purple-950 text-xs py-1.5 px-4 font-medium tracking-wide">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-center flex-wrap sm:flex-nowrap">
-          <div className="flex-1 text-center">
-            {config?.showAnnouncement !== false && (
-              <span className="text-purple-900/90 text-xs font-medium">
-                {config?.announcementText !== undefined && config?.announcementText !== null
-                  ? config.announcementText
-                  : 'Frete Grátis para todo o Brasil • Cupom 10% OFF: '}
-                {config?.announcementCoupon && config.announcementCoupon.trim() !== '' ? (
-                  <strong className="font-bold text-purple-950 ml-1.5 px-2 py-0.5 bg-white/80 rounded-md border border-pink-200 shadow-2xs">
-                    {config.announcementCoupon.trim()}
-                  </strong>
-                ) : null}
-              </span>
+      {(isConfigLoading || (config?.showAnnouncement !== false && (config?.announcementText?.trim() || config?.announcementCoupon?.trim())) || onOpenReturnPolicy) && (
+        <div className="bg-[#FDF2F4] border-b border-pink-100/80 text-purple-950 text-xs py-1.5 px-4 font-medium tracking-wide min-h-[30px] flex items-center">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-center flex-wrap sm:flex-nowrap w-full">
+            <div className="flex-1 text-center">
+              {isConfigLoading ? (
+                <div className="h-3 w-64 bg-pink-200/60 rounded-full animate-pulse inline-block" />
+              ) : config?.showAnnouncement !== false && (config?.announcementText?.trim() || config?.announcementCoupon?.trim()) ? (
+                <span className="text-purple-900/90 text-xs font-medium">
+                  {config?.announcementText?.trim() || ''}
+                  {config?.announcementCoupon && config.announcementCoupon.trim() !== '' ? (
+                    <strong className="font-bold text-purple-950 ml-1.5 px-2 py-0.5 bg-white/80 rounded-md border border-pink-200 shadow-2xs">
+                      {config.announcementCoupon.trim()}
+                    </strong>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
+            {onOpenReturnPolicy && (
+              <button
+                type="button"
+                id="btn-header-top-return-policy"
+                onClick={onOpenReturnPolicy}
+                className="hidden md:inline-flex items-center gap-1 text-[11px] text-pink-700 hover:text-pink-900 font-bold underline underline-offset-2 transition-colors cursor-pointer shrink-0"
+                title="Direito de arrependimento em 7 dias com reembolso total (CDC)"
+              >
+                <span>🛡️ Troca Fácil 7 Dias (CDC)</span>
+              </button>
             )}
           </div>
-          {onOpenReturnPolicy && (
-            <button
-              type="button"
-              id="btn-header-top-return-policy"
-              onClick={onOpenReturnPolicy}
-              className="hidden md:inline-flex items-center gap-1 text-[11px] text-pink-700 hover:text-pink-900 font-bold underline underline-offset-2 transition-colors cursor-pointer shrink-0"
-              title="Direito de arrependimento em 7 dias com reembolso total (CDC)"
-            >
-              <span>🛡️ Troca Fácil 7 Dias (CDC)</span>
-            </button>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Main Bar - Clean, spacious layout */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

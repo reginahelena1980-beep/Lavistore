@@ -5,26 +5,26 @@ export const DEFAULT_COUPONS: Coupon[] = (storeState && Array.isArray(storeState
   ? (storeState.coupons as unknown as Coupon[])
   : [
   {
-    id: 'coupon-frete-gratis',
-    code: 'FRETEGRATIS',
-    description: 'Frete Grátis garantido para todo o Brasil (zera o valor da transportadora)',
-    type: 'free_shipping',
-    discountValue: 0,
-    minOrderValue: 0,
-    isActive: true,
-    timesUsed: 142,
-    createdAt: '2026-01-15'
-  },
-  {
-    id: 'coupon-lavi10',
-    code: 'LAVI10',
-    description: '10% de desconto no valor total dos produtos',
+    id: 'coupon-primeiracompra',
+    code: 'PRIMEIRACOMPRA',
+    description: '10% de desconto de boas-vindas na sua primeira compra!',
     type: 'percentage',
     discountValue: 10,
     minOrderValue: 0,
     isActive: true,
-    timesUsed: 98,
-    createdAt: '2026-02-01'
+    timesUsed: 0,
+    createdAt: '2026-03-01'
+  },
+  {
+    id: 'coupon-fretegratis',
+    code: 'FRETEGRATIS',
+    description: 'Frete Grátis garantido para todo o Brasil!',
+    type: 'free_shipping',
+    discountValue: 0,
+    minOrderValue: 150,
+    isActive: true,
+    timesUsed: 0,
+    createdAt: '2026-03-01'
   },
   {
     id: 'coupon-florzinha',
@@ -34,29 +34,7 @@ export const DEFAULT_COUPONS: Coupon[] = (storeState && Array.isArray(storeState
     discountValue: 15,
     minOrderValue: 0,
     isActive: true,
-    timesUsed: 65,
-    createdAt: '2026-02-14'
-  },
-  {
-    id: 'coupon-primeira-compra',
-    code: 'PRIMEIRACOMPRA',
-    description: 'R$ 15,00 de desconto de boas-vindas para pedidos acima de R$ 50,00',
-    type: 'fixed',
-    discountValue: 15.00,
-    minOrderValue: 50.00,
-    isActive: true,
-    timesUsed: 83,
+    timesUsed: 0,
     createdAt: '2026-03-01'
-  },
-  {
-    id: 'coupon-brinde',
-    code: 'BRINDE',
-    description: 'Cupom Especial de Brinde: Compra 100% Grátis (Total R$ 0,00)',
-    type: 'gift',
-    discountValue: 0,
-    minOrderValue: 0,
-    isActive: true,
-    timesUsed: 12,
-    createdAt: '2026-03-12'
   }
 ];

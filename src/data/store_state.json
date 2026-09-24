@@ -6,75 +6,6 @@
   "adminPasswordChangedAt": "2026-09-18T11:15:27.172Z",
   "products": [
     {
-      "id": "lav-74750",
-      "name": "Meia 3/4 Flores",
-      "category": "floral-special",
-      "price": 15,
-      "originalPrice": 19.9,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 20,
-      "isFloralSpecial": true,
-      "badge": "Exclusivo 🌸",
-      "images": [
-        "https://images.unsplash.com/photo-1582966770380-921587181f82?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Meia 3/4 charmosa e delicada com estampa de florzinhas da coleção exclusiva Lavistore. Confeccionada em algodão macio com elasticidade confortável para o dia a dia.",
-      "features": [
-        "Algodão penteado macio e respirável",
-        "Cano 3/4 com ajuste suave sem apertar",
-        "Estampa floral fofa exclusiva Lavistore",
-        "Embalada para presente com cheirinho doce"
-      ],
-      "tag": "Exclusivo 🌸"
-    },
-    {
-      "id": "lav-15329",
-      "name": "Meia 3/ cores",
-      "category": "floral-special",
-      "price": 15,
-      "originalPrice": 19.9,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 20,
-      "isFloralSpecial": true,
-      "badge": "Colorida ✨",
-      "images": [
-        "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Meia cano 3/4 colorida com listras vibrantes e acabamento impecável. Perfeita para compor looks alegres e descontraídos com o toque doce da Lavistore.",
-      "features": [
-        "Cores suaves e alegres",
-        "Algodão macio de toque aconchegante",
-        "Tamanho único confortável",
-        "Acompanha tag colecionável de mimo"
-      ],
-      "tag": "Colorida ✨"
-    },
-    {
-      "id": "lav-03352",
-      "name": "Meia 3/4 Arco-íris",
-      "category": "floral-special",
-      "price": 15,
-      "originalPrice": 19.9,
-      "rating": 0,
-      "reviewCount": 0,
-      "stock": 20,
-      "isFloralSpecial": true,
-      "badge": "Divertida 🌈",
-      "images": [
-        "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80"
-      ],
-      "description": "Meia 3/4 arco-íris cheia de boas energias! Com listras coloridas que combinam com qualquer tênis ou sapatinho, trazendo alegria a cada passo.",
-      "features": [
-        "Estampa arco-íris estilosa e divertida",
-        "Conforto térmico para qualquer estação",
-        "Costura plana que não incomoda os dedos",
-        "Cheirinho artesanal doce no pacote"
-      ],
-      "tag": "Divertida 🌈"
-    },
-    {
       "id": "lav-13",
       "name": "Meia 3/4 Panda Listrada Algodão Confort",
       "category": "floral-special",
@@ -82,7 +13,7 @@
       "originalPrice": 22,
       "rating": 0,
       "reviewCount": 0,
-      "stock": 20,
+      "stock": 40,
       "badge": "Mais Amada 🐼",
       "hasSizes": true,
       "sizes": [
@@ -271,7 +202,7 @@
   },
   "homePageConfig": {
     "announcementText": "Frete Grátis para todo o Brasil para compras acima de R$ 150.00",
-    "announcementCoupon": "TORRI",
+    "announcementCoupon": "PRIMEIRACOMPRA",
     "showAnnouncement": true,
     "heroBadge": {
       "text": "Presentes & Mimos Criativos 🌸",
@@ -398,11 +329,11 @@
       "isBold": true
     },
     "reviewsSubtitle": {
-      "text": "Mais de 1.200 pedidos entregues com amor, papel de seda e o cheirinho inesquecível da Lavistore.",
+      "text": "Confira o carinho e o afeto em cada mimo e sacolinha entregue.",
       "fontSize": "base",
       "isBold": false
     },
-    "reviewsRatingSummary": "4.9 / 5.0 (Mais de 1.800 avaliações 5 estrelas)",
+    "reviewsRatingSummary": "",
     "newsletterBadge": {
       "text": "Clube de Mimos Lavistore",
       "fontSize": "xs",
@@ -431,14 +362,14 @@
     "pixDiscountText": "PIX 5% OFF",
     "installmentText": "Até 12x",
     "securityFooterNote": "Todos os dados são criptografados e protegidos com tecnologia segura de ponta a ponta.",
-    "whatsappNumber": "(11) 98765-4321",
-    "contactEmail": "contato@lavistore.com.br",
-    "orderNotificationEmail": "reginahelena1980@gmail.com",
+    "whatsappNumber": "",
+    "contactEmail": "",
+    "orderNotificationEmail": "",
     "pagSeguroPaymentUrl": "",
-    "businessHours": "Seg. a Sex.: 09h às 18h",
-    "responseTime": "Tempo médio de resposta: ~10 min",
-    "instagramHandle": "@lavistore.oficial",
-    "instagramUrl": "https://instagram.com/lavistore.oficial",
+    "businessHours": "",
+    "responseTime": "",
+    "instagramHandle": "",
+    "instagramUrl": "",
     "chatConciergeName": "Concierge Lavistore 🌸",
     "chatConciergeRole": "Atendimento Online • Suporte a Presentes",
     "chatWelcomeTitle": "Olá, bem-vinda à Lavistore! 🌷",
@@ -535,48 +466,37 @@
   "reviews": [],
   "coupons": [
     {
-      "id": "coupon-torri",
-      "code": "TORRI",
-      "description": "Frete Grátis para Amiguinhos do Torri!",
-      "type": "free_shipping",
-      "discountValue": 0,
-      "minOrderValue": 0,
-      "isActive": true,
-      "timesUsed": 50,
-      "createdAt": "2026-03-01"
-    },
-    {
-      "id": "coupon-enjoy",
-      "code": "ENJOY",
-      "description": "Frete Grátis para os vizinhos do Enjoy!",
-      "type": "free_shipping",
-      "discountValue": 0,
-      "minOrderValue": 0,
-      "isActive": true,
-      "timesUsed": 40,
-      "createdAt": "2026-03-01"
-    },
-    {
       "id": "coupon-primeiracompra",
       "code": "PRIMEIRACOMPRA",
-      "description": "10% de desconto de boas-vindas!",
+      "description": "10% de desconto de boas-vindas na sua primeira compra!",
       "type": "percentage",
       "discountValue": 10,
       "minOrderValue": 0,
       "isActive": true,
-      "timesUsed": 25,
+      "timesUsed": 0,
       "createdAt": "2026-03-01"
     },
     {
-      "id": "coupon-brinde",
-      "code": "BRINDE",
-      "description": "Cupom Especial de Brinde: Compra 100% Grátis (Total R$ 0,00)",
-      "type": "gift",
+      "id": "coupon-fretegratis",
+      "code": "FRETEGRATIS",
+      "description": "Frete Grátis garantido para todo o Brasil!",
+      "type": "free_shipping",
       "discountValue": 0,
+      "minOrderValue": 150,
+      "isActive": true,
+      "timesUsed": 0,
+      "createdAt": "2026-03-01"
+    },
+    {
+      "id": "coupon-florzinha",
+      "code": "FLORZINHA",
+      "description": "15% de desconto especial em toda a loja com muito carinho",
+      "type": "percentage",
+      "discountValue": 15,
       "minOrderValue": 0,
       "isActive": true,
       "timesUsed": 0,
-      "createdAt": "2026-03-12"
+      "createdAt": "2026-03-01"
     }
   ],
   "bagTypes": [

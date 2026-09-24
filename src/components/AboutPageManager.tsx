@@ -243,7 +243,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={formData.aboutHeroSlogan || DEFAULT_HOME_PAGE_CONFIG.aboutHeroSlogan}
+                  value={formData.aboutHeroSlogan ?? ''}
                   onChange={(e) => updateField('aboutHeroSlogan', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
                   placeholder="Ex: A Lavistore nasce para fazer o mundo mais afetuoso, doce e colorido!"
@@ -257,7 +257,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 </label>
                 <textarea
                   rows={2}
-                  value={formData.aboutHeroQuote || DEFAULT_HOME_PAGE_CONFIG.aboutHeroQuote}
+                  value={formData.aboutHeroQuote ?? ''}
                   onChange={(e) => updateField('aboutHeroQuote', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
                   placeholder="Ex: Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!"
@@ -271,7 +271,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 </label>
                 <textarea
                   rows={4}
-                  value={formData.aboutHeroDescription || DEFAULT_HOME_PAGE_CONFIG.aboutHeroDescription}
+                  value={formData.aboutHeroDescription ?? ''}
                   onChange={(e) => updateField('aboutHeroDescription', e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-amber-50/40 border-2 border-amber-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:ring-2 focus:ring-amber-400 focus:outline-none"
                   placeholder="Conte a história, os propósitos e o afeto colocado na loja..."
@@ -294,7 +294,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-xs font-bold text-purple-950 block mb-1">Título da Seção</label>
                   <input
                     type="text"
-                    value={formData.aboutTrioTitle || DEFAULT_HOME_PAGE_CONFIG.aboutTrioTitle}
+                    value={formData.aboutTrioTitle ?? ''}
                     onChange={(e) => updateField('aboutTrioTitle', e.target.value)}
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
@@ -303,7 +303,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-xs font-bold text-purple-950 block mb-1">Subtítulo da Seção</label>
                   <input
                     type="text"
-                    value={formData.aboutTrioSubtitle || DEFAULT_HOME_PAGE_CONFIG.aboutTrioSubtitle}
+                    value={formData.aboutTrioSubtitle ?? ''}
                     onChange={(e) => updateField('aboutTrioSubtitle', e.target.value)}
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
@@ -322,7 +322,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-[11px] font-bold text-purple-950 block mb-1">Nome da Flor</label>
                   <input
                     type="text"
-                    value={formData.aboutFlower1Title || DEFAULT_HOME_PAGE_CONFIG.aboutFlower1Title}
+                    value={formData.aboutFlower1Title ?? ''}
                     onChange={(e) => updateField('aboutFlower1Title', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-purple-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
@@ -331,7 +331,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-[11px] font-bold text-purple-950 block mb-1">Subtítulo / Conceito</label>
                   <input
                     type="text"
-                    value={formData.aboutFlower1Subtitle || DEFAULT_HOME_PAGE_CONFIG.aboutFlower1Subtitle}
+                    value={formData.aboutFlower1Subtitle ?? ''}
                     onChange={(e) => updateField('aboutFlower1Subtitle', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-purple-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
@@ -341,7 +341,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <label className="text-[11px] font-bold text-purple-950 block mb-1">Descrição / Significado</label>
                 <textarea
                   rows={2}
-                  value={formData.aboutFlower1Desc || DEFAULT_HOME_PAGE_CONFIG.aboutFlower1Desc}
+                  value={formData.aboutFlower1Desc ?? ''}
                   onChange={(e) => updateField('aboutFlower1Desc', e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-purple-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
@@ -359,7 +359,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-[11px] font-bold text-cyan-950 block mb-1">Nome da Flor</label>
                   <input
                     type="text"
-                    value={formData.aboutFlower2Title || DEFAULT_HOME_PAGE_CONFIG.aboutFlower2Title}
+                    value={formData.aboutFlower2Title ?? ''}
                     onChange={(e) => updateField('aboutFlower2Title', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-xl text-xs text-cyan-950 font-medium"
                   />
@@ -368,7 +368,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-[11px] font-bold text-cyan-950 block mb-1">Subtítulo / Conceito</label>
                   <input
                     type="text"
-                    value={formData.aboutFlower2Subtitle || DEFAULT_HOME_PAGE_CONFIG.aboutFlower2Subtitle}
+                    value={formData.aboutFlower2Subtitle ?? ''}
                     onChange={(e) => updateField('aboutFlower2Subtitle', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-xl text-xs text-cyan-950 font-medium"
                   />
@@ -378,7 +378,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <label className="text-[11px] font-bold text-cyan-950 block mb-1">Descrição / Significado</label>
                 <textarea
                   rows={2}
-                  value={formData.aboutFlower2Desc || DEFAULT_HOME_PAGE_CONFIG.aboutFlower2Desc}
+                  value={formData.aboutFlower2Desc ?? ''}
                   onChange={(e) => updateField('aboutFlower2Desc', e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-cyan-300 rounded-xl text-xs text-cyan-950 font-medium"
                 />
@@ -396,7 +396,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-[11px] font-bold text-rose-950 block mb-1">Nome da Flor</label>
                   <input
                     type="text"
-                    value={formData.aboutFlower3Title || DEFAULT_HOME_PAGE_CONFIG.aboutFlower3Title}
+                    value={formData.aboutFlower3Title ?? ''}
                     onChange={(e) => updateField('aboutFlower3Title', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-xs text-rose-950 font-medium"
                   />
@@ -405,7 +405,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-[11px] font-bold text-rose-950 block mb-1">Subtítulo / Conceito</label>
                   <input
                     type="text"
-                    value={formData.aboutFlower3Subtitle || DEFAULT_HOME_PAGE_CONFIG.aboutFlower3Subtitle}
+                    value={formData.aboutFlower3Subtitle ?? ''}
                     onChange={(e) => updateField('aboutFlower3Subtitle', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-xs text-rose-950 font-medium"
                   />
@@ -415,7 +415,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <label className="text-[11px] font-bold text-rose-950 block mb-1">Descrição / Significado</label>
                 <textarea
                   rows={2}
-                  value={formData.aboutFlower3Desc || DEFAULT_HOME_PAGE_CONFIG.aboutFlower3Desc}
+                  value={formData.aboutFlower3Desc ?? ''}
                   onChange={(e) => updateField('aboutFlower3Desc', e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-xs text-rose-950 font-medium"
                 />
@@ -438,7 +438,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-xs font-bold text-purple-950 block mb-1">Tag / Selo do Banner</label>
                   <input
                     type="text"
-                    value={formData.aboutSolarTag || DEFAULT_HOME_PAGE_CONFIG.aboutSolarTag}
+                    value={formData.aboutSolarTag ?? ''}
                     onChange={(e) => updateField('aboutSolarTag', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
@@ -447,7 +447,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-xs font-bold text-purple-950 block mb-1">Texto do Botão</label>
                   <input
                     type="text"
-                    value={formData.aboutSolarBtnText || DEFAULT_HOME_PAGE_CONFIG.aboutSolarBtnText}
+                    value={formData.aboutSolarBtnText ?? ''}
                     onChange={(e) => updateField('aboutSolarBtnText', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
@@ -458,7 +458,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <label className="text-xs font-bold text-purple-950 block mb-1">Título do Banner Solar</label>
                 <input
                   type="text"
-                  value={formData.aboutSolarTitle || DEFAULT_HOME_PAGE_CONFIG.aboutSolarTitle}
+                  value={formData.aboutSolarTitle ?? ''}
                   onChange={(e) => updateField('aboutSolarTitle', e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
@@ -468,7 +468,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <label className="text-xs font-bold text-purple-950 block mb-1">Descrição Explicativa</label>
                 <textarea
                   rows={3}
-                  value={formData.aboutSolarDesc || DEFAULT_HOME_PAGE_CONFIG.aboutSolarDesc}
+                  value={formData.aboutSolarDesc ?? ''}
                   onChange={(e) => updateField('aboutSolarDesc', e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
@@ -490,7 +490,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-xs font-bold text-purple-950 block mb-1">Título da Seção</label>
                   <input
                     type="text"
-                    value={formData.aboutPillarsTitle || DEFAULT_HOME_PAGE_CONFIG.aboutPillarsTitle}
+                    value={formData.aboutPillarsTitle ?? ''}
                     onChange={(e) => updateField('aboutPillarsTitle', e.target.value)}
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
@@ -499,7 +499,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-xs font-bold text-purple-950 block mb-1">Subtítulo da Seção</label>
                   <input
                     type="text"
-                    value={formData.aboutPillarsSubtitle || DEFAULT_HOME_PAGE_CONFIG.aboutPillarsSubtitle}
+                    value={formData.aboutPillarsSubtitle ?? ''}
                     onChange={(e) => updateField('aboutPillarsSubtitle', e.target.value)}
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
@@ -513,14 +513,14 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={formData.aboutPillar1Icon || DEFAULT_HOME_PAGE_CONFIG.aboutPillar1Icon}
+                    value={formData.aboutPillar1Icon ?? ''}
                     onChange={(e) => updateField('aboutPillar1Icon', e.target.value)}
                     className="w-10 h-10 text-center text-lg bg-amber-100 rounded-xl border border-amber-300"
                     title="Emoji ou Ícone"
                   />
                   <input
                     type="text"
-                    value={formData.aboutPillar1Title || DEFAULT_HOME_PAGE_CONFIG.aboutPillar1Title}
+                    value={formData.aboutPillar1Title ?? ''}
                     onChange={(e) => updateField('aboutPillar1Title', e.target.value)}
                     placeholder="Título do Toque 1"
                     className="flex-1 px-3 py-2 bg-amber-50/40 border border-amber-200 rounded-xl text-xs font-bold text-purple-950"
@@ -528,7 +528,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 </div>
                 <textarea
                   rows={2}
-                  value={formData.aboutPillar1Desc || DEFAULT_HOME_PAGE_CONFIG.aboutPillar1Desc}
+                  value={formData.aboutPillar1Desc ?? ''}
                   onChange={(e) => updateField('aboutPillar1Desc', e.target.value)}
                   placeholder="Descrição do Toque 1"
                   className="w-full px-3 py-2 bg-amber-50/20 border border-amber-200 rounded-xl text-xs text-slate-700"
@@ -540,14 +540,14 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={formData.aboutPillar2Icon || DEFAULT_HOME_PAGE_CONFIG.aboutPillar2Icon}
+                    value={formData.aboutPillar2Icon ?? ''}
                     onChange={(e) => updateField('aboutPillar2Icon', e.target.value)}
                     className="w-10 h-10 text-center text-lg bg-yellow-100 rounded-xl border border-yellow-300"
                     title="Emoji ou Ícone"
                   />
                   <input
                     type="text"
-                    value={formData.aboutPillar2Title || DEFAULT_HOME_PAGE_CONFIG.aboutPillar2Title}
+                    value={formData.aboutPillar2Title ?? ''}
                     onChange={(e) => updateField('aboutPillar2Title', e.target.value)}
                     placeholder="Título do Toque 2"
                     className="flex-1 px-3 py-2 bg-yellow-50/40 border border-yellow-200 rounded-xl text-xs font-bold text-purple-950"
@@ -555,7 +555,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 </div>
                 <textarea
                   rows={2}
-                  value={formData.aboutPillar2Desc || DEFAULT_HOME_PAGE_CONFIG.aboutPillar2Desc}
+                  value={formData.aboutPillar2Desc ?? ''}
                   onChange={(e) => updateField('aboutPillar2Desc', e.target.value)}
                   placeholder="Descrição do Toque 2"
                   className="w-full px-3 py-2 bg-yellow-50/20 border border-yellow-200 rounded-xl text-xs text-slate-700"
@@ -567,14 +567,14 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={formData.aboutPillar3Icon || DEFAULT_HOME_PAGE_CONFIG.aboutPillar3Icon}
+                    value={formData.aboutPillar3Icon ?? ''}
                     onChange={(e) => updateField('aboutPillar3Icon', e.target.value)}
                     className="w-10 h-10 text-center text-lg bg-rose-100 rounded-xl border border-rose-300"
                     title="Emoji ou Ícone"
                   />
                   <input
                     type="text"
-                    value={formData.aboutPillar3Title || DEFAULT_HOME_PAGE_CONFIG.aboutPillar3Title}
+                    value={formData.aboutPillar3Title ?? ''}
                     onChange={(e) => updateField('aboutPillar3Title', e.target.value)}
                     placeholder="Título do Toque 3"
                     className="flex-1 px-3 py-2 bg-rose-50/40 border border-rose-200 rounded-xl text-xs font-bold text-purple-950"
@@ -582,7 +582,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 </div>
                 <textarea
                   rows={2}
-                  value={formData.aboutPillar3Desc || DEFAULT_HOME_PAGE_CONFIG.aboutPillar3Desc}
+                  value={formData.aboutPillar3Desc ?? ''}
                   onChange={(e) => updateField('aboutPillar3Desc', e.target.value)}
                   placeholder="Descrição do Toque 3"
                   className="w-full px-3 py-2 bg-rose-50/20 border border-rose-200 rounded-xl text-xs text-slate-700"
@@ -594,14 +594,14 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={formData.aboutPillar4Icon || DEFAULT_HOME_PAGE_CONFIG.aboutPillar4Icon}
+                    value={formData.aboutPillar4Icon ?? ''}
                     onChange={(e) => updateField('aboutPillar4Icon', e.target.value)}
                     className="w-10 h-10 text-center text-lg bg-cyan-100 rounded-xl border border-cyan-300"
                     title="Emoji ou Ícone"
                   />
                   <input
                     type="text"
-                    value={formData.aboutPillar4Title || DEFAULT_HOME_PAGE_CONFIG.aboutPillar4Title}
+                    value={formData.aboutPillar4Title ?? ''}
                     onChange={(e) => updateField('aboutPillar4Title', e.target.value)}
                     placeholder="Título do Toque 4"
                     className="flex-1 px-3 py-2 bg-cyan-50/40 border border-cyan-200 rounded-xl text-xs font-bold text-purple-950"
@@ -609,7 +609,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 </div>
                 <textarea
                   rows={2}
-                  value={formData.aboutPillar4Desc || DEFAULT_HOME_PAGE_CONFIG.aboutPillar4Desc}
+                  value={formData.aboutPillar4Desc ?? ''}
                   onChange={(e) => updateField('aboutPillar4Desc', e.target.value)}
                   placeholder="Descrição do Toque 4"
                   className="w-full px-3 py-2 bg-cyan-50/20 border border-cyan-200 rounded-xl text-xs text-slate-700"
@@ -632,7 +632,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <label className="text-xs font-bold text-purple-950 block mb-1">Tag / Selo Superior</label>
                 <input
                   type="text"
-                  value={formData.aboutCtaBadge || DEFAULT_HOME_PAGE_CONFIG.aboutCtaBadge}
+                  value={formData.aboutCtaBadge ?? ''}
                   onChange={(e) => updateField('aboutCtaBadge', e.target.value)}
                   className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
@@ -642,7 +642,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <label className="text-xs font-bold text-purple-950 block mb-1">Título de Chamada</label>
                 <input
                   type="text"
-                  value={formData.aboutCtaTitle || DEFAULT_HOME_PAGE_CONFIG.aboutCtaTitle}
+                  value={formData.aboutCtaTitle ?? ''}
                   onChange={(e) => updateField('aboutCtaTitle', e.target.value)}
                   className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
@@ -652,7 +652,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                 <label className="text-xs font-bold text-purple-950 block mb-1">Texto Convidativo</label>
                 <textarea
                   rows={2}
-                  value={formData.aboutCtaDesc || DEFAULT_HOME_PAGE_CONFIG.aboutCtaDesc}
+                  value={formData.aboutCtaDesc ?? ''}
                   onChange={(e) => updateField('aboutCtaDesc', e.target.value)}
                   className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                 />
@@ -663,7 +663,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-xs font-bold text-purple-950 block mb-1">Botão Primário (Catálogo)</label>
                   <input
                     type="text"
-                    value={formData.aboutCtaBtn1 || DEFAULT_HOME_PAGE_CONFIG.aboutCtaBtn1}
+                    value={formData.aboutCtaBtn1 ?? ''}
                     onChange={(e) => updateField('aboutCtaBtn1', e.target.value)}
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />
@@ -672,7 +672,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
                   <label className="text-xs font-bold text-purple-950 block mb-1">Botão Secundário (Sacolinha)</label>
                   <input
                     type="text"
-                    value={formData.aboutCtaBtn2 || DEFAULT_HOME_PAGE_CONFIG.aboutCtaBtn2}
+                    value={formData.aboutCtaBtn2 ?? ''}
                     onChange={(e) => updateField('aboutCtaBtn2', e.target.value)}
                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs text-purple-950 font-medium"
                   />

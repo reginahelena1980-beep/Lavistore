@@ -21,6 +21,7 @@ interface HeroBannerProps {
   config?: HomePageConfig;
   isAdminEditing?: boolean;
   onEditField?: (fieldKey: keyof HomePageConfig, label: string) => void;
+  isConfigLoading?: boolean;
 }
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({ 
@@ -38,28 +39,27 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   bannerHeight = 'medium',
   config,
   isAdminEditing = false,
-  onEditField
+  onEditField,
+  isConfigLoading = false
 }) => {
   const currentHeroImage = heroImage || heroDefaultProductImg;
-  const currentBadge = config?.heroBadge?.text || heroBadge || "Presentes & Mimos Criativos 🌸";
+  const currentBadge = config?.heroBadge?.text?.trim() || heroBadge || '';
   const badgeSize = config?.heroBadge?.fontSize || 'xs';
   const badgeBold = config?.heroBadge?.isBold ?? true;
 
-  const currentTitle = config?.heroTitle?.text || heroTitle || "Demonstre seu carinho com nossos mimos!";
+  const currentTitle = config?.heroTitle?.text?.trim() || heroTitle || '';
   const titleSize = config?.heroTitle?.fontSize || '4xl';
   const titleBold = config?.heroTitle?.isBold ?? true;
 
-  const btnPrimaryText = config?.heroBtnPrimary?.text || 'Explorar nossos produtos';
+  const btnPrimaryText = config?.heroBtnPrimary?.text?.trim() || (isAdminEditing ? 'Explorar produtos' : 'Explorar nossos produtos');
   const btnPrimarySize = config?.heroBtnPrimary?.fontSize || 'sm';
   const btnPrimaryBold = config?.heroBtnPrimary?.isBold ?? true;
 
-  const btnSecondaryText = config?.heroBtnSecondary?.text || 'Monte sua Sacolinha de Presente';
-  const btnSecondarySize = config?.heroBtnSecondary?.fontSize || 'sm';
-  const btnSecondaryBold = config?.heroBtnSecondary?.isBold ?? true;
+  const trust1Text = config?.heroTrust1?.text?.trim() || '';
+  const trust2Text = config?.heroTrust2?.text?.trim() || '';
+  const trust3Text = config?.heroTrust3?.text?.trim() || '';
 
-  const trust1Text = config?.heroTrust1?.text || 'Embalagens Exclusivas';
-  const trust2Text = config?.heroTrust2?.text || 'Feito com Amor';
-  const trust3Text = config?.heroTrust3?.text || 'Carinho em cada mimo!';
+  const hasAnyTrust = Boolean(trust1Text || trust2Text || trust3Text);
 
   // Compute banner sizing class to guarantee perfect proportions on all screens including fullscreen
   const sizeClasses = {
@@ -90,91 +90,117 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           {/* Left Text Column */}
           <div className="lg:col-span-6 text-center lg:text-left space-y-6">
             
-            {/* Top Badge with Palette Indicator */}
-            <div>
-              <div 
-                onClick={() => isAdminEditing && onEditField && onEditField('heroBadge', 'Hero - Selo Superior')}
-                className={`inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/95 border-2 border-amber-200 shadow-2xs text-purple-950 tracking-wide backdrop-blur-md relative ${getFontSizeClass(badgeSize, 'text-xs')} ${getFontWeightClass(badgeBold, true)} ${isAdminEditing ? 'cursor-pointer hover:ring-2 hover:ring-amber-400' : ''}`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#06B6D4] shadow-2xs" title="Céu Turquesa" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FB923C] shadow-2xs" title="Pêssego Quente" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FACC15] shadow-2xs" title="Amarelo Solar" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#F43F5E] shadow-2xs" title="Rosa Afeto" />
+            {isConfigLoading ? (
+              <div className="space-y-4">
+                <div className="h-7 w-48 rounded-full bg-white/70 animate-pulse inline-block" />
+                <div className="h-14 w-full max-w-md rounded-2xl bg-purple-200/50 animate-pulse" />
+                <div className="h-10 w-44 rounded-full bg-amber-200/50 animate-pulse" />
+                <div className="flex gap-4 pt-4">
+                  <div className="h-4 w-28 rounded bg-purple-200/40 animate-pulse" />
+                  <div className="h-4 w-28 rounded bg-purple-200/40 animate-pulse" />
                 </div>
-                <span className="text-slate-300">|</span>
-                <span>{currentBadge}</span>
-                {isAdminEditing && <Edit3 className="w-3 h-3 text-amber-600 ml-1 inline" />}
               </div>
-            </div>
-
-            {/* Main Title */}
-            <div>
-              <h1 
-                onClick={() => isAdminEditing && onEditField && onEditField('heroTitle', 'Hero - Título Principal')}
-                className={`font-['Mali'] text-purple-950 leading-[1.2] max-w-xl mx-auto lg:mx-0 ${getFontSizeClass(titleSize, 'text-4xl sm:text-5xl')} ${getFontWeightClass(titleBold, true)} ${isAdminEditing ? 'cursor-pointer hover:underline decoration-amber-400 decoration-2' : ''}`}
-              >
-                {currentTitle.includes('mimos') ? (
-                  <>
-                    {currentTitle.split('mimos')[0]}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#06B6D4]">
-                      mimos{currentTitle.split('mimos')[1]}
-                    </span>
-                  </>
-                ) : (
-                  currentTitle
+            ) : (
+              <>
+                {/* Top Badge with Palette Indicator */}
+                {(currentBadge || isAdminEditing) && (
+                  <div>
+                    <div 
+                      onClick={() => isAdminEditing && onEditField && onEditField('heroBadge', 'Hero - Selo Superior')}
+                      className={`inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/95 border-2 border-amber-200 shadow-2xs text-purple-950 tracking-wide backdrop-blur-md relative ${getFontSizeClass(badgeSize, 'text-xs')} ${getFontWeightClass(badgeBold, true)} ${isAdminEditing ? 'cursor-pointer hover:ring-2 hover:ring-amber-400' : ''}`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#06B6D4] shadow-2xs" title="Céu Turquesa" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#FB923C] shadow-2xs" title="Pêssego Quente" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#FACC15] shadow-2xs" title="Amarelo Solar" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#F43F5E] shadow-2xs" title="Rosa Afeto" />
+                      </div>
+                      <span className="text-slate-300">|</span>
+                      <span>{currentBadge || 'Selo de Destaque'}</span>
+                      {isAdminEditing && <Edit3 className="w-3 h-3 text-amber-600 ml-1 inline" />}
+                    </div>
+                  </div>
                 )}
-              </h1>
-            </div>
 
-            {/* CTAs */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3.5 pt-12 sm:pt-14 font-['Comfortaa']">
-              {/* Primary Button - Lighter pastel gradient matching the page's soft background */}
-              <button
-                id="btn-hero-explore"
-                onClick={() => {
-                  if (isAdminEditing && onEditField) {
-                    onEditField('heroBtnPrimary', 'Hero - Botão Primário');
-                    return;
-                  }
-                  setActiveTab('catalog');
-                  onSelectCategory('todos');
-                  const catElem = document.getElementById('catalog-section');
-                  if (catElem) catElem.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className={`px-6 sm:px-7 py-3 rounded-full bg-gradient-to-r from-[#FDE8E8] via-[#FEF3C7] to-[#FED7AA] hover:from-[#FEE2E2] hover:via-[#FDE68A] hover:to-[#FDBA74] text-purple-950 font-bold border-2 border-amber-200/90 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-2.5 ${getFontSizeClass(btnPrimarySize, 'text-sm')} ${getFontWeightClass(btnPrimaryBold, true)}`}
-              >
-                <Plus className="w-4 h-4 text-purple-900 font-bold" />
-                <span className="text-purple-950">{btnPrimaryText}</span>
-                <ArrowRight className="w-4 h-4 text-purple-900" />
-                {isAdminEditing && <Edit3 className="w-3.5 h-3.5 ml-1 text-purple-700" />}
-              </button>
-            </div>
+                {/* Main Title */}
+                {(currentTitle || isAdminEditing) && (
+                  <div>
+                    <h1 
+                      onClick={() => isAdminEditing && onEditField && onEditField('heroTitle', 'Hero - Título Principal')}
+                      className={`font-['Mali'] text-purple-950 leading-[1.2] max-w-xl mx-auto lg:mx-0 ${getFontSizeClass(titleSize, 'text-4xl sm:text-5xl')} ${getFontWeightClass(titleBold, true)} ${isAdminEditing ? 'cursor-pointer hover:underline decoration-amber-400 decoration-2' : ''}`}
+                    >
+                      {currentTitle.includes('mimos') ? (
+                        <>
+                          {currentTitle.split('mimos')[0]}
+                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F43F5E] via-[#FB923C] to-[#06B6D4]">
+                            mimos{currentTitle.split('mimos')[1]}
+                          </span>
+                        </>
+                      ) : (
+                        currentTitle || 'Título Principal do Banner'
+                      )}
+                    </h1>
+                  </div>
+                )}
 
-            {/* Trust Badges */}
-            <div className="pt-6 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-xs text-purple-950 font-medium">
-              <div 
-                onClick={() => isAdminEditing && onEditField && onEditField('heroTrust1', 'Hero - Destaque 1')}
-                className={`flex items-center gap-2 ${isAdminEditing ? 'cursor-pointer hover:underline' : ''}`}
-              >
-                <Gift className="w-4 h-4 text-purple-950 stroke-[1.8]" />
-                <span className={`${getFontSizeClass(config?.heroTrust1?.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust1?.isBold, true)}`}>{trust1Text}</span>
-              </div>
-              <div 
-                onClick={() => isAdminEditing && onEditField && onEditField('heroTrust2', 'Hero - Destaque 2')}
-                className={`flex items-center gap-2 ${isAdminEditing ? 'cursor-pointer hover:underline' : ''}`}
-              >
-                <Heart className="w-4 h-4 text-purple-950 stroke-[1.8]" />
-                <span className={`${getFontSizeClass(config?.heroTrust2?.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust2?.isBold, true)}`}>{trust2Text}</span>
-              </div>
-              <div 
-                onClick={() => isAdminEditing && onEditField && onEditField('heroTrust3', 'Hero - Destaque 3')}
-                className={`flex items-center gap-2 ${isAdminEditing ? 'cursor-pointer hover:underline' : ''}`}
-              >
-                <Star className="w-4 h-4 text-purple-950 stroke-[1.8]" />
-                <span className={`${getFontSizeClass(config?.heroTrust3?.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust3?.isBold, true)}`}>{trust3Text}</span>
-              </div>
-            </div>
+                {/* CTAs */}
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3.5 pt-6 sm:pt-8 font-['Comfortaa']">
+                  {/* Primary Button */}
+                  <button
+                    id="btn-hero-explore"
+                    onClick={() => {
+                      if (isAdminEditing && onEditField) {
+                        onEditField('heroBtnPrimary', 'Hero - Botão Primário');
+                        return;
+                      }
+                      setActiveTab('catalog');
+                      onSelectCategory('todos');
+                      const catElem = document.getElementById('catalog-section');
+                      if (catElem) catElem.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className={`px-6 sm:px-7 py-3 rounded-full bg-gradient-to-r from-[#FDE8E8] via-[#FEF3C7] to-[#FED7AA] hover:from-[#FEE2E2] hover:via-[#FDE68A] hover:to-[#FDBA74] text-purple-950 font-bold border-2 border-amber-200/90 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-2.5 ${getFontSizeClass(btnPrimarySize, 'text-sm')} ${getFontWeightClass(btnPrimaryBold, true)}`}
+                  >
+                    <Plus className="w-4 h-4 text-purple-900 font-bold" />
+                    <span className="text-purple-950">{btnPrimaryText}</span>
+                    <ArrowRight className="w-4 h-4 text-purple-900" />
+                    {isAdminEditing && <Edit3 className="w-3.5 h-3.5 ml-1 text-purple-700" />}
+                  </button>
+                </div>
+
+                {/* Trust Badges */}
+                {(hasAnyTrust || isAdminEditing) && (
+                  <div className="pt-6 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-xs text-purple-950 font-medium">
+                    {(trust1Text || isAdminEditing) && (
+                      <div 
+                        onClick={() => isAdminEditing && onEditField && onEditField('heroTrust1', 'Hero - Destaque 1')}
+                        className={`flex items-center gap-2 ${isAdminEditing ? 'cursor-pointer hover:underline' : ''}`}
+                      >
+                        <Gift className="w-4 h-4 text-purple-950 stroke-[1.8]" />
+                        <span className={`${getFontSizeClass(config?.heroTrust1?.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust1?.isBold, true)}`}>{trust1Text || 'Destaque 1'}</span>
+                      </div>
+                    )}
+                    {(trust2Text || isAdminEditing) && (
+                      <div 
+                        onClick={() => isAdminEditing && onEditField && onEditField('heroTrust2', 'Hero - Destaque 2')}
+                        className={`flex items-center gap-2 ${isAdminEditing ? 'cursor-pointer hover:underline' : ''}`}
+                      >
+                        <Heart className="w-4 h-4 text-purple-950 stroke-[1.8]" />
+                        <span className={`${getFontSizeClass(config?.heroTrust2?.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust2?.isBold, true)}`}>{trust2Text || 'Destaque 2'}</span>
+                      </div>
+                    )}
+                    {(trust3Text || isAdminEditing) && (
+                      <div 
+                        onClick={() => isAdminEditing && onEditField && onEditField('heroTrust3', 'Hero - Destaque 3')}
+                        className={`flex items-center gap-2 ${isAdminEditing ? 'cursor-pointer hover:underline' : ''}`}
+                      >
+                        <Star className="w-4 h-4 text-purple-950 stroke-[1.8]" />
+                        <span className={`${getFontSizeClass(config?.heroTrust3?.fontSize, 'text-xs')} ${getFontWeightClass(config?.heroTrust3?.isBold, true)}`}>{trust3Text || 'Destaque 3'}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Right Image Showcase */}

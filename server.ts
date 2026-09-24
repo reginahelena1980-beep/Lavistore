@@ -112,6 +112,23 @@ function deepMergeObjects(target: any, source: any): any {
   return result;
 }
 
+const TEST_PRODUCT_IDS = new Set(['lav-74750', 'lav-15329', 'lav-03352', 'lav-01', 'lav-02']);
+
+/**
+ * Helper: Sanitiza a lista de produtos, eliminando produtos ou registros criados para teste
+ */
+function sanitizeProductsList(list: any[]): any[] {
+  if (!Array.isArray(list)) return [];
+  return list.filter(item => {
+    if (!item || !item.id || !item.name) return false;
+    const lowerId = String(item.id).toLowerCase();
+    const lowerName = String(item.name).toLowerCase();
+    if (TEST_PRODUCT_IDS.has(lowerId)) return false;
+    if (lowerName.includes('teste')) return false;
+    return true;
+  });
+}
+
 /**
  * Inicialização e blindagem do armazenamento persistente.
  * Executa uma mesclagem não-destrutiva: configurações já salvas pelo administrador
@@ -180,17 +197,19 @@ function initializePersistentStorage() {
       persistentStore = {
         ...seedData,
         ...existingAdminSettings,
+        products: sanitizeProductsList(seedData.products || []),
         updatedAt: existingAdminSettings.lastAdminSavedAt || seedData.updatedAt || undefined,
         isLockedByAdmin: Boolean(existingAdminSettings.isLockedByAdmin)
       };
       safeWriteJsonFile(PERSISTENT_STORE_FILE, persistentStore);
     } else {
+      const prodsToSanitize = (Array.isArray(persistentStore.products) && persistentStore.products.length > 0)
+        ? persistentStore.products
+        : (seedData.products || []);
       persistentStore = {
         ...persistentStore,
         ...existingAdminSettings,
-        products: (Array.isArray(persistentStore.products) && persistentStore.products.length > 0)
-          ? persistentStore.products
-          : (seedData.products || [])
+        products: sanitizeProductsList(prodsToSanitize)
       };
       safeWriteJsonFile(PERSISTENT_STORE_FILE, persistentStore);
     }
@@ -217,16 +236,17 @@ initializePersistentStorage();
  * Helper: Mescla segura de lista de produtos para evitar perdas de campos editados pelo Admin
  */
 function mergeProductsLists(incoming: any[], existing: any[]): any[] {
-  if (!Array.isArray(incoming) || incoming.length === 0) return existing;
-  if (!Array.isArray(existing) || existing.length === 0) return incoming;
+  const cleanIncoming = sanitizeProductsList(incoming);
+  const cleanExisting = sanitizeProductsList(existing);
+
+  if (cleanIncoming.length === 0) return cleanExisting;
+  if (cleanExisting.length === 0) return cleanIncoming;
 
   const result: any[] = [];
-  const handledIds = new Set<string>();
 
-  for (const item of incoming) {
+  for (const item of cleanIncoming) {
     if (!item || !item.id) continue;
-    handledIds.add(item.id);
-    const matchOld = existing.find(e => e.id === item.id || (e.name && item.name && e.name.trim().toLowerCase() === item.name.trim().toLowerCase()));
+    const matchOld = cleanExisting.find(e => e.id === item.id || (e.name && item.name && e.name.trim().toLowerCase() === item.name.trim().toLowerCase()));
     if (matchOld) {
       result.push({
         ...matchOld,
@@ -239,12 +259,6 @@ function mergeProductsLists(incoming: any[], existing: any[]): any[] {
     } else {
       result.push(item);
     }
-  }
-
-  // Preserva produtos antigos que não foram enviados nesta requisição parcial
-  for (const old of existing) {
-    if (!old || !old.id || handledIds.has(old.id)) continue;
-    result.push(old);
   }
 
   return result;
@@ -717,34 +731,41 @@ function getAdminEmails(): { primaryEmail: string; allowedEmails: string[]; stor
   const envStoreEmail = process.env.STORE_EMAIL?.trim().toLowerCase();
   let emails: string[] = [];
 
-  // Prioridade absoluta: variável de ambiente STORE_EMAIL
+  // Prioridade: variável de ambiente STORE_EMAIL
   if (envStoreEmail) {
     emails.push(envStoreEmail);
   }
 
-  // E-mail configurado no painel da loja (se houver)
-  if (fs.existsSync(STORE_DATA_FILE)) {
-    try {
-      const content = JSON.parse(fs.readFileSync(STORE_DATA_FILE, 'utf-8'));
-      if (content.homePageConfig?.orderNotificationEmail?.trim()) {
-        emails.push(content.homePageConfig.orderNotificationEmail.trim().toLowerCase());
-      }
-      if (content.homePageConfig?.contactEmail?.trim()) {
-        emails.push(content.homePageConfig.contactEmail.trim().toLowerCase());
-      }
-    } catch {}
+  // E-mail configurado no painel da loja (armazenamento persistente soberano)
+  const settingsFiles = [PERSISTENT_ADMIN_SETTINGS_FILE, PERSISTENT_STORE_FILE, STORE_DATA_FILE];
+  for (const sFile of settingsFiles) {
+    if (fs.existsSync(sFile)) {
+      try {
+        const content = JSON.parse(fs.readFileSync(sFile, 'utf-8'));
+        const cfg = content.homePageConfig || content;
+        if (cfg?.orderNotificationEmail?.trim()) {
+          emails.push(cfg.orderNotificationEmail.trim().toLowerCase());
+        }
+        if (cfg?.contactEmail?.trim()) {
+          emails.push(cfg.contactEmail.trim().toLowerCase());
+        }
+      } catch {}
+    }
   }
-
-  // E-mails adicionais de contingência da administração
-  emails.push('reginahelena1980@gmail.com');
-  emails.push('contato@lavistore.com.br');
 
   const unique = Array.from(new Set(emails.map(e => e.trim().toLowerCase()).filter(Boolean)));
   return {
-    primaryEmail: unique[0] || 'reginahelena1980@gmail.com',
+    primaryEmail: unique[0] || '',
     allowedEmails: unique,
-    storeEmailConfigured: Boolean(envStoreEmail)
+    storeEmailConfigured: Boolean(envStoreEmail || unique.length > 0)
   };
+}
+
+/**
+ * Retorna as configurações de e-mail da loja (para notificações de pedidos e painel)
+ */
+function getStoreEmailConfig(): { primaryEmail: string; allowedEmails: string[]; storeEmailConfigured: boolean } {
+  return getAdminEmails();
 }
 
 function maskEmail(email: string): string {
@@ -2041,9 +2062,11 @@ app.post('/api/orders', async (req, res) => {
     }
 
     // Determina o e-mail de destino da loja
+    const emailConfig = getStoreEmailConfig();
     const storeEmail = process.env.STORE_EMAIL?.trim() || 
                        order.storeEmail?.trim() || 
-                       'reginahelena1980@gmail.com';
+                       emailConfig.primaryEmail ||
+                       '';
 
     const orderRecord = {
       ...order,
@@ -2393,8 +2416,9 @@ app.delete('/api/newsletter/leads/:id', (req, res) => {
  */
 app.get('/api/email/config', (_req, res) => {
   const { isConfigured } = createMailTransporter();
-  const storeEmail = process.env.STORE_EMAIL || 'reginahelena1980@gmail.com';
-  const storeWhatsApp = process.env.STORE_WHATSAPP || '5511987654321';
+  const emailCfg = getStoreEmailConfig();
+  const storeEmail = process.env.STORE_EMAIL || emailCfg.primaryEmail || '';
+  const storeWhatsApp = process.env.STORE_WHATSAPP || '';
   const pagSeguroUrl = process.env.PAGSEGURO_PAYMENT_URL || '';
 
   res.json({
@@ -2414,33 +2438,34 @@ app.get('/api/email/config', (_req, res) => {
  */
 app.post('/api/email/test', async (req, res) => {
   try {
-    const targetEmail = req.body.email?.trim() || process.env.STORE_EMAIL?.trim() || 'reginahelena1980@gmail.com';
+    const emailCfg = getStoreEmailConfig();
+    const targetEmail = req.body.email?.trim() || process.env.STORE_EMAIL?.trim() || emailCfg.primaryEmail || '';
+    if (!targetEmail) {
+      return res.status(400).json({ 
+        error: 'Nenhum e-mail de destino configurado. Defina o e-mail no painel de administração ou informe um e-mail no formulário de teste.' 
+      });
+    }
+
     const sampleOrder = {
       orderId: `TEST-${Math.floor(1000 + Math.random() * 9000)}`,
       date: new Date().toLocaleDateString('pt-BR'),
       customerName: 'Cliente Teste Lavistore',
-      customerEmail: 'cliente.teste@exemplo.com',
-      customerPhone: '(11) 98765-4321',
-      address: 'Av. Paulista, 1500, Apto 42 - Bela Vista, São Paulo/SP - CEP: 01310-100',
-      shippingMethod: 'Jadlog .Package',
+      customerEmail: targetEmail,
+      customerPhone: '',
+      address: 'Endereço de Exemplo para Teste de Notificação',
+      shippingMethod: 'Envio Padrão',
       shippingDeadline: '2 a 4 dias úteis',
-      shippingCost: 14.90,
-      paymentMethod: 'Cartão de Crédito (Mercado Pago)',
+      shippingCost: 0,
+      paymentMethod: 'Teste do Sistema',
       pagSeguroUrl: process.env.PAGSEGURO_PAYMENT_URL || '',
-      subtotal: 99.80,
-      discountAmount: 10.00,
-      couponApplied: 'LAVI10',
-      total: 104.70,
+      subtotal: 50.00,
+      discountAmount: 0,
+      couponApplied: '',
+      total: 50.00,
       items: [
         {
-          quantity: 2,
-          product: { name: 'Caderno Floral Lilás Lavanda', price: 34.90 },
-          selectedColor: 'Lilás Lavanda',
-          isGiftWrapped: true
-        },
-        {
           quantity: 1,
-          product: { name: 'Caneta Mimo Florzinha Gel', price: 14.10 }
+          product: { name: 'Item de Teste de Notificação', price: 50.00 }
         }
       ]
     };
@@ -2880,9 +2905,11 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
     }
 
     // DISPARO AUTOMÁTICO DE NOTIFICAÇÕES (E-MAIL VIA SMTP & REGISTRO DE PEDIDO)
+    const emailConfig = getStoreEmailConfig();
     const storeEmail = process.env.STORE_EMAIL?.trim() || 
                        orderData.storeEmail?.trim() || 
-                       'reginahelena1980@gmail.com';
+                       emailConfig.primaryEmail ||
+                       '';
 
     const isPix = paymentResult.payment_method_id === 'pix';
     const paymentMethodLabel = isPix 

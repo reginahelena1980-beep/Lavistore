@@ -76,31 +76,41 @@ export function saveLocalAdminVault(partialVault: Partial<AdminCustomVault>): Ad
   return updatedVault;
 }
 
+const TEST_PRODUCT_IDS = new Set(['lav-74750', 'lav-15329', 'lav-03352', 'lav-01', 'lav-02']);
+
+function sanitizeProductItem(p: Product): boolean {
+  if (!p || !p.id || !p.name) return false;
+  const lowerId = String(p.id).toLowerCase();
+  const lowerName = String(p.name).toLowerCase();
+  if (TEST_PRODUCT_IDS.has(lowerId)) return false;
+  if (lowerName.includes('teste')) return false;
+  return true;
+}
+
 /**
  * Mescla produtos garantindo que NENHUMA edição do administrador seja perdida.
  * Se o produto foi editado ou existe na lista do admin, TODOS os campos do admin têm prioridade absoluta.
- * Nenhum produto é excluído acidentalmente (união de IDs).
+ * Elimina produtos de teste e registros descartados.
  */
 export function mergeProductsSafely(
   primaryList: Product[],
   fallbackList: Product[]
 ): Product[] {
-  if (!Array.isArray(primaryList) || primaryList.length === 0) return fallbackList || [];
-  if (!Array.isArray(fallbackList) || fallbackList.length === 0) return primaryList;
+  const cleanPrimary = (Array.isArray(primaryList) ? primaryList : []).filter(sanitizeProductItem);
+  const cleanFallback = (Array.isArray(fallbackList) ? fallbackList : []).filter(sanitizeProductItem);
+
+  if (cleanPrimary.length === 0) return cleanFallback;
+  if (cleanFallback.length === 0) return cleanPrimary;
 
   const result: Product[] = [];
-  const handledIds = new Set<string>();
-  const handledNames = new Set<string>();
 
-  // 1. Processa a lista principal (geralmente local do Admin ou cofre protegido)
-  for (const item of primaryList) {
+  // 1. Processa a lista principal (local do Admin ou cofre soberano)
+  for (const item of cleanPrimary) {
     if (!item || !item.id) continue;
-    handledIds.add(item.id);
     const normName = item.name?.trim().toLowerCase();
-    if (normName) handledNames.add(normName);
 
-    // Encontra se existe no fallback para preencher campos que possam estar faltando
-    const matchFallback = fallbackList.find(
+    // Encontra se existe no fallback para preencher campos complementares
+    const matchFallback = cleanFallback.find(
       fb => fb.id === item.id || (normName && fb.name?.trim().toLowerCase() === normName)
     );
 
@@ -108,7 +118,6 @@ export function mergeProductsSafely(
       result.push({
         ...matchFallback,
         ...item,
-        // Garante que imagens, variações e textos customizados não sejam substituídos
         images: (item.images && item.images.length > 0) ? item.images : matchFallback.images,
         sizes: (item.sizes && item.sizes.length > 0) ? item.sizes : matchFallback.sizes,
         colors: (item.colors && item.colors.length > 0) ? item.colors : matchFallback.colors,
@@ -119,18 +128,6 @@ export function mergeProductsSafely(
     } else {
       result.push(item);
     }
-  }
-
-  // 2. Adiciona produtos da lista secundária que ainda não estão presentes
-  for (const fb of fallbackList) {
-    if (!fb || !fb.id) continue;
-    const normName = fb.name?.trim().toLowerCase();
-    if (handledIds.has(fb.id) || (normName && handledNames.has(normName))) {
-      continue;
-    }
-    handledIds.add(fb.id);
-    if (normName) handledNames.add(normName);
-    result.push(fb);
   }
 
   return result;
@@ -163,9 +160,7 @@ export function mergeHomePageConfigSafely(
         ...pVal
       };
     } else if (typeof pVal === 'string') {
-      if (pVal.trim() !== '') {
-        result[key] = pVal;
-      }
+      result[key] = pVal;
     } else if (typeof pVal === 'boolean' || typeof pVal === 'number') {
       result[key] = pVal;
     } else if (Array.isArray(pVal)) {
@@ -190,9 +185,9 @@ export function mergeHeroConfigSafely(
 ): HeroConfig {
   const base: HeroConfig = {
     image: '',
-    badge: 'Presentes & Mimos Criativos 🌸',
-    title: 'Demonstre seu carinho com nossos mimos!',
-    subtitle: 'Presentes criativos, cheirinho doce artesanal e papelaria fofa com acabamento impecável.',
+    badge: '',
+    title: '',
+    subtitle: '',
     ...(fallback || {})
   };
 
@@ -201,10 +196,10 @@ export function mergeHeroConfigSafely(
   return {
     ...base,
     ...primary,
-    image: primary.image || base.image,
-    badge: primary.badge || base.badge,
-    title: primary.title || base.title,
-    subtitle: primary.subtitle || base.subtitle
+    image: primary.image !== undefined ? primary.image : base.image,
+    badge: primary.badge !== undefined ? primary.badge : base.badge,
+    title: primary.title !== undefined ? primary.title : base.title,
+    subtitle: primary.subtitle !== undefined ? primary.subtitle : base.subtitle
   };
 }
 

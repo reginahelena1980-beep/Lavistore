@@ -29,6 +29,7 @@ interface FooterProps {
   onOpenCategoryManager?: () => void;
   onNavigateToAdmin?: () => void;
   onOpenReturnPolicy?: () => void;
+  isConfigLoading?: boolean;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -39,15 +40,16 @@ export const Footer: React.FC<FooterProps> = ({
   onSelectCategory,
   onOpenCategoryManager,
   onNavigateToAdmin,
-  onOpenReturnPolicy
+  onOpenReturnPolicy,
+  isConfigLoading = false
 }) => {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
   const [newsletterMessage, setNewsletterMessage] = useState<string | null>(null);
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const newsBadge = config?.newsletterBadge?.text || 'Clube de Mimos Lavistore';
-  const newsTitle = config?.newsletterTitle?.text || 'Ganhe 10% OFF na sua primeira compra! 🌸';
-  const newsDesc = config?.newsletterDesc?.text || 'Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.';
+  const newsBadge = config?.newsletterBadge?.text || '';
+  const newsTitle = config?.newsletterTitle?.text || '';
+  const newsDesc = config?.newsletterDesc?.text || '';
 
   // List of valid categories for the store (excluding 'todos' which is just the full catalog filter)
   const nonTodosCategories = categories.filter((c) => c.id !== 'todos');
@@ -136,26 +138,42 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Newsletter Box */}
         <div className="bg-gradient-to-r from-purple-200/90 via-pink-100/90 to-amber-100/90 p-6 sm:p-10 rounded-3xl border-2 border-purple-300 shadow-md flex flex-col lg:flex-row items-center justify-between gap-6">
           <div className="space-y-1.5 text-center lg:text-left">
-            <div 
-              onClick={() => isAdminEditing && onEditField && onEditField('newsletterBadge', 'Newsletter - Selo')}
-              className={`inline-flex items-center gap-1.5 bg-white/80 px-3 py-1 rounded-full text-purple-900 uppercase tracking-wider border border-purple-200 shadow-2xs ${getFontSizeClass(config?.newsletterBadge?.fontSize, 'text-xs')} ${getFontWeightClass(config?.newsletterBadge?.isBold, true)} ${isAdminEditing ? 'cursor-pointer hover:ring-2 hover:ring-amber-400' : ''}`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-300" />
-              <span>{newsBadge}</span>
-              {isAdminEditing && <Edit3 className="w-3 h-3 ml-1" />}
-            </div>
-            <h3 
-              onClick={() => isAdminEditing && onEditField && onEditField('newsletterTitle', 'Newsletter - Título')}
-              className={`font-['Mali'] text-purple-950 ${getFontSizeClass(config?.newsletterTitle?.fontSize, 'text-2xl')} ${getFontWeightClass(config?.newsletterTitle?.isBold, true)} ${isAdminEditing ? 'cursor-pointer hover:underline decoration-amber-400 decoration-2' : ''}`}
-            >
-              {newsTitle}
-            </h3>
-            <p 
-              onClick={() => isAdminEditing && onEditField && onEditField('newsletterDesc', 'Newsletter - Descrição')}
-              className={`font-['Comfortaa'] text-purple-900 ${getFontSizeClass(config?.newsletterDesc?.fontSize, 'text-sm')} ${getFontWeightClass(config?.newsletterDesc?.isBold, false)} ${isAdminEditing ? 'cursor-pointer hover:underline decoration-amber-400 decoration-2' : ''}`}
-            >
-              {newsDesc}
-            </p>
+            {isConfigLoading ? (
+              <div className="space-y-2">
+                <div className="h-5 w-40 bg-purple-300/50 rounded-full animate-pulse" />
+                <div className="h-7 w-72 bg-purple-300/50 rounded-lg animate-pulse" />
+                <div className="h-4 w-60 bg-purple-300/50 rounded-lg animate-pulse" />
+              </div>
+            ) : (
+              <>
+                {(newsBadge || isAdminEditing) && (
+                  <div 
+                    onClick={() => isAdminEditing && onEditField && onEditField('newsletterBadge', 'Newsletter - Selo')}
+                    className={`inline-flex items-center gap-1.5 bg-white/80 px-3 py-1 rounded-full text-purple-900 uppercase tracking-wider border border-purple-200 shadow-2xs ${getFontSizeClass(config?.newsletterBadge?.fontSize, 'text-xs')} ${getFontWeightClass(config?.newsletterBadge?.isBold, true)} ${isAdminEditing ? 'cursor-pointer hover:ring-2 hover:ring-amber-400' : ''}`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-300" />
+                    <span>{newsBadge || 'Selo Newsletter'}</span>
+                    {isAdminEditing && <Edit3 className="w-3 h-3 ml-1" />}
+                  </div>
+                )}
+                {(newsTitle || isAdminEditing) && (
+                  <h3 
+                    onClick={() => isAdminEditing && onEditField && onEditField('newsletterTitle', 'Newsletter - Título')}
+                    className={`font-['Mali'] text-purple-950 ${getFontSizeClass(config?.newsletterTitle?.fontSize, 'text-2xl')} ${getFontWeightClass(config?.newsletterTitle?.isBold, true)} ${isAdminEditing ? 'cursor-pointer hover:underline decoration-amber-400 decoration-2' : ''}`}
+                  >
+                    {newsTitle || 'Título da Newsletter'}
+                  </h3>
+                )}
+                {(newsDesc || isAdminEditing) && (
+                  <p 
+                    onClick={() => isAdminEditing && onEditField && onEditField('newsletterDesc', 'Newsletter - Descrição')}
+                    className={`font-['Comfortaa'] text-purple-900 ${getFontSizeClass(config?.newsletterDesc?.fontSize, 'text-sm')} ${getFontWeightClass(config?.newsletterDesc?.isBold, false)} ${isAdminEditing ? 'cursor-pointer hover:underline decoration-amber-400 decoration-2' : ''}`}
+                  >
+                    {newsDesc || 'Descrição da Newsletter'}
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
 
@@ -229,27 +247,45 @@ export const Footer: React.FC<FooterProps> = ({
             <div>
               <LavistoreLogo variant="horizontal" size="sm" isDarkTheme={false} />
             </div>
-            <p className="text-purple-900 font-['Comfortaa'] text-xs leading-relaxed pt-1 font-medium">
-              {config?.footerDescription || 'Loja virtual brasileira focada em presentes criativos, papelaria fofa, mimos delicados e caixas afetivas inspiradas no trio de flores: violeta, turquesa e rosa.'}
-            </p>
-            <div className="flex items-center gap-3 text-purple-950 pt-1">
-              <a 
-                href={config?.instagramUrl || 'https://instagram.com/lavistore.oficial'} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="p-2.5 rounded-xl bg-white border border-purple-200 hover:bg-rose-500 hover:text-white shadow-2xs transition-colors" 
-                aria-label="Instagram"
-              >
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a 
-                href={`mailto:${config?.contactEmail || 'contato@lavistore.com.br'}`} 
-                className="p-2.5 rounded-xl bg-white border border-purple-200 hover:bg-cyan-600 hover:text-white shadow-2xs transition-colors" 
-                aria-label="E-mail"
-              >
-                <Mail className="w-4 h-4" />
-              </a>
-            </div>
+            {isConfigLoading ? (
+              <div className="space-y-1.5 pt-1">
+                <div className="h-3.5 w-48 bg-purple-200/60 rounded animate-pulse" />
+                <div className="h-3.5 w-40 bg-purple-200/60 rounded animate-pulse" />
+              </div>
+            ) : config?.footerDescription?.trim() ? (
+              <p className="text-purple-900 font-['Comfortaa'] text-xs leading-relaxed pt-1 font-medium">
+                {config.footerDescription.trim()}
+              </p>
+            ) : null}
+            {isConfigLoading ? (
+              <div className="flex items-center gap-3 pt-1">
+                <div className="w-8 h-8 rounded-xl bg-purple-200/60 animate-pulse" />
+                <div className="w-8 h-8 rounded-xl bg-purple-200/60 animate-pulse" />
+              </div>
+            ) : (config?.instagramUrl?.trim() || config?.contactEmail?.trim()) ? (
+              <div className="flex items-center gap-3 text-purple-950 pt-1">
+                {config?.instagramUrl?.trim() ? (
+                  <a 
+                    href={config.instagramUrl.trim()} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="p-2.5 rounded-xl bg-white border border-purple-200 hover:bg-rose-500 hover:text-white shadow-2xs transition-colors" 
+                    aria-label="Instagram"
+                  >
+                    <Instagram className="w-4 h-4" />
+                  </a>
+                ) : null}
+                {config?.contactEmail?.trim() ? (
+                  <a 
+                    href={`mailto:${config.contactEmail.trim()}`} 
+                    className="p-2.5 rounded-xl bg-white border border-purple-200 hover:bg-cyan-600 hover:text-white shadow-2xs transition-colors" 
+                    aria-label="E-mail"
+                  >
+                    <Mail className="w-4 h-4" />
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {/* Categories */}
@@ -301,61 +337,96 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Customer Care */}
           <div className="space-y-3">
             <h5 className="font-['Mali'] font-bold text-purple-950 text-sm">Atendimento</h5>
-            <ul className="space-y-2 text-purple-900 font-medium">
-              <li className="flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-rose-500" />
-                <span>WhatsApp: {config?.whatsappNumber || '(11) 98765-4321'}</span>
-              </li>
-              <li className="flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-cyan-600" />
-                <span>{config?.contactEmail || 'contato@lavistore.com.br'}</span>
-              </li>
-              <li><span>{config?.businessHours || 'Seg. a Sex.: 09h às 18h'}</span></li>
-              <li><span className="text-emerald-700 font-bold">{config?.responseTime || 'Tempo médio de resposta: ~10 min'}</span></li>
-              <li className="pt-1 border-t border-purple-200/60">
-                <button
-                  type="button"
-                  id="btn-footer-returns-link"
-                  onClick={onOpenReturnPolicy}
-                  className="hover:text-pink-600 transition-colors text-left flex items-center gap-1.5 font-bold text-pink-700 cursor-pointer group"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-pink-500 group-hover:rotate-[-45deg] transition-transform" />
-                  <span className="underline underline-offset-2">Trocas & Devoluções (CDC 7 dias)</span>
-                </button>
-              </li>
-            </ul>
+            {isConfigLoading ? (
+              <ul className="space-y-2">
+                <li className="h-3.5 w-36 bg-purple-200/60 rounded animate-pulse" />
+                <li className="h-3.5 w-44 bg-purple-200/60 rounded animate-pulse" />
+                <li className="h-3.5 w-32 bg-purple-200/60 rounded animate-pulse" />
+              </ul>
+            ) : (
+              <ul className="space-y-2 text-purple-900 font-medium">
+                {config?.whatsappNumber?.trim() ? (
+                  <li className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-rose-500" />
+                    <span>WhatsApp: {config.whatsappNumber.trim()}</span>
+                  </li>
+                ) : null}
+                {config?.contactEmail?.trim() ? (
+                  <li className="flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-cyan-600" />
+                    <span>{config.contactEmail.trim()}</span>
+                  </li>
+                ) : null}
+                {config?.businessHours?.trim() ? (
+                  <li><span>{config.businessHours.trim()}</span></li>
+                ) : null}
+                {config?.responseTime?.trim() ? (
+                  <li><span className="text-emerald-700 font-bold">{config.responseTime.trim()}</span></li>
+                ) : null}
+                {!config?.whatsappNumber?.trim() && !config?.contactEmail?.trim() && !config?.businessHours?.trim() && (
+                  <li className="text-slate-400 text-xs italic">Canais de atendimento sob consulta.</li>
+                )}
+                <li className="pt-1 border-t border-purple-200/60">
+                  <button
+                    type="button"
+                    id="btn-footer-returns-link"
+                    onClick={onOpenReturnPolicy}
+                    className="hover:text-pink-600 transition-colors text-left flex items-center gap-1.5 font-bold text-pink-700 cursor-pointer group"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-pink-500 group-hover:rotate-[-45deg] transition-transform" />
+                    <span className="underline underline-offset-2">Trocas & Devoluções (CDC 7 dias)</span>
+                  </button>
+                </li>
+              </ul>
+            )}
           </div>
 
           {/* Security & Badges */}
           <div className="space-y-3">
             <h5 className="font-['Mali'] font-bold text-purple-950 text-sm">Segurança & Pagamento</h5>
-            <div className="flex flex-wrap gap-2 text-[10px]">
-              <span className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-purple-200 text-purple-950 font-bold shadow-2xs">
-                <Lock className="w-3 h-3 text-emerald-600" />
-                <span>{config?.sslSecurityText || 'SSL 256 Bits'}</span>
-              </span>
-              <span className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-purple-200 text-purple-950 font-bold shadow-2xs">
-                <QrCode className="w-3 h-3 text-cyan-600" />
-                <span>{config?.pixDiscountText || 'PIX 5% OFF'}</span>
-              </span>
-              <span className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-purple-200 text-purple-950 font-bold shadow-2xs">
-                <CreditCard className="w-3 h-3 text-rose-500" />
-                <span>{config?.installmentText || 'Até 12x'}</span>
-              </span>
-              <button
-                type="button"
-                id="btn-footer-badge-returns"
-                onClick={onOpenReturnPolicy}
-                className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-purple-200 text-purple-950 font-bold shadow-2xs hover:border-pink-300 hover:text-pink-700 transition-colors cursor-pointer"
-                title="Clique para ver as regras de troca e devolução simplificada"
-              >
-                <RotateCcw className="w-3 h-3 text-pink-500" />
-                <span>Troca Fácil 7 Dias</span>
-              </button>
-            </div>
-            <p className="text-[11px] text-purple-900 font-medium pt-1">
-              {config?.securityFooterNote || 'Todos os dados são criptografados e protegidos com tecnologia segura de ponta a ponta.'}
-            </p>
+            {isConfigLoading ? (
+              <div className="flex flex-wrap gap-2">
+                <div className="h-6 w-20 bg-purple-200/60 rounded-lg animate-pulse" />
+                <div className="h-6 w-20 bg-purple-200/60 rounded-lg animate-pulse" />
+                <div className="h-6 w-16 bg-purple-200/60 rounded-lg animate-pulse" />
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2 text-[10px]">
+                {config?.sslSecurityText?.trim() ? (
+                  <span className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-purple-200 text-purple-950 font-bold shadow-2xs">
+                    <Lock className="w-3 h-3 text-emerald-600" />
+                    <span>{config.sslSecurityText.trim()}</span>
+                  </span>
+                ) : null}
+                {config?.pixDiscountText?.trim() ? (
+                  <span className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-purple-200 text-purple-950 font-bold shadow-2xs">
+                    <QrCode className="w-3 h-3 text-cyan-600" />
+                    <span>{config.pixDiscountText.trim()}</span>
+                  </span>
+                ) : null}
+                {config?.installmentText?.trim() ? (
+                  <span className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-purple-200 text-purple-950 font-bold shadow-2xs">
+                    <CreditCard className="w-3 h-3 text-rose-500" />
+                    <span>{config.installmentText.trim()}</span>
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  id="btn-footer-badge-returns"
+                  onClick={onOpenReturnPolicy}
+                  className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-purple-200 text-purple-950 font-bold shadow-2xs hover:border-pink-300 hover:text-pink-700 transition-colors cursor-pointer"
+                  title="Clique para ver as regras de troca e devolução simplificada"
+                >
+                  <RotateCcw className="w-3 h-3 text-pink-500" />
+                  <span>Troca Fácil 7 Dias</span>
+                </button>
+              </div>
+            )}
+            {config?.securityFooterNote?.trim() ? (
+              <p className="text-[11px] text-purple-900 font-medium pt-1">
+                {config.securityFooterNote.trim()}
+              </p>
+            ) : null}
           </div>
 
         </div>
@@ -378,9 +449,13 @@ export const Footer: React.FC<FooterProps> = ({
               ) : (
                 <span>©</span>
               )}
-              <span>
-                {(config?.companyLegalText || '© 2026 Lavistore Presentes e Mimos Criativos').replace(/^©\s*/, '')}
-              </span>
+              {isConfigLoading ? (
+                <span className="h-3.5 w-48 bg-purple-200/60 rounded animate-pulse inline-block" />
+              ) : (
+                <span>
+                  {config?.companyLegalText?.trim() ? config.companyLegalText.replace(/^©\s*/, '').trim() : 'Lavistore Presentes e Mimos Criativos'}
+                </span>
+              )}
             </p>
             <span className="hidden sm:inline text-purple-400">•</span>
             <button

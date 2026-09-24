@@ -40,12 +40,21 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     orderData?.mercadoPagoStatus === 'approved' ? 'approved' : 'pending'
   );
 
-  // Polling em tempo real para verificar confirmação imediata do PIX no Mercado Pago
+  // Polling em tempo real para verificar confirmação imediata do PIX no Mercado Pago (com limite máximo para evitar looping desnecessário)
   useEffect(() => {
     if (!orderData?.mercadoPagoPaymentId || pixPaymentStatus === 'approved') return;
 
     let isSubscribed = true;
+    let pollCount = 0;
+    const maxPolls = 75; // Máximo de 5 minutos (75 * 4s = 300s)
+
     const interval = setInterval(async () => {
+      pollCount++;
+      if (pollCount > maxPolls) {
+        clearInterval(interval);
+        return;
+      }
+
       try {
         const resp = await fetch(`/api/mercadopago/payment_status/${orderData.mercadoPagoPaymentId}`);
         if (resp.ok) {
@@ -142,7 +151,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
       }).join('\n')
     : 'Itens do pedido';
 
-  const storeNotificationEmail = homePageConfig?.orderNotificationEmail || 'reginahelena1980@gmail.com';
+  const storeNotificationEmail = homePageConfig?.orderNotificationEmail?.trim() || homePageConfig?.contactEmail?.trim() || '';
 
   const waMessage = 
 `🌸 *NOVA VENDA CONCLUÍDA - LAVISTORE* 🌸

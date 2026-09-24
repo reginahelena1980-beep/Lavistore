@@ -3,7 +3,7 @@
   "isLockedByAdmin": true,
   "homePageConfig": {
     "announcementText": "Frete Grátis para todo o Brasil para compras acima de R$ 150.00",
-    "announcementCoupon": "TORRI",
+    "announcementCoupon": "PRIMEIRACOMPRA",
     "showAnnouncement": true,
     "heroBadge": {
       "text": "Presentes & Mimos Criativos 🌸",
@@ -130,11 +130,11 @@
       "isBold": true
     },
     "reviewsSubtitle": {
-      "text": "Mais de 1.200 pedidos entregues com amor, papel de seda e o cheirinho inesquecível da Lavistore.",
+      "text": "Confira o carinho e o afeto em cada mimo e sacolinha entregue.",
       "fontSize": "base",
       "isBold": false
     },
-    "reviewsRatingSummary": "4.9 / 5.0 (Mais de 1.800 avaliações 5 estrelas)",
+    "reviewsRatingSummary": "",
     "newsletterBadge": {
       "text": "Clube de Mimos Lavistore",
       "fontSize": "xs",
@@ -163,14 +163,14 @@
     "pixDiscountText": "PIX 5% OFF",
     "installmentText": "Até 12x",
     "securityFooterNote": "Todos os dados são criptografados e protegidos com tecnologia segura de ponta a ponta.",
-    "whatsappNumber": "(11) 98765-4321",
-    "contactEmail": "contato@lavistore.com.br",
-    "orderNotificationEmail": "reginahelena1980@gmail.com",
+    "whatsappNumber": "",
+    "contactEmail": "",
+    "orderNotificationEmail": "",
     "pagSeguroPaymentUrl": "",
-    "businessHours": "Seg. a Sex.: 09h às 18h",
-    "responseTime": "Tempo médio de resposta: ~10 min",
-    "instagramHandle": "@lavistore.oficial",
-    "instagramUrl": "https://instagram.com/lavistore.oficial",
+    "businessHours": "",
+    "responseTime": "",
+    "instagramHandle": "",
+    "instagramUrl": "",
     "chatConciergeName": "Concierge Lavistore 🌸",
     "chatConciergeRole": "Atendimento Online • Suporte a Presentes",
     "chatWelcomeTitle": "Olá, bem-vinda à Lavistore! 🌷",
@@ -231,48 +231,37 @@
   },
   "coupons": [
     {
-      "id": "coupon-torri",
-      "code": "TORRI",
-      "description": "Frete Grátis para Amiguinhos do Torri!",
-      "type": "free_shipping",
-      "discountValue": 0,
-      "minOrderValue": 0,
-      "isActive": true,
-      "timesUsed": 50,
-      "createdAt": "2026-03-01"
-    },
-    {
-      "id": "coupon-enjoy",
-      "code": "ENJOY",
-      "description": "Frete Grátis para os vizinhos do Enjoy!",
-      "type": "free_shipping",
-      "discountValue": 0,
-      "minOrderValue": 0,
-      "isActive": true,
-      "timesUsed": 40,
-      "createdAt": "2026-03-01"
-    },
-    {
       "id": "coupon-primeiracompra",
       "code": "PRIMEIRACOMPRA",
-      "description": "10% de desconto de boas-vindas!",
+      "description": "10% de desconto de boas-vindas na sua primeira compra!",
       "type": "percentage",
       "discountValue": 10,
       "minOrderValue": 0,
       "isActive": true,
-      "timesUsed": 25,
+      "timesUsed": 0,
       "createdAt": "2026-03-01"
     },
     {
-      "id": "coupon-brinde",
-      "code": "BRINDE",
-      "description": "Cupom Especial de Brinde: Compra 100% Grátis (Total R$ 0,00)",
-      "type": "gift",
+      "id": "coupon-fretegratis",
+      "code": "FRETEGRATIS",
+      "description": "Frete Grátis garantido para todo o Brasil!",
+      "type": "free_shipping",
       "discountValue": 0,
+      "minOrderValue": 150,
+      "isActive": true,
+      "timesUsed": 0,
+      "createdAt": "2026-03-01"
+    },
+    {
+      "id": "coupon-florzinha",
+      "code": "FLORZINHA",
+      "description": "15% de desconto especial em toda a loja com muito carinho",
+      "type": "percentage",
+      "discountValue": 15,
       "minOrderValue": 0,
       "isActive": true,
       "timesUsed": 0,
-      "createdAt": "2026-03-12"
+      "createdAt": "2026-03-01"
     }
   ],
   "bagTypes": [

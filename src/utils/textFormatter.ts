@@ -37,95 +37,95 @@ export const getFontWeightClass = (isBold?: boolean, defaultBold: boolean = fals
 };
 
 export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
-  // Top Announcement Bar
-  announcementText: 'Frete Grátis para todo o Brasil • Cupom 10% OFF: ',
-  announcementCoupon: 'LAVI10',
+  // Top Announcement Bar - limpo por padrão, exibido apenas se configurado no ADM
+  announcementText: '',
+  announcementCoupon: '',
   showAnnouncement: true,
 
   // Hero section
   heroBadge: {
-    text: 'Presentes & Mimos Criativos 🌸',
+    text: '',
     fontSize: 'xs',
     isBold: true
   },
   heroTitle: {
-    text: 'Demonstre seu carinho com nossos mimos!',
+    text: '',
     fontSize: '4xl',
     isBold: true
   },
   heroSubtitle: {
-    text: 'A Lavistore nasce da vontade de transformar pequenos momentos em pura alegria! Presentes criativos, cheirinho doce artesanal e papelaria fofa com acabamento impecável.',
+    text: '',
     fontSize: 'base',
     isBold: false
   },
   heroBtnPrimary: {
-    text: 'Explorar nossos produtos',
+    text: 'Explorar produtos',
     fontSize: 'sm',
     isBold: true
   },
   heroBtnSecondary: {
-    text: 'Monte sua Sacolinha de Presente',
+    text: 'Monte sua Sacolinha',
     fontSize: 'sm',
     isBold: true
   },
   heroTrust1: {
-    text: 'Embalagens Exclusivas',
+    text: '',
     fontSize: 'xs',
     isBold: true
   },
   heroTrust2: {
-    text: 'Feito com Amor',
+    text: '',
     fontSize: 'xs',
     isBold: true
   },
   heroTrust3: {
-    text: 'Carinho em cada mimo!',
+    text: '',
     fontSize: 'xs',
     isBold: true
   },
 
-  // Brand perks
-  perk1Icon: '🛍️',
+  // Brand perks - limpos para autonomia do ADM
+  perk1Icon: '',
   perk1Title: {
-    text: 'Mimos Florais em Cada Sacolinha Amarela',
+    text: '',
     fontSize: 'base',
     isBold: true
   },
   perk1Desc: {
-    text: 'Você sempre ganha adesivos das 3 florzinhas, marcadores fofos e mini surpresas.',
+    text: '',
     fontSize: 'xs',
     isBold: false
   },
-  perk2Icon: '🍯',
+  perk2Icon: '',
   perk2Title: {
-    text: 'Cheirinho Floral & Doce',
+    text: '',
     fontSize: 'base',
     isBold: true
   },
   perk2Desc: {
-    text: 'Cada sacolinha amarela é borrifada artesanalmente com nossa fragrância suave de lavanda e baunilha.',
+    text: '',
     fontSize: 'xs',
     isBold: false
   },
-  perk3Icon: '🚚',
+  perk3Icon: '',
   perk3Title: {
-    text: 'Frete Grátis Especial',
+    text: '',
     fontSize: 'base',
     isBold: true
   },
   perk3Desc: {
-    text: 'Envio gratuito para todo o Brasil em compras a partir de R$ 149 com rastreamento detalhado.',
+    text: '',
     fontSize: 'xs',
     isBold: false
   },
-  perk4Icon: '🌸',
+  perk4Icon: '',
   perk4Title: {
-    text: 'Feito com Amor & Afeto',
+    text: '',
     fontSize: 'base',
     isBold: true
   },
   perk4Desc: {
-    text: 'Produtos de papelaria selecionados a dedo com gramatura nobre e sacolinhas amarelas exclusivas.',
+    text: '',
     fontSize: 'xs',
     isBold: false
   },
@@ -212,28 +212,28 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   installmentText: 'Até 12x',
   securityFooterNote: 'Todos os dados são criptografados e protegidos com tecnologia segura de ponta a ponta.',
 
-  // Contact Info
-  whatsappNumber: '(11) 98765-4321',
-  contactEmail: 'contato@lavistore.com.br',
-  orderNotificationEmail: 'reginahelena1980@gmail.com',
+  // Contact Info (Nenhum valor mockado / dados vêm exclusivamente do banco)
+  whatsappNumber: '',
+  contactEmail: '',
+  orderNotificationEmail: '',
   pagSeguroPaymentUrl: '',
-  businessHours: 'Seg. a Sex.: 09h às 18h',
-  responseTime: 'Tempo médio de resposta: ~10 min',
-  instagramHandle: '@lavistore.oficial',
-  instagramUrl: 'https://instagram.com/lavistore.oficial',
+  businessHours: '',
+  responseTime: '',
+  instagramHandle: '',
+  instagramUrl: '',
 
   // Header Cart & Bag Icon customization
   headerCartLabel: 'Sacolinha',
   headerBagIconType: 'shopping-bag',
 
   // Floating WhatsApp Chat Concierge
-  chatConciergeName: 'Concierge Lavistore 🌸',
-  chatConciergeRole: 'Atendimento Online • Suporte a Presentes',
-  chatWelcomeTitle: 'Olá, bem-vinda à Lavistore! 🌷',
-  chatWelcomeBody: 'Posso ajudar você a escolher um mimo perfeito, tirar dúvidas sobre o frete ou montar uma caixa personalizada?',
-  chatButtonLabel: 'Dúvidas? Fale Conosco',
+  chatConciergeName: '',
+  chatConciergeRole: '',
+  chatWelcomeTitle: '',
+  chatWelcomeBody: '',
+  chatButtonLabel: 'Fale Conosco',
   whatsappMode: 'direct', // 'direct' opens WhatsApp immediately in 1-click; 'popup' opens concierge card first
-  whatsappDefaultMessage: 'Olá Lavistore! Estou na loja virtual e gostaria de tirar uma dúvida sobre os mimos. 🌸',
+  whatsappDefaultMessage: 'Olá Lavistore! Estou no site e gostaria de atendimento.',
 
   // About Page ("Sobre Nós")
   aboutHeroSlogan: 'A Lavistore nasce para fazer o mundo mais afetuoso, doce e colorido!',
@@ -277,14 +277,17 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
 };
 
 /**
- * Formata um link direto para o WhatsApp oficial com número e mensagem inicial
+ * Formata um link direto para o WhatsApp oficial com número e mensagem inicial.
+ * Se nenhum número estiver configurado, retorna string vazia em vez de número fictício.
  */
 export const formatWhatsAppLink = (rawNumber?: string, message?: string): string => {
-  const defaultNumber = '5511987654321';
-  let digits = (rawNumber || defaultNumber).replace(/\D/g, '');
+  if (!rawNumber || !rawNumber.trim()) {
+    return '';
+  }
+  let digits = rawNumber.replace(/\D/g, '');
 
   if (!digits) {
-    digits = defaultNumber;
+    return '';
   } else if (digits.length === 10 || digits.length === 11) {
     // Adiciona o código do Brasil 55 caso não tenha sido digitado
     digits = `55${digits}`;

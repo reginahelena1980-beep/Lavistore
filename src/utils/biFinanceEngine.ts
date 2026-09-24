@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { BiProductCalculatedRecord, BiConsolidatedKpis, BiProductRowRaw } from '../types';
+import realBiRecords from '../data/bi_records.json';
 
 /**
  * MOTOR DE CÁLCULOS E PROCESSAMENTO DE BI FINANCEIRO - LAVISTORE
@@ -695,142 +696,9 @@ export function exportRecordsToXlsx(records: BiProductCalculatedRecord[]): Uint8
 }
 
 /**
- * Registros de exemplo pré-carregados da Lavistore (Meias de Panda, Canetas, Pulseiras, etc.)
+ * Registros reais pré-carregados da Lavistore (apenas produtos reais do catálogo)
  */
-export const DEFAULT_BI_SAMPLE_RECORDS: BiProductCalculatedRecord[] = [
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Janeiro',
-    produto: 'Meias de Panda Fofas',
-    tamCor: 'Único / P&B',
-    descricao: 'Meia cano médio atoalhada com carinha de panda bordada em alto relevo',
-    quantidadeComprada: 50,
-    custoTotal: 250.00,
-    precoVenda: 19.90,
-    quantidadeVendida: 42
-  }, 'bi-panda-jan-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Janeiro',
-    produto: 'Caneta Florzinha Gel Mimo',
-    tamCor: '0.5mm / Rosa e Lilás',
-    descricao: 'Caneta gel escrita suave ponta agulha e flor de silicone flexível',
-    quantidadeComprada: 100,
-    custoTotal: 320.00,
-    precoVenda: 9.90,
-    quantidadeVendida: 86
-  }, 'bi-caneta-jan-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Janeiro',
-    produto: 'Pulseira Cristais & Margarida',
-    tamCor: 'Ajustável / Dourado Floral',
-    descricao: 'Pulseira delicada folheada com cristais multifacetados e florzinha',
-    quantidadeComprada: 40,
-    custoTotal: 360.00,
-    precoVenda: 24.90,
-    quantidadeVendida: 31
-  }, 'bi-pulseira-jan-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Janeiro',
-    produto: 'Caderno Floral Lilás Lavanda',
-    tamCor: 'A5 / Lilás Vintage',
-    descricao: 'Caderno capa dura com estampa botânica lilás e fitilho marcador',
-    quantidadeComprada: 30,
-    custoTotal: 420.00,
-    precoVenda: 34.90,
-    quantidadeVendida: 25
-  }, 'bi-caderno-jan-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Fevereiro',
-    produto: 'Meias de Panda Fofas',
-    tamCor: 'Único / P&B',
-    descricao: 'Meia cano médio atoalhada com carinha de panda bordada em alto relevo',
-    quantidadeComprada: 60,
-    custoTotal: 300.00,
-    precoVenda: 19.90,
-    quantidadeVendida: 54
-  }, 'bi-panda-fev-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Fevereiro',
-    produto: 'Caneta Florzinha Gel Mimo',
-    tamCor: '0.5mm / Rosa e Lilás',
-    descricao: 'Caneta gel escrita suave ponta agulha e flor de silicone flexível',
-    quantidadeComprada: 120,
-    custoTotal: 384.00,
-    precoVenda: 9.90,
-    quantidadeVendida: 110
-  }, 'bi-caneta-fev-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Fevereiro',
-    produto: 'Pulseira Cristais & Margarida',
-    tamCor: 'Ajustável / Dourado Floral',
-    descricao: 'Pulseira delicada folheada com cristais multifacetados e florzinha',
-    quantidadeComprada: 45,
-    custoTotal: 405.00,
-    precoVenda: 24.90,
-    quantidadeVendida: 38
-  }, 'bi-pulseira-fev-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Fevereiro',
-    produto: 'Chaveiro Pelúcia Ursinho Floral',
-    tamCor: 'Único / Caramelo',
-    descricao: 'Chaveiro de pelúcia com toque aveludado e laço xadrez',
-    quantidadeComprada: 35,
-    custoTotal: 210.00,
-    precoVenda: 16.90,
-    quantidadeVendida: 30
-  }, 'bi-chaveiro-fev-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Fevereiro',
-    produto: 'Caneca Cerâmica Flores de Jardim',
-    tamCor: '350ml / Lavanda',
-    descricao: 'Caneca artesanal em cerâmica com acabamento em brilho acetinado',
-    quantidadeComprada: 25,
-    custoTotal: 325.00,
-    precoVenda: 32.90,
-    quantidadeVendida: 21
-  }, 'bi-caneca-fev-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Março',
-    produto: 'Meias de Panda Fofas',
-    tamCor: 'Único / P&B',
-    descricao: 'Meia cano médio atoalhada com carinha de panda bordada em alto relevo',
-    quantidadeComprada: 80,
-    custoTotal: 400.00,
-    precoVenda: 19.90,
-    quantidadeVendida: 62
-  }, 'bi-panda-mar-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Março',
-    produto: 'Pulseira Cristais & Margarida',
-    tamCor: 'Ajustável / Dourado Floral',
-    descricao: 'Pulseira delicada folheada com cristais multifacetados e florzinha',
-    quantidadeComprada: 50,
-    custoTotal: 450.00,
-    precoVenda: 24.90,
-    quantidadeVendida: 44
-  }, 'bi-pulseira-mar-26'),
-  calculateBiRow({
-    ano: 2026,
-    mes: 'Março',
-    produto: 'Kit Sacolinha Mimos Criativos',
-    tamCor: 'Médio / Candy Colors',
-    descricao: 'Kit embalagem especial com fita de cetim, cartão aromático e 3 mimos',
-    quantidadeComprada: 30,
-    custoTotal: 450.00,
-    precoVenda: 42.00,
-    quantidadeVendida: 26
-  }, 'bi-sacolinha-mar-26')
-];
+export const DEFAULT_BI_SAMPLE_RECORDS: BiProductCalculatedRecord[] = (realBiRecords as unknown as BiProductCalculatedRecord[]) || [];
 
 /**
  * Código Python/Pandas pronto para pipelines e scripts de ETL/BI solicitados pelo usuário
