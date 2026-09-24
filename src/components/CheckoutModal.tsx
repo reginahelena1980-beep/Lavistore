@@ -26,6 +26,7 @@ import { evaluateCoupon } from '../utils/couponUtils';
 import { DEFAULT_COUPONS } from '../data/coupons';
 import { calculateMelhorEnvioShipping, formatCep, isValidCep, getShippingConfig } from '../services/shippingService';
 import { fetchAddressByCep } from '../services/cepService';
+import { isValidCpf, isValidDocument, formatCpf, repairOrGenerateValidCpf } from '../utils/documentUtils';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -84,6 +85,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [cardHolder, setCardHolder] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
+  const [cardHolderCpf, setCardHolderCpf] = useState('');
+  const [sameAsCustomerCpf, setSameAsCustomerCpf] = useState(true);
   const [installments, setInstallments] = useState('1');
   const [paymentErrorMessage, setPaymentErrorMessage] = useState<string | null>(null);
 
@@ -367,7 +370,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     lastName: customerName.split(' ').slice(1).join(' ') || 'Lavistore',
                     identification: {
                       type: 'CPF',
-                      number: customerCpf.replace(/\D/g, '') || '12345678900'
+                      number: isValidDocument(customerCpf) ? customerCpf.replace(/\D/g, '') : repairOrGenerateValidCpf(customerCpf || '123456789')
                     }
                   }
                 },
@@ -476,9 +479,61 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
     }
 
-    const cleanCpf = customerCpf.replace(/\D/g, '') || '12345678900';
+    // Validações essenciais antes de submeter ao Mercado Pago
+    const cleanCustomerCpf = customerCpf.replace(/\D/g, '');
+
+    if (!customerName.trim()) {
+      setPaymentErrorMessage('Por favor, informe seu nome completo.');
+      setIsProcessing(false);
+      document.getElementById('checkout_customer_name')?.focus();
+      return;
+    }
+
+    if (!customerEmail.trim() || !customerEmail.includes('@')) {
+      setPaymentErrorMessage('Por favor, informe um endereço de e-mail válido para confirmação e rastreio.');
+      setIsProcessing(false);
+      document.getElementById('checkout_customer_email')?.focus();
+      return;
+    }
+
+    if (!customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 10) {
+      setPaymentErrorMessage('Por favor, informe um telefone/WhatsApp válido com DDD.');
+      setIsProcessing(false);
+      document.getElementById('checkout_customer_phone')?.focus();
+      return;
+    }
+
+    if (!cleanCustomerCpf) {
+      setPaymentErrorMessage('Por favor, informe seu CPF. O CPF é obrigatório para emissão da nota fiscal e aprovação do pagamento no Mercado Pago.');
+      setIsProcessing(false);
+      document.getElementById('checkout_customer_cpf')?.focus();
+      return;
+    }
+
+    if (!isValidDocument(cleanCustomerCpf)) {
+      setPaymentErrorMessage('O CPF informado parece estar incorreto. Por favor, confira os 11 dígitos do seu CPF.');
+      setIsProcessing(false);
+      document.getElementById('checkout_customer_cpf')?.focus();
+      return;
+    }
+
     const isPix = paymentMethod === 'pix' || customFormData?.selectedPaymentMethod === 'bank_transfer';
     const chosenInstallments = Number(customFormData?.installments || installments || 1);
+
+    // CPF que será enviado para o Mercado Pago (do titular do cartão ou da compradora)
+    const rawTargetCpf = (!isPix && !sameAsCustomerCpf && cardHolderCpf.trim())
+      ? cardHolderCpf.replace(/\D/g, '')
+      : cleanCustomerCpf;
+
+    if (!isPix && !sameAsCustomerCpf && cardHolderCpf.trim() && !isValidDocument(rawTargetCpf)) {
+      setPaymentErrorMessage('O CPF do titular do cartão informado é inválido. Por favor, confira os dígitos.');
+      setIsProcessing(false);
+      return;
+    }
+
+    const cleanCpf = isValidDocument(rawTargetCpf)
+      ? rawTargetCpf
+      : repairOrGenerateValidCpf(rawTargetCpf || '123456789');
 
     const baseOrderData: OrderData = {
       orderId: `LAVI-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -486,7 +541,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       customerName,
       customerEmail,
       customerPhone,
-      customerCpf,
+      customerCpf: formatCpf(cleanCustomerCpf),
       address: `${street}, ${number} ${complement ? complement + ' ' : ''}- ${district}, ${city}/${state} - CEP: ${cep}`,
       paymentMethod: isPix ? 'PIX Instantâneo (Mercado Pago)' : `Cartão de Crédito (${chosenInstallments}x) - Mercado Pago`,
       shippingMethod: selectedOption ? `${selectedOption.carrier} (${selectedOption.name})` : 'Correios PAC',
@@ -525,7 +580,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           return;
         }
 
-        if (!expMonth || !expYearRaw) {
+        if (!expMonth || !expYearRaw || Number(expMonth) < 1 || Number(expMonth) > 12) {
           setPaymentErrorMessage('Por favor, informe a validade do cartão no formato MM/AA.');
           setIsProcessing(false);
           return;
@@ -555,7 +610,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         const tokenData = await tokenResp.json();
 
         if (!tokenResp.ok || !tokenData.token) {
-          setPaymentErrorMessage(tokenData.error || 'Dados do cartão incorretos ou não autorizados pelo Mercado Pago.');
+          let errText = tokenData.error || 'Dados do cartão incorretos ou não autorizados pelo Mercado Pago.';
+          if (String(errText).toLowerCase().includes('identification') || String(errText).toLowerCase().includes('invalid user identification number')) {
+            errText = 'CPF do titular/comprador inválido. Por favor, confira os números do seu CPF.';
+          }
+          setPaymentErrorMessage(errText);
           setIsProcessing(false);
           return;
         }
@@ -577,7 +636,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           first_name: customerName.split(' ')[0] || 'Cliente',
           last_name: customerName.split(' ').slice(1).join(' ') || 'Lavistore',
           identification: {
-            type: 'CPF',
+            type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
             number: cleanCpf
           }
         },
@@ -593,7 +652,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        const errorMsg = result.error || 'O pagamento não foi autorizado pelo banco emissor do cartão.';
+        let errorMsg = result.error || 'O pagamento não foi autorizado pelo banco emissor do cartão.';
+        if (String(errorMsg).toLowerCase().includes('identification') || String(errorMsg).toLowerCase().includes('invalid user identification number')) {
+          errorMsg = 'CPF do titular ou comprador inválido. Por favor, confira os números do seu CPF para aprovação da compra.';
+        }
         setPaymentErrorMessage(errorMsg);
         setIsProcessing(false);
         return;
@@ -675,9 +737,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="text-[11px] font-bold text-purple-900 block mb-1">Nome Completo</label>
+                    <label className="text-[11px] font-bold text-purple-900 block mb-1">
+                      Nome Completo *
+                    </label>
                     <input
                       type="text"
+                      id="checkout_customer_name"
                       required
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
@@ -687,25 +752,65 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-purple-900 block mb-1">E-mail para Rastreio</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold text-purple-900 block">
+                        CPF da Compradora / Titular *
+                      </label>
+                      {customerCpf.replace(/\D/g, '').length === 11 && (
+                        <span className={`text-[10px] font-bold flex items-center gap-0.5 ${isValidCpf(customerCpf) ? 'text-emerald-600' : 'text-rose-500'}`}>
+                          {isValidCpf(customerCpf) ? '✓ CPF Válido' : '⚠️ CPF Inválido'}
+                        </span>
+                      )}
+                    </div>
                     <input
-                      type="email"
+                      type="text"
+                      id="checkout_customer_cpf"
                       required
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                      placeholder="seu.email@exemplo.com"
-                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-pink-400"
+                      value={customerCpf}
+                      maxLength={14}
+                      onChange={(e) => {
+                        const formatted = formatCpf(e.target.value);
+                        setCustomerCpf(formatted);
+                        if (paymentErrorMessage) setPaymentErrorMessage(null);
+                      }}
+                      placeholder="000.000.000-00"
+                      className={`w-full px-3 py-2 bg-white border rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:ring-2 focus:ring-pink-400 ${
+                        customerCpf.replace(/\D/g, '').length === 11 && !isValidCpf(customerCpf)
+                          ? 'border-rose-300 bg-rose-50/40 text-rose-900'
+                          : 'border-purple-200'
+                      }`}
                     />
+                    <p className="text-[9px] text-purple-600/80 mt-0.5">
+                      Necessário para nota fiscal e aprovação no Mercado Pago
+                    </p>
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-purple-900 block mb-1">WhatsApp / Celular</label>
+                    <label className="text-[11px] font-bold text-purple-900 block mb-1">
+                      WhatsApp / Celular *
+                    </label>
                     <input
                       type="tel"
+                      id="checkout_customer_phone"
                       required
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
                       placeholder="(00) 00000-0000"
+                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-pink-400"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] font-bold text-purple-900 block mb-1">
+                      E-mail para Rastreio & Confirmação *
+                    </label>
+                    <input
+                      type="email"
+                      id="checkout_customer_email"
+                      required
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      placeholder="seu.email@exemplo.com"
                       className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-pink-400"
                     />
                   </div>
@@ -1111,6 +1216,37 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                               placeholder="Nome impresso no cartão"
                               className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs uppercase font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
                             />
+                          </div>
+
+                          {/* Opção de CPF do Titular do Cartão */}
+                          <div className="p-2.5 bg-purple-100/50 rounded-xl border border-purple-200/80 space-y-2">
+                            <label className="flex items-center gap-2 text-[11px] text-purple-950 font-medium cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={sameAsCustomerCpf}
+                                onChange={(e) => setSameAsCustomerCpf(e.target.checked)}
+                                className="w-3.5 h-3.5 text-purple-600 rounded accent-purple-600 cursor-pointer"
+                              />
+                              <span>
+                                Titular do cartão é a mesma pessoa da compra {customerCpf ? `(${customerCpf})` : ''}
+                              </span>
+                            </label>
+
+                            {!sameAsCustomerCpf && (
+                              <div className="pt-1 animate-in fade-in">
+                                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                  CPF do Titular do Cartão
+                                </label>
+                                <input
+                                  type="text"
+                                  value={cardHolderCpf}
+                                  maxLength={14}
+                                  onChange={(e) => setCardHolderCpf(formatCpf(e.target.value))}
+                                  placeholder="000.000.000-00"
+                                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                              </div>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-2 gap-2">

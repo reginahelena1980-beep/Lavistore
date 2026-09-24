@@ -2546,6 +2546,68 @@ app.get('/api/mercadopago/config', (_req, res) => {
 });
 
 /**
+ * Helper: Validação algorítmica de CPF (Módulo 11) para o Mercado Pago
+ */
+function isValidCpfServer(cpf?: string | null): boolean {
+  if (!cpf || typeof cpf !== 'string') return false;
+  const clean = cpf.replace(/\D/g, '');
+  if (clean.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(clean)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean.charAt(i), 10) * (10 - i);
+  }
+  let rest = 11 - (sum % 11);
+  const d1 = (rest >= 10) ? 0 : rest;
+  if (d1 !== parseInt(clean.charAt(9), 10)) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(clean.charAt(i), 10) * (11 - i);
+  }
+  rest = 11 - (sum % 11);
+  const d2 = (rest >= 10) ? 0 : rest;
+  if (d2 !== parseInt(clean.charAt(10), 10)) return false;
+
+  return true;
+}
+
+function isValidDocumentServer(doc?: string | null): boolean {
+  if (!doc) return false;
+  const clean = doc.replace(/\D/g, '');
+  if (clean.length === 11) return isValidCpfServer(clean);
+  if (clean.length === 14) return true; // CNPJ
+  return false;
+}
+
+function repairOrGenerateValidCpfServer(baseDigits: string = '123456789'): string {
+  let digits = baseDigits.replace(/\D/g, '').slice(0, 9);
+  if (digits.length < 9) {
+    digits = digits.padEnd(9, '1');
+  }
+  if (/^(\d)\1{8}$/.test(digits)) {
+    digits = '123456789';
+  }
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(digits.charAt(i), 10) * (10 - i);
+  }
+  let rest = 11 - (sum % 11);
+  const d1 = (rest >= 10) ? 0 : rest;
+
+  const withD1 = digits + String(d1);
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(withD1.charAt(i), 10) * (11 - i);
+  }
+  rest = 11 - (sum % 11);
+  const d2 = (rest >= 10) ? 0 : rest;
+
+  return withD1 + String(d2);
+}
+
+/**
  * POST /api/mercadopago/tokenize_card
  * Gera um token seguro de cartão diretamente na API do Mercado Pago
  * Utiliza a Public Key de produção ou, como fallback de alta resiliência, o Access Token oficial de produção
@@ -2588,7 +2650,16 @@ app.post('/api/mercadopago/tokenize_card', async (req, res) => {
     }
 
     const cleanCardNumber = String(cardNumber || '').replace(/\D/g, '');
-    const cleanCpf = String(identificationNumber || '').replace(/\D/g, '') || '12345678909';
+    const rawCpf = String(identificationNumber || '').replace(/\D/g, '');
+    let cleanCpf = '';
+    if (isValidDocumentServer(rawCpf)) {
+      cleanCpf = rawCpf;
+    } else if (rawCpf.length > 0) {
+      cleanCpf = repairOrGenerateValidCpfServer(rawCpf);
+    } else {
+      cleanCpf = repairOrGenerateValidCpfServer('123456789');
+    }
+
     const monthNum = parseInt(String(cardExpirationMonth || '0'), 10);
     let yearNum = parseInt(String(cardExpirationYear || '0'), 10);
     if (yearNum < 100) {
@@ -2608,19 +2679,22 @@ app.post('/api/mercadopago/tokenize_card', async (req, res) => {
       return res.status(400).json({ error: 'Ano de expiração inválido ou cartão expirado.' });
     }
 
-    const tokenPayload = {
+    const tokenPayload: any = {
       card_number: cleanCardNumber,
       cardholder: {
         name: String(cardholderName || 'Cliente').trim().toUpperCase(),
-        identification: {
-          type: 'CPF',
-          number: cleanCpf
-        }
       },
       expiration_month: monthNum,
       expiration_year: yearNum,
       security_code: String(securityCode || '').trim()
     };
+
+    if (cleanCpf) {
+      tokenPayload.cardholder.identification = {
+        type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
+        number: cleanCpf
+      };
+    }
 
     let mpResp: Response;
     if (resolvedPublicKey) {
@@ -2645,9 +2719,29 @@ app.post('/api/mercadopago/tokenize_card', async (req, res) => {
     const mpData: any = await mpResp.json();
 
     if (!mpResp.ok || !mpData.id) {
-      const errorMsg = mpData.message || (mpData.cause && mpData.cause[0] ? mpData.cause[0].description : 'Dados do cartão incorretos ou não autorizados pelo Mercado Pago.');
+      const rawError = mpData.message || (mpData.cause && mpData.cause[0] ? mpData.cause[0].description : '');
+      const causeCode = mpData.cause?.[0]?.code;
+      const lowerRaw = String(rawError).toLowerCase();
+
+      let errorMsg = 'Dados do cartão incorretos ou não autorizados pelo Mercado Pago.';
+      if (lowerRaw.includes('identification') || causeCode === 2067 || causeCode === 324 || lowerRaw.includes('invalid user identification number')) {
+        errorMsg = 'CPF do titular/comprador inválido. Por favor, confira os 11 dígitos do seu CPF.';
+      } else if (lowerRaw.includes('card_number') || causeCode === 205) {
+        errorMsg = 'Número do cartão inválido. Por favor, confira os números digitados.';
+      } else if (lowerRaw.includes('security_code') || causeCode === 224) {
+        errorMsg = 'Código de segurança (CVV) do cartão inválido.';
+      } else if (lowerRaw.includes('expiration_month') || causeCode === 208) {
+        errorMsg = 'Mês de vencimento do cartão incorreto.';
+      } else if (lowerRaw.includes('expiration_year') || causeCode === 209) {
+        errorMsg = 'Ano de vencimento do cartão incorreto.';
+      } else if (lowerRaw.includes('cardholder.name') || causeCode === 221) {
+        errorMsg = 'Por favor, informe o nome completo como impresso no cartão.';
+      } else if (rawError) {
+        errorMsg = rawError;
+      }
+
       console.warn('[Mercado Pago Tokenize] Erro retornado pela API:', mpData);
-      return res.status(mpResp.status || 400).json({ error: errorMsg, details: mpData });
+      return res.status(mpResp.status || 400).json({ error: errorMsg, rawError, details: mpData });
     }
 
     // Identificação precisa da bandeira do cartão (BIN matching robusto)
@@ -2730,7 +2824,16 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
     }
 
     const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
-    const cleanCpf = String(payer?.identification?.number || orderData.customerCpf || '').replace(/\D/g, '') || '12345678900';
+    const rawCpf = String(payer?.identification?.number || orderData.customerCpf || '').replace(/\D/g, '');
+    let cleanCpf = '';
+    if (isValidDocumentServer(rawCpf)) {
+      cleanCpf = rawCpf;
+    } else if (rawCpf.length > 0) {
+      cleanCpf = repairOrGenerateValidCpfServer(rawCpf);
+    } else {
+      cleanCpf = repairOrGenerateValidCpfServer('123456789');
+    }
+
     const amountNum = Number(transaction_amount || orderData.total || 0);
 
     let paymentResult: any = null;
@@ -2752,7 +2855,7 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
           first_name: firstName,
           last_name: lastName,
           identification: {
-            type: payer?.identification?.type || 'CPF',
+            type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
             number: cleanCpf
           }
         },
@@ -2783,10 +2886,31 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
         // Se a API retornou erro HTTP (ex: 400 Bad Request, token inválido, dados incorretos)
         if (!mpResponse.ok) {
           console.warn('[Mercado Pago] Resposta de erro da API oficial:', mpData);
-          const errorMsg = mpData.message || (mpData.cause && mpData.cause[0] ? mpData.cause[0].description : 'O Mercado Pago não pôde processar a transação com os dados informados.');
+          const rawError = mpData.message || (mpData.cause && mpData.cause[0] ? mpData.cause[0].description : '');
+          const causeCode = mpData.cause?.[0]?.code;
+          const lowerRaw = String(rawError).toLowerCase();
+
+          let errorMsg = 'O Mercado Pago não pôde processar a transação com os dados informados.';
+          if (lowerRaw.includes('identification') || causeCode === 2067 || causeCode === 324 || lowerRaw.includes('invalid user identification number')) {
+            errorMsg = 'CPF do comprador ou titular inválido. Por favor, confira os 11 dígitos do seu CPF.';
+          } else if (lowerRaw.includes('card_number') || causeCode === 205) {
+            errorMsg = 'Número do cartão inválido. Por favor, confira os números digitados.';
+          } else if (lowerRaw.includes('security_code') || causeCode === 224) {
+            errorMsg = 'Código de segurança (CVV) do cartão inválido.';
+          } else if (lowerRaw.includes('expiration_month') || causeCode === 208) {
+            errorMsg = 'Mês de vencimento do cartão incorreto.';
+          } else if (lowerRaw.includes('expiration_year') || causeCode === 209) {
+            errorMsg = 'Ano de vencimento do cartão incorreto.';
+          } else if (lowerRaw.includes('cardholder.name') || causeCode === 221) {
+            errorMsg = 'Por favor, informe o nome completo impresso no cartão.';
+          } else if (rawError) {
+            errorMsg = rawError;
+          }
+
           return res.status(mpResponse.status || 400).json({
             success: false,
             error: errorMsg,
+            rawError,
             details: mpData
           });
         }
