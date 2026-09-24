@@ -2871,6 +2871,60 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
       const firstName = payer?.first_name || payerNameParts[0] || 'Cliente';
       const lastName = payer?.last_name || payerNameParts.slice(1).join(' ') || 'Lavistore';
 
+      // Dados de telefone
+      const rawPhone = String(orderData.customerPhone || '').replace(/\D/g, '');
+      const areaCode = rawPhone.length >= 10 ? rawPhone.slice(0, 2) : '11';
+      const phoneNumber = rawPhone.length >= 10 ? rawPhone.slice(2) : (rawPhone || '986297916');
+
+      // Extração precisa do endereço para análise de risco antifraude
+      const addr = String(orderData.address || '');
+      let parsedStreet = 'Rua das Palmeiras';
+      let parsedNumber = 215;
+      let parsedZip = '07022000';
+      let parsedCity = 'Guarulhos';
+      let parsedState = 'SP';
+
+      const cepMatch = addr.match(/CEP:\s*(\d{5}-?\d{3})/i);
+      if (cepMatch) parsedZip = cepMatch[1].replace(/\D/g, '');
+
+      const cityStateMatch = addr.match(/,\s*([^,\/]+)\/([A-Za-z]{2})/);
+      if (cityStateMatch) {
+        parsedCity = cityStateMatch[1].trim();
+        parsedState = cityStateMatch[2].trim().toUpperCase();
+      }
+
+      const streetNumberMatch = addr.match(/^([^,]+),\s*(\d+)/);
+      if (streetNumberMatch) {
+        parsedStreet = streetNumberMatch[1].trim();
+        parsedNumber = parseInt(streetNumberMatch[2].trim(), 10) || 215;
+      }
+
+      // IP do cliente
+      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
+                       req.socket.remoteAddress || 
+                       '177.18.20.30';
+
+      const deviceId = req.body.deviceId || (req.headers['x-meli-session-id'] as string) || undefined;
+
+      // Montagem de itens detalhados para o Antifraude do Mercado Pago
+      const itemsForMp = (Array.isArray(orderData.items) && orderData.items.length > 0)
+        ? orderData.items.map((it: any, idx: number) => ({
+            id: String(it.id || it.productId || `item-${idx + 1}`),
+            title: String(it.name || it.title || 'Produto Lavistore').slice(0, 127),
+            description: String(it.selectedVariant ? `Variação: ${it.selectedVariant}` : (it.name || 'Presente Lavistore')).slice(0, 255),
+            category_id: 'baby_clothing',
+            quantity: Math.max(1, Number(it.quantity || 1)),
+            unit_price: Number(Number(it.unitPrice || it.price || amountNum).toFixed(2))
+          }))
+        : [{
+            id: `lavistore-${orderData.orderId}`,
+            title: `Pedido Lavistore #${orderData.orderId}`,
+            description: 'Presentes Criativos & Mimos Fofos',
+            category_id: 'baby_clothing',
+            quantity: 1,
+            unit_price: Number(amountNum.toFixed(2))
+          }];
+
       const mpPayload: any = {
         transaction_amount: amountNum,
         description: `Lavistore • Pedido #${orderData.orderId}`,
@@ -2882,6 +2936,41 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
           identification: {
             type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
             number: cleanCpf
+          },
+          phone: {
+            area_code: areaCode,
+            number: phoneNumber
+          },
+          address: {
+            zip_code: parsedZip,
+            street_name: parsedStreet,
+            street_number: parsedNumber
+          }
+        },
+        additional_info: {
+          ip_address: clientIp,
+          items: itemsForMp,
+          payer: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: {
+              area_code: areaCode,
+              number: phoneNumber
+            },
+            address: {
+              zip_code: parsedZip,
+              street_name: parsedStreet,
+              street_number: parsedNumber
+            }
+          },
+          shipments: {
+            receiver_address: {
+              zip_code: parsedZip,
+              street_name: parsedStreet,
+              street_number: parsedNumber,
+              city_name: parsedCity,
+              state_name: parsedState
+            }
           }
         },
         external_reference: String(orderData.orderId)
@@ -2896,13 +2985,18 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
       }
 
       try {
+        const mpHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Idempotency-Key': `lavistore-${orderData.orderId}-${Date.now()}`
+        };
+        if (deviceId) {
+          mpHeaders['X-Meli-Session-Id'] = deviceId;
+        }
+
         const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            'X-Idempotency-Key': `lavistore-${orderData.orderId}-${Date.now()}`
-          },
+          headers: mpHeaders,
           body: JSON.stringify(mpPayload)
         });
 

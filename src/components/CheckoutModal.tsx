@@ -629,6 +629,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }
       }
 
+      let deviceId: string | undefined = undefined;
+      if (typeof window !== 'undefined') {
+        if ((window as any).MP_DEVICE_SESSION_ID) {
+          deviceId = (window as any).MP_DEVICE_SESSION_ID;
+        } else if ((window as any).__mercadoPagoInstance?.getDeviceId) {
+          try {
+            deviceId = await (window as any).__mercadoPagoInstance.getDeviceId();
+          } catch {}
+        }
+      }
+
       const payload = {
         token: finalToken,
         payment_method_id: finalPaymentMethodId,
@@ -644,13 +655,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             number: cleanCpf
           }
         },
+        deviceId,
         orderData: baseOrderData,
         isOwnerTestSimulation: Boolean(isOwnerTestSimulation)
       };
 
       const response = await fetch('/api/mercadopago/process_payment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(deviceId ? { 'X-Meli-Session-Id': deviceId } : {})
+        },
         body: JSON.stringify(payload)
       });
 
