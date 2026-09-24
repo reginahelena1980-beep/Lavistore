@@ -2816,7 +2816,8 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
       transaction_amount,
       installments = 1,
       payer,
-      orderData
+      orderData,
+      isOwnerTestSimulation = false
     } = req.body;
 
     if (!orderData || !orderData.orderId) {
@@ -2836,10 +2837,34 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
 
     const amountNum = Number(transaction_amount || orderData.total || 0);
 
+    // Detecta se é o próprio dono da loja/conta do Mercado Pago tentando fazer checkout
+    const isSelfPayment = (
+      (orderData.customerEmail && orderData.customerEmail.toLowerCase().trim() === 'reginahelena1980@gmail.com') ||
+      (cleanCpf === '29051956819')
+    );
+
     let paymentResult: any = null;
 
-    // Se o ACCESS_TOKEN do Mercado Pago estiver configurado no .env, realiza chamada REAL à API do Mercado Pago
-    if (accessToken && accessToken.length > 10) {
+    // Se o lojista solicitou explicitamente a conclusão como Pedido de Teste (Simulação de Lojista sem débito em cartão)
+    if (isOwnerTestSimulation) {
+      console.log(`[Mercado Pago] Concluindo pedido #${orderData.orderId} em Modo de Teste do Lojista (Simulação sem débito).`);
+      const mockTestId = Math.floor(1000000000 + Math.random() * 9000000000);
+      paymentResult = {
+        id: `TEST-${mockTestId}`,
+        status: 'approved',
+        status_detail: 'accredited_owner_test',
+        payment_method_id: payment_method_id || 'visa',
+        payment_type_id: 'credit_card',
+        transaction_amount: amountNum,
+        installments: Number(installments) || 1,
+        card: {
+          first_six_digits: '424242',
+          last_four_digits: '4242'
+        },
+        isSimulated: true
+      };
+    } else if (accessToken && accessToken.length > 10) {
+      // Se o ACCESS_TOKEN do Mercado Pago estiver configurado no .env, realiza chamada REAL à API do Mercado Pago
       console.log(`[Mercado Pago] Enviando pagamento para API oficial: Método=${payment_method_id}, Valor=R$ ${amountNum}`);
       
       const payerNameParts = (orderData.customerName || 'Cliente Lavistore').trim().split(' ');
@@ -2931,20 +2956,25 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
               cc_rejected_card_disabled: 'Este cartão está desativado ou inativo junto ao banco emissor.',
               cc_rejected_card_error: 'Não foi possível processar este cartão. Por favor, tente com outro cartão.',
               cc_rejected_duplicated_payment: 'Pagamento duplicado identificado recentemente.',
-              cc_rejected_high_risk: 'Transação não autorizada pelas políticas de segurança.',
+              cc_rejected_high_risk: 'Transação não autorizada pelas políticas de segurança do Mercado Pago.',
               cc_rejected_insufficient_amount: 'Saldo insuficiente no cartão de crédito.',
               cc_rejected_invalid_installments: 'Número de parcelas inválido para este cartão.',
               cc_rejected_max_attempts: 'Limite de tentativas excedido para este cartão. Tente novamente mais tarde ou use outro cartão.',
               cc_rejected_other_reason: 'O cartão foi recusado pelo banco emissor.'
             };
 
-            const friendlyReason = detailMessages[mpData.status_detail] || `Pagamento recusado pela operadora (${mpData.status_detail || 'motivo não informado'}).`;
-            
+            let friendlyReason = detailMessages[mpData.status_detail] || `Pagamento recusado pela operadora (${mpData.status_detail || 'motivo não informado'}).`;
+
+            if (mpData.status_detail === 'cc_rejected_high_risk' && isSelfPayment) {
+              friendlyReason = 'O Mercado Pago recusou a transação porque detectou auto-compra: você está utilizando os mesmos dados (e-mail, CPF ou cartão) da titular proprietária desta conta do Mercado Pago (Regina Ferraz). As operadoras não permitem que o lojista passe o próprio cartão na própria conta. Para testar com cartão em produção, utilize o cartão de outra pessoa (com outro CPF), ou faça um teste via PIX (que cai na hora na sua conta do Mercado Pago!).';
+            }
+
             return res.status(422).json({
               success: false,
               error: friendlyReason,
               status: mpData.status,
               status_detail: mpData.status_detail,
+              isSelfPayment: Boolean(isSelfPayment),
               paymentId: mpData.id
             });
           }

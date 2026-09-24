@@ -89,6 +89,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [sameAsCustomerCpf, setSameAsCustomerCpf] = useState(true);
   const [installments, setInstallments] = useState('1');
   const [paymentErrorMessage, setPaymentErrorMessage] = useState<string | null>(null);
+  const [isSelfPaymentError, setIsSelfPaymentError] = useState(false);
 
   // Mercado Pago config & Brick status
   const [mpConfig, setMpConfig] = useState<{
@@ -421,9 +422,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   }, [isOpen, brickActive, activePublicKey, finalOrderTotal]);
 
   // Processamento unificado no Mercado Pago (Payment Brick ou Formulário Seguro Transparente)
-  const executeMercadoPagoPayment = async (customFormData?: any) => {
+  const executeMercadoPagoPayment = async (customFormData?: any, isOwnerTestSimulation: boolean = false) => {
     setIsProcessing(true);
     setPaymentErrorMessage(null);
+    if (!isOwnerTestSimulation) {
+      setIsSelfPaymentError(false);
+    }
 
     // Se o cupom for BRINDE ou o total for zero, finaliza o pedido grátis diretamente sem chamar gateway de pagamento!
     if (isGiftCoupon || finalOrderTotal === 0) {
@@ -640,7 +644,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             number: cleanCpf
           }
         },
-        orderData: baseOrderData
+        orderData: baseOrderData,
+        isOwnerTestSimulation: Boolean(isOwnerTestSimulation)
       };
 
       const response = await fetch('/api/mercadopago/process_payment', {
@@ -655,6 +660,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         let errorMsg = result.error || 'O pagamento não foi autorizado pelo banco emissor do cartão.';
         if (String(errorMsg).toLowerCase().includes('identification') || String(errorMsg).toLowerCase().includes('invalid user identification number')) {
           errorMsg = 'CPF do titular ou comprador inválido. Por favor, confira os números do seu CPF para aprovação da compra.';
+        }
+        if (result.isSelfPayment || result.status_detail === 'cc_rejected_high_risk' || String(errorMsg).includes('auto-compra')) {
+          setIsSelfPaymentError(true);
         }
         setPaymentErrorMessage(errorMsg);
         setIsProcessing(false);
@@ -1063,15 +1071,43 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
 
                 {paymentErrorMessage && (
-                  <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-rose-950 flex items-start gap-2.5 animate-in fade-in">
-                    <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="font-bold text-xs text-rose-900">Pagamento não autorizado:</p>
-                      <p className="text-xs text-rose-800 leading-relaxed font-medium">{paymentErrorMessage}</p>
-                      <p className="text-[11px] text-rose-700">
-                        Dica: Se preferir, você pode selecionar a opção <strong>PIX Instantâneo</strong> com 5% de desconto automático.
-                      </p>
+                  <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl text-rose-950 flex flex-col gap-3 animate-in fade-in shadow-xs">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="font-bold text-xs text-rose-900">Pagamento recusado pelo Mercado Pago:</p>
+                        <p className="text-xs text-rose-800 leading-relaxed font-medium">{paymentErrorMessage}</p>
+                      </div>
                     </div>
+
+                    {isSelfPaymentError ? (
+                      <div className="pt-2 border-t border-rose-200/80 flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaymentMethod('pix');
+                            setPaymentErrorMessage(null);
+                            setIsSelfPaymentError(false);
+                          }}
+                          className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-98"
+                        >
+                          <QrCode className="w-4 h-4" />
+                          <span>Pagar via PIX Instantâneo (Recomendado)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => executeMercadoPagoPayment(undefined, true)}
+                          className="flex-1 py-2 px-3 bg-purple-700 hover:bg-purple-800 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
+                        >
+                          <Sparkles className="w-4 h-4 text-amber-300" />
+                          <span>🧪 Concluir Pedido de Teste do Lojista</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-rose-700 bg-rose-100/60 p-2 rounded-xl">
+                        💡 Dica: Se preferir, selecione a opção <strong>PIX Instantâneo</strong> com 5% de desconto automático.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -1536,12 +1572,44 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {/* Alerta de erro de pagamento na coluna de finalização */}
               {paymentErrorMessage && (
-                <div className="p-3 bg-rose-950/90 border border-rose-400/80 rounded-2xl text-rose-200 text-xs flex items-start gap-2.5 animate-in fade-in">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <span className="font-bold text-rose-300 block">Pagamento recusado:</span>
-                    <span className="text-[11px] text-rose-200 leading-tight block">{paymentErrorMessage}</span>
+                <div className="p-3.5 bg-rose-950/95 border border-rose-400/80 rounded-2xl text-rose-200 text-xs flex flex-col gap-2.5 animate-in fade-in shadow-xl shadow-rose-950/50">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <span className="font-bold text-rose-300 block">Pagamento recusado pelo Mercado Pago:</span>
+                      <span className="text-[11px] text-rose-100 leading-relaxed block">{paymentErrorMessage}</span>
+                    </div>
                   </div>
+
+                  {isSelfPaymentError && (
+                    <div className="pt-2 border-t border-rose-800/80 flex flex-col gap-2">
+                      <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                        💡 Como concluir seu teste agora:
+                      </span>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod('pix');
+                          setPaymentErrorMessage(null);
+                          setIsSelfPaymentError(false);
+                        }}
+                        className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/40 active:scale-98"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>Pagar via PIX Instantâneo (Recomendado)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => executeMercadoPagoPayment(undefined, true)}
+                        className="w-full py-2.5 px-3 bg-purple-800/90 hover:bg-purple-700 border border-purple-400/50 text-purple-100 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                        <span>🧪 Concluir como Pedido de Teste do Lojista (Sem Débito)</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
