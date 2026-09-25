@@ -73,6 +73,15 @@ export interface CartItem {
   sizePrice?: number;
   isGiftWrapped?: boolean;
   customMessage?: string;
+  customKitData?: any;
+  dedication?: {
+    recipient?: string;
+    sender?: string;
+    message?: string;
+    theme?: string;
+    ribbon?: string;
+    bag?: string;
+  };
 }
 
 export interface FormattedText {
@@ -383,6 +392,14 @@ export interface OrderData {
   hidePrices?: boolean;
   pagSeguroUrl?: string;
   notes?: string;
+  dedication?: {
+    recipient?: string;
+    sender?: string;
+    message?: string;
+    theme?: string;
+    ribbon?: string;
+    bag?: string;
+  };
   receivedAt?: string;
   createdAt?: string;
   customStatus?: string;

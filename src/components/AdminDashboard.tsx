@@ -49,7 +49,8 @@ import {
   CloudUpload,
   CheckCheck,
   ShieldCheck,
-  Truck
+  Truck,
+  PenTool
 } from 'lucide-react';
 import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, CustomerReview, Coupon, BagType, RibbonOption, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES, BAG_TYPES, RIBBON_OPTIONS } from '../data/categories';
@@ -65,6 +66,7 @@ import { ContactFooterManager } from './ContactFooterManager';
 import { ReviewsManager } from './ReviewsManager';
 import { CouponManager } from './CouponManager';
 import { OrdersManager } from './OrdersManager';
+import { AdminGiftCardsManager } from './AdminGiftCardsManager';
 import { BiFinancialManager } from './BiFinancialManager';
 import { NewsletterLeadsManager } from './NewsletterLeadsManager';
 import { AdminPasswordModal } from './AdminPasswordModal';
@@ -114,7 +116,7 @@ interface AdminDashboardProps {
   ribbonOptions?: RibbonOption[];
   onUpdateRibbonOptions?: (ribbonOptions: RibbonOption[]) => void;
   onResetRibbonOptions?: () => void;
-  initialAdminSection?: 'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads';
+  initialAdminSection?: 'orders' | 'cards' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads';
   onGoToStorefront?: () => void;
   onGoToAboutPage?: () => void;
   onPublishToServer?: () => Promise<boolean> | void;
@@ -171,7 +173,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onDownloadBackup,
   onRestoreBackup
 }) => {
-  const [adminSection, setAdminSection] = useState<'orders' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads' | 'shipping'>(initialAdminSection);
+  const [adminSection, setAdminSection] = useState<'orders' | 'cards' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads' | 'shipping'>(initialAdminSection);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
@@ -554,6 +556,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       title: 'Pedidos Recebidos',
       subtitle: 'Histórico de pedidos e compras realizadas',
       icon: <ShoppingBag className="w-4 h-4 text-purple-600" />
+    },
+    cards: {
+      title: 'Cartões & Dedicatórias de Presente 💌',
+      subtitle: 'Visualize todas as dedicatórias escritas nos pedidos e imprima os cartõezinhos perfumados (10x15cm)',
+      icon: <PenTool className="w-4 h-4 text-pink-500" />
     },
     bi: {
       title: 'BI & Análises Financeiras',
@@ -941,6 +948,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
 
             <button
+              id="btn-tab-admin-cards"
+              onClick={() => setAdminSection('cards')}
+              className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminSection === 'cards'
+                  ? 'bg-purple-950 text-amber-300 font-semibold shadow-2xs'
+                  : 'text-purple-900/80 hover:text-purple-950 hover:bg-amber-100/60'
+              }`}
+            >
+              <PenTool className="w-3.5 h-3.5 text-pink-500" />
+              <span>Cartões & Dedicatórias</span>
+            </button>
+
+            <button
               id="btn-tab-admin-bi"
               onClick={() => setAdminSection('bi')}
               className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -1146,7 +1166,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* ORDERS MANAGER VIEW */}
       {adminSection === 'orders' && (
-        <OrdersManager />
+        <OrdersManager onGoToCards={() => setAdminSection('cards')} />
+      )}
+
+      {/* GIFT CARDS & DEDICATIONS MANAGER VIEW */}
+      {adminSection === 'cards' && (
+        <AdminGiftCardsManager
+          onSelectOrder={(orderId) => {
+            setAdminSection('orders');
+          }}
+        />
       )}
 
       {/* CATEGORY MANAGER VIEW */}
