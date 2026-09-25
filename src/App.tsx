@@ -1567,7 +1567,7 @@ export default function App() {
         {/* TAB: Custom Kit Builder */}
         {activeTab === 'kit-builder' && (
           <CustomKitBuilder
-            products={products}
+            products={vitrineProducts}
             onAddKitToCart={handleAddKitToCart}
             bagTypes={bagTypes}
             ribbonOptions={ribbonOptions}

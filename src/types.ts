@@ -218,6 +218,8 @@ export interface RibbonOption {
   id: string;
   name: string;
   color: string;
+  image?: string;
+  description?: string;
 }
 
 export interface CustomKitSelection {

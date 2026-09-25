@@ -8,12 +8,22 @@ import {
   ShoppingBag, 
   Flower2, 
   Heart,
-  PenTool,
-  RotateCcw
+  Ruler,
+  CheckCircle2
 } from 'lucide-react';
-import { Product, BagType, RibbonOption } from '../types';
+import { Product, ProductSizeVariant, ProductColorVariant, BagType, RibbonOption } from '../types';
 import { BAG_TYPES, RIBBON_OPTIONS, CARD_TEMPLATES } from '../data/categories';
+import { getGroupingKey } from '../utils/productGroupingEngine';
 import customBoxImg from '../assets/images/gift_box_custom_1788110261776.jpg';
+
+export interface SelectedKitItem {
+  id: string;
+  product: Product;
+  selectedSize?: string;
+  selectedSizeId?: string;
+  selectedColor?: string;
+  price: number;
+}
 
 interface CustomKitBuilderProps {
   products: Product[];
@@ -33,33 +43,187 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
 
   const [selectedBag, setSelectedBag] = useState<BagType>(currentBags[0]);
   const [selectedRibbon, setSelectedRibbon] = useState<RibbonOption>(currentRibbons[0]);
-  const [selectedItems, setSelectedItems] = useState<Product[]>([]);
+  const [selectedItems, setSelectedItems] = useState<SelectedKitItem[]>([]);
   const [cardTheme, setCardTheme] = useState(CARD_TEMPLATES[0].theme);
   const [recipient, setRecipient] = useState('');
   const [sender, setSender] = useState('');
   const [message, setMessage] = useState(CARD_TEMPLATES[0].text);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Sync selected bag if list changes or selected bag was deleted
+  // Estados de seleção pendente de Tamanho e Cor por produto
+  const [pendingSizes, setPendingSizes] = useState<Record<string, { sizeLabel: string; sizeId?: string }>>({});
+  const [pendingColors, setPendingColors] = useState<Record<string, string>>({});
+
+  // Sincroniza sacola se mudou ou foi deletada
   useEffect(() => {
     if (currentBags.length > 0 && !currentBags.some(b => b.id === selectedBag?.id)) {
       setSelectedBag(currentBags[0]);
     }
   }, [currentBags, selectedBag]);
 
-  // Sync selected ribbon if list changes or selected ribbon was deleted
+  // Sincroniza fita se mudou ou foi deletada
   useEffect(() => {
     if (currentRibbons.length > 0 && !currentRibbons.some(r => r.id === selectedRibbon?.id)) {
       setSelectedRibbon(currentRibbons[0]);
     }
   }, [currentRibbons, selectedRibbon]);
 
-  const toggleItemSelection = (product: Product) => {
-    if (selectedItems.some(i => i.id === product.id)) {
-      setSelectedItems(selectedItems.filter(i => i.id !== product.id));
-    } else {
-      setSelectedItems([...selectedItems, product]);
+  // Helper inteligente para extrair tamanhos disponíveis (do produto, do BI de estoque ou padrão para meias)
+  const getAvailableSizesForProduct = (product: Product): ProductSizeVariant[] => {
+    // 1. Já possui tamanhos cadastrados no produto
+    if (product.sizes && product.sizes.length > 0) {
+      return product.sizes;
     }
+
+    // 2. Busca na base de registros do BI (importada pelo Google Sheets / Drive)
+    try {
+      const rawBi = localStorage.getItem('lavistore_bi_records');
+      if (rawBi) {
+        const records = JSON.parse(rawBi);
+        if (Array.isArray(records)) {
+          const pKey = getGroupingKey(product.name);
+          const matches = records.filter((r: any) => 
+            getGroupingKey(r.produto || '') === pKey && 
+            r.tamCor && 
+            r.tamCor.trim().toLowerCase() !== 'único'
+          );
+          if (matches.length > 0) {
+            const map = new Map<string, ProductSizeVariant>();
+            for (const m of matches) {
+              const label = m.tamCor.trim();
+              if (!map.has(label.toLowerCase())) {
+                map.set(label.toLowerCase(), {
+                  id: m.id || `sz-${label.toLowerCase()}`,
+                  label,
+                  stock: m.saldoEstoqueQtd ?? 10,
+                  price: m.precoVenda ?? product.price,
+                  biRecordId: m.id
+                });
+              }
+            }
+            if (map.size > 0) {
+              return Array.from(map.values());
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignora erro de parsing
+    }
+
+    // 3. Fallback dedicado para Meias (P, M, G, GG) se ainda não houver tamanhos definidos
+    const lower = product.name.toLowerCase();
+    if (lower.includes('meia') || lower.includes('meias')) {
+      return [
+        { id: 'size-p', label: 'P', stock: 10 },
+        { id: 'size-m', label: 'M', stock: 10 },
+        { id: 'size-g', label: 'G', stock: 10 },
+        { id: 'size-gg', label: 'GG', stock: 10 }
+      ];
+    }
+
+    return [];
+  };
+
+  // Helper para cores disponíveis
+  const getAvailableColorsForProduct = (product: Product): ProductColorVariant[] => {
+    return product.colors && product.colors.length > 0 ? product.colors : [];
+  };
+
+  // Seleciona tamanho para um produto (e se já estiver na sacolinha, atualiza imediatamente)
+  const handleSelectSizeForProduct = (product: Product, sizeLabel: string, sizeId?: string) => {
+    setPendingSizes(prev => ({
+      ...prev,
+      [product.id]: { sizeLabel, sizeId }
+    }));
+
+    // Se o item já estiver na sacolinha, atualiza o tamanho dele na hora!
+    setSelectedItems(prev => {
+      const idx = prev.findIndex(i => i.product.id === product.id);
+      if (idx > -1) {
+        const sizes = getAvailableSizesForProduct(product);
+        const sz = sizes.find(s => s.id === sizeId || s.label.toLowerCase() === sizeLabel.toLowerCase());
+        const newPrice = sz?.price ?? product.price;
+        const newKey = `${product.id}-${sizeLabel}-${prev[idx].selectedColor || 'default'}`;
+
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          id: newKey,
+          selectedSize: sizeLabel,
+          selectedSizeId: sizeId,
+          price: newPrice
+        };
+        return updated;
+      }
+      return prev;
+    });
+  };
+
+  // Seleciona cor para um produto
+  const handleSelectColorForProduct = (product: Product, colorName: string) => {
+    setPendingColors(prev => ({
+      ...prev,
+      [product.id]: colorName
+    }));
+
+    setSelectedItems(prev => {
+      const idx = prev.findIndex(i => i.product.id === product.id);
+      if (idx > -1) {
+        const newKey = `${product.id}-${prev[idx].selectedSize || 'default'}-${colorName}`;
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          id: newKey,
+          selectedColor: colorName
+        };
+        return updated;
+      }
+      return prev;
+    });
+  };
+
+  // Alterna produto na sacolinha (adiciona ou remove)
+  const handleToggleProductInKit = (
+    product: Product,
+    sizeToUse?: { label: string; id?: string },
+    colorToUse?: string
+  ) => {
+    const sizes = getAvailableSizesForProduct(product);
+    const chosenSizeLabel = sizeToUse?.label || pendingSizes[product.id]?.sizeLabel || (sizes.length > 0 ? sizes[0].label : undefined);
+    const chosenSizeId = sizeToUse?.id || pendingSizes[product.id]?.sizeId || (sizes.length > 0 ? sizes[0].id : undefined);
+
+    const colors = getAvailableColorsForProduct(product);
+    const chosenColor = colorToUse || pendingColors[product.id] || (colors.length > 0 ? colors[0].name : undefined);
+
+    // Se já estiver na sacolinha com este produto, remove
+    const existingIndex = selectedItems.findIndex(i => i.product.id === product.id);
+    if (existingIndex > -1) {
+      setSelectedItems(selectedItems.filter((_, idx) => idx !== existingIndex));
+    } else {
+      // Adiciona na sacolinha com o tamanho escolhido
+      let unitPrice = product.price;
+      if (chosenSizeId && sizes.length > 0) {
+        const found = sizes.find(s => s.id === chosenSizeId);
+        if (found?.price) unitPrice = found.price;
+      }
+
+      const itemKey = `${product.id}-${chosenSizeLabel || 'default'}-${chosenColor || 'default'}`;
+      const newItem: SelectedKitItem = {
+        id: itemKey,
+        product,
+        selectedSize: chosenSizeLabel,
+        selectedSizeId: chosenSizeId,
+        selectedColor: chosenColor,
+        price: unitPrice
+      };
+
+      setSelectedItems([...selectedItems, newItem]);
+    }
+  };
+
+  const handleRemoveItemFromKit = (itemId: string) => {
+    setSelectedItems(selectedItems.filter(i => i.id !== itemId));
   };
 
   const selectCardTemplate = (tpl: { theme: string; text: string }) => {
@@ -68,7 +232,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
   };
 
   const rawSubtotal = (selectedBag?.price || 0) + selectedItems.reduce((acc, item) => acc + item.price, 0);
-  const discount = selectedItems.length > 0 ? rawSubtotal * 0.10 : 0; // 10% discount on custom kit combo!
+  const discount = selectedItems.length > 0 ? rawSubtotal * 0.10 : 0; // 10% de desconto no combo da sacolinha!
   const finalPrice = Math.max(0, rawSubtotal - discount);
 
   const handleFinishKit = () => {
@@ -76,6 +240,13 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
       alert('Por favor, selecione pelo menos 2 itens para compor sua sacolinha de presentes! 🎀');
       return;
     }
+
+    const itemsSummaryList = selectedItems.map(i => {
+      const parts = [i.product.name];
+      if (i.selectedSize) parts.push(`Tam: ${i.selectedSize}`);
+      if (i.selectedColor) parts.push(`Cor: ${i.selectedColor}`);
+      return parts.join(' - ');
+    });
 
     const customKitProduct: Product = {
       id: `custom-kit-${Date.now()}`,
@@ -86,11 +257,11 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
       rating: 5.0,
       reviewCount: 1,
       images: [selectedBag.image, customBoxImg],
-      description: `Sacolinha amarela personalizada com ${selectedItems.map(i => i.name).join(', ')}. Fita: ${selectedRibbon.name}. Dedicatória: "${message}" (De: ${sender || 'Alguém especial'} Para: ${recipient || 'Pessoa amada'}).`,
+      description: `Sacolinha amarela personalizada com: ${itemsSummaryList.join(', ')}. Fita: ${selectedRibbon.name}. Dedicatória: "${message}" (De: ${sender || 'Alguém especial'} Para: ${recipient || 'Pessoa amada'}).`,
       features: [
         `Sacolinha: ${selectedBag.name} (Amarela Exclusiva)`,
         `Fita: ${selectedRibbon.name}`,
-        `Contém ${selectedItems.length} mimos escolhidos com amor`,
+        `Contém ${selectedItems.length} mimos: ${itemsSummaryList.join(', ')}`,
         'Embalada com carinho e de forma artesanal',
         `Cartão com mensagem dedicada incluído`
       ],
@@ -103,7 +274,13 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
       boxType: selectedBag,
       bagType: selectedBag,
       selectedRibbon,
-      selectedItems,
+      selectedItems: selectedItems.map(i => ({
+        ...i.product,
+        selectedSize: i.selectedSize,
+        selectedSizeId: i.selectedSizeId,
+        selectedColor: i.selectedColor,
+        price: i.price
+      })),
       recipient,
       sender,
       message
@@ -124,7 +301,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
             Monte sua Sacolinha Amarela de Presente
           </h2>
           <p className="font-['Comfortaa'] text-sm sm:text-base text-slate-600 font-medium">
-            Escolha o modelo da sacolinha amarela, selecione os mimos favoritos, a fita de cetim e uma dedicatória perfumada. Você ganha <strong className="text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">10% OFF</strong> no combo!
+            Escolha o modelo da sacolinha amarela, selecione os mimos favoritos com os tamanhos ideais, a fita de cetim e uma dedicatória perfumada. Você ganha <strong className="text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">10% OFF</strong> no combo!
           </p>
         </div>
 
@@ -139,7 +316,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
             <button
               key={s.step}
               onClick={() => setCurrentStep(s.step as any)}
-              className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer ${
                 currentStep === s.step
                   ? 'bg-amber-400 text-purple-950 border-2 border-amber-500 shadow-md shadow-amber-200'
                   : currentStep > s.step
@@ -208,7 +385,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                 <div className="pt-4 flex justify-end">
                   <button
                     onClick={() => setCurrentStep(2)}
-                    className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 border border-amber-300"
+                    className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 border border-amber-300 cursor-pointer"
                   >
                     Avançar para Escolher Mimos →
                   </button>
@@ -216,7 +393,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
               </div>
             )}
 
-            {/* STEP 2: Choose Products */}
+            {/* STEP 2: Choose Products & Select Sizes */}
             {currentStep === 2 && (
               <div className="space-y-4 animate-in fade-in">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -224,7 +401,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                     <h3 className="font-['Mali'] text-lg sm:text-xl font-bold text-purple-950">
                       Passo 2: Escolha os mimos para a sacolinha (mínimo de 2 itens)
                     </h3>
-                    <p className="text-xs text-slate-500">Selecione os itens que mais combinam com seu presente</p>
+                    <p className="text-xs text-slate-500">Selecione os itens e seus tamanhos ideais (como P, M, G para as meias)</p>
                   </div>
                   <span className={`text-xs font-bold px-3 py-1 rounded-full border transition-all ${
                     selectedItems.length >= 2
@@ -235,55 +412,156 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 max-h-[480px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 max-h-[520px] overflow-y-auto pr-1">
                   {products.map(prod => {
-                    const isSelected = selectedItems.some(i => i.id === prod.id);
+                    const sizes = getAvailableSizesForProduct(prod);
+                    const colors = getAvailableColorsForProduct(prod);
+                    const hasSizes = sizes.length > 0;
+                    const hasColors = colors.length > 0;
+
+                    // Verifica se já está na sacolinha
+                    const itemInKit = selectedItems.find(i => i.product.id === prod.id);
+                    const isSelected = Boolean(itemInKit);
+
+                    // Tamanho ativo atual
+                    const activeSize = itemInKit?.selectedSize || pendingSizes[prod.id]?.sizeLabel || (hasSizes ? sizes[0].label : undefined);
+                    const activeSizeId = itemInKit?.selectedSizeId || pendingSizes[prod.id]?.sizeId || (hasSizes ? sizes[0].id : undefined);
+                    const activeColor = itemInKit?.selectedColor || pendingColors[prod.id] || (hasColors ? colors[0].name : undefined);
+
                     return (
                       <div
                         key={prod.id}
-                        onClick={() => toggleItemSelection(prod)}
-                        className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between relative ${
+                        className={`p-3 rounded-2xl border-2 transition-all flex flex-col justify-between relative bg-white ${
                           isSelected
-                            ? 'border-amber-400 bg-amber-50/90 shadow-sm ring-1 ring-amber-300'
-                            : 'border-amber-100 hover:border-amber-200 bg-white'
+                            ? 'border-amber-400 bg-amber-50/70 shadow-sm ring-1 ring-amber-300'
+                            : 'border-amber-100 hover:border-amber-300 hover:shadow-xs'
                         }`}
                       >
+                        {/* Selo de item na sacolinha */}
                         {isSelected && (
-                          <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-amber-400 text-purple-950 font-bold flex items-center justify-center shadow-xs z-10">
-                            <Check className="w-3 h-3" />
+                          <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-400 text-purple-950 font-bold flex items-center justify-center shadow-xs z-10">
+                            <Check className="w-3.5 h-3.5" />
                           </span>
                         )}
-                        <img
-                          src={prod.images[0]}
-                          alt={prod.name}
-                          referrerPolicy="no-referrer"
-                          className="w-full h-24 sm:h-28 object-cover rounded-xl mb-2"
-                        />
-                        <div>
-                          <p className="text-xs font-semibold text-purple-950 line-clamp-2 leading-tight">
+
+                        {/* Imagem do Produto */}
+                        <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-2 bg-amber-50/40">
+                          <img
+                            src={prod.images[0]}
+                            alt={prod.name}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                          />
+                          {/* Badge de tamanho selecionado visível sobre a imagem */}
+                          {isSelected && itemInKit?.selectedSize && (
+                            <span className="absolute bottom-1.5 left-1.5 bg-purple-950/90 text-amber-300 font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-xs backdrop-blur-xs">
+                              Tam: {itemInKit.selectedSize}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Título e Preço */}
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-purple-950 line-clamp-2 leading-tight">
                             {prod.name}
                           </p>
-                          <p className="text-xs font-bold text-pink-600 mt-1">
+                          <p className="text-xs font-black text-pink-600">
                             R$ {prod.price.toFixed(2)}
                           </p>
+
+                          {/* Seletor de Tamanhos na Sacolinha (Ex: Meias P, M, G, GG) */}
+                          {hasSizes && (
+                            <div className="mt-2 pt-2 border-t border-dashed border-amber-200/90 space-y-1" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-purple-950 flex items-center gap-1">
+                                  <Ruler className="w-3 h-3 text-pink-500" />
+                                  <span>Tamanho:</span>
+                                </span>
+                                {activeSize && (
+                                  <span className="text-[10px] font-extrabold text-purple-950 bg-amber-200/90 px-1.5 py-0.5 rounded-md border border-amber-300">
+                                    {activeSize}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap gap-1">
+                                {sizes.map((sz) => {
+                                  const isSzActive = activeSize === sz.label;
+                                  return (
+                                    <button
+                                      key={sz.id}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSelectSizeForProduct(prod, sz.label, sz.id);
+                                      }}
+                                      title={`Tamanho ${sz.label}`}
+                                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                                        isSzActive
+                                          ? 'bg-purple-950 text-amber-300 border-purple-950 shadow-xs scale-105 ring-1 ring-amber-300'
+                                          : 'bg-white hover:bg-amber-100 text-purple-900 border-amber-200 hover:border-amber-400'
+                                      }`}
+                                    >
+                                      {sz.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Seletor de Cores / Estampas */}
+                          {hasColors && (
+                            <div className="mt-1.5 pt-1.5 border-t border-dashed border-amber-200/90 space-y-1" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-purple-950">Cor:</span>
+                                <span className="text-[10px] font-bold text-purple-900">{activeColor}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {colors.map((c) => {
+                                  const isCActive = activeColor === c.name;
+                                  return (
+                                    <button
+                                      key={c.name}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSelectColorForProduct(prod, c.name);
+                                      }}
+                                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all border cursor-pointer ${
+                                        isCActive
+                                          ? 'bg-pink-600 text-white border-pink-700 shadow-xs'
+                                          : 'bg-white text-purple-900 border-purple-200 hover:bg-pink-50'
+                                      }`}
+                                    >
+                                      {c.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
+
+                        {/* Botão de Ação: Adicionar / Na Sacolinha */}
                         <button
                           type="button"
-                          className={`mt-2 py-1 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-colors ${
+                          onClick={() => handleToggleProductInKit(prod, { label: activeSize || '', id: activeSizeId }, activeColor)}
+                          className={`mt-2.5 py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-amber-300 text-purple-950'
-                              : 'bg-amber-50 text-purple-900 hover:bg-amber-100'
+                              ? 'bg-amber-300 hover:bg-amber-400 text-purple-950 shadow-xs'
+                              : 'bg-amber-100/90 hover:bg-amber-200 text-purple-950 hover:shadow-xs'
                           }`}
                         >
                           {isSelected ? (
                             <>
-                              <Check className="w-3 h-3" />
-                              <span>Na Sacolinha</span>
+                              <Check className="w-3.5 h-3.5 text-emerald-800" />
+                              <span>Na Sacolinha {itemInKit?.selectedSize ? `(${itemInKit.selectedSize})` : ''}</span>
                             </>
                           ) : (
                             <>
-                              <Plus className="w-3 h-3" />
-                              <span>Colocar na Sacolinha</span>
+                              <Plus className="w-3.5 h-3.5 text-purple-900" />
+                              <span>Colocar na Sacolinha {activeSize ? `(${activeSize})` : ''}</span>
                             </>
                           )}
                         </button>
@@ -295,7 +573,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                 <div className="pt-3 flex justify-between">
                   <button
                     onClick={() => setCurrentStep(1)}
-                    className="px-4 py-2 text-xs font-semibold text-purple-700 hover:bg-amber-50 rounded-xl"
+                    className="px-4 py-2 text-xs font-semibold text-purple-700 hover:bg-amber-50 rounded-xl cursor-pointer"
                   >
                     ← Voltar
                   </button>
@@ -307,7 +585,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                       }
                       setCurrentStep(3);
                     }}
-                    className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 border border-amber-300"
+                    className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 border border-amber-300 cursor-pointer"
                   >
                     Avançar para Laço & Fita →
                   </button>
@@ -318,35 +596,55 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
             {/* STEP 3: Choose Ribbon */}
             {currentStep === 3 && (
               <div className="space-y-4 animate-in fade-in">
-                <h3 className="font-['Mali'] text-lg sm:text-xl font-bold text-purple-950">
-                  Passo 3: Escolha o acabamento com Laço de Cetim
-                </h3>
-                <p className="text-xs text-slate-500">O toque delicado que amarra o carinho na sua sacolinha amarela</p>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-['Mali'] text-lg sm:text-xl font-bold text-purple-950">
+                    Passo 3: Escolha a Fita de Cetim e o Laço Artesanal
+                  </h3>
+                  <span className="text-xs text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300">Toque de Seda ✨</span>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {currentRibbons.map(rib => {
-                    const isSelected = selectedRibbon?.id === rib.id;
+                  {currentRibbons.map(ribbon => {
+                    const isSelected = selectedRibbon?.id === ribbon.id;
                     return (
                       <div
-                        key={rib.id}
-                        onClick={() => setSelectedRibbon(rib)}
-                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                        key={ribbon.id}
+                        onClick={() => setSelectedRibbon(ribbon)}
+                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-3 relative ${
                           isSelected
-                            ? 'border-amber-400 bg-amber-50 shadow-sm ring-1 ring-amber-300'
-                            : 'border-amber-100 hover:border-amber-200 bg-white'
+                            ? 'border-amber-400 bg-amber-50 shadow-md ring-2 ring-amber-300'
+                            : 'border-amber-100 hover:border-amber-300 bg-white'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-8 h-8 rounded-full border-2 border-white shadow-xs"
-                            style={{ backgroundColor: rib.color }}
+                        {isSelected && (
+                          <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 text-purple-950 font-bold flex items-center justify-center shadow-xs">
+                            <Check className="w-3.5 h-3.5" />
+                          </span>
+                        )}
+                        {ribbon.image ? (
+                          <img 
+                            src={ribbon.image} 
+                            alt={ribbon.name} 
+                            referrerPolicy="no-referrer"
+                            className="w-16 h-16 object-cover rounded-xl shadow-xs shrink-0" 
                           />
-                          <div>
-                            <p className="text-xs sm:text-sm font-bold text-purple-950">{rib.name}</p>
-                            <p className="text-[11px] text-slate-500">Laço duplo clássico com ponteira</p>
+                        ) : (
+                          <div 
+                            className="w-16 h-16 rounded-xl shadow-xs flex items-center justify-center shrink-0 border border-black/10"
+                            style={{ backgroundColor: ribbon.color }}
+                          >
+                            <Sparkles className="w-6 h-6 text-white drop-shadow-xs" />
                           </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs sm:text-sm font-bold text-purple-950">{ribbon.name}</h4>
+                          {ribbon.description && (
+                            <p className="text-[11px] text-slate-500 mt-0.5">{ribbon.description}</p>
+                          )}
+                          <span className="inline-block mt-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            Incluso no Kit
+                          </span>
                         </div>
-                        {isSelected && <Check className="w-5 h-5 text-amber-600" />}
                       </div>
                     );
                   })}
@@ -355,13 +653,13 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                 <div className="pt-4 flex justify-between">
                   <button
                     onClick={() => setCurrentStep(2)}
-                    className="px-4 py-2 text-xs font-semibold text-purple-700 hover:bg-amber-50 rounded-xl"
+                    className="px-4 py-2 text-xs font-semibold text-purple-700 hover:bg-amber-50 rounded-xl cursor-pointer"
                   >
                     ← Voltar
                   </button>
                   <button
                     onClick={() => setCurrentStep(4)}
-                    className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 border border-amber-300"
+                    className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 border border-amber-300 cursor-pointer"
                   >
                     Avançar para o Cartão & Finalizar →
                   </button>
@@ -390,7 +688,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                         key={i}
                         type="button"
                         onClick={() => selectCardTemplate(tpl)}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
                           cardTheme === tpl.theme
                             ? 'bg-amber-400 text-purple-950 border-amber-500 font-bold shadow-xs'
                             : 'bg-amber-50 text-purple-900 border-amber-200 hover:bg-amber-100'
@@ -441,14 +739,14 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                 <div className="pt-3 flex justify-between">
                   <button
                     onClick={() => setCurrentStep(3)}
-                    className="px-4 py-2 text-xs font-semibold text-purple-700 hover:bg-amber-50 rounded-xl"
+                    className="px-4 py-2 text-xs font-semibold text-purple-700 hover:bg-amber-50 rounded-xl cursor-pointer"
                   >
                     ← Voltar
                   </button>
                   <button
                     id="btn-finish-custom-kit"
                     onClick={handleFinishKit}
-                    className="px-6 py-3 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm shadow-lg shadow-amber-300/50 flex items-center gap-2 transition-transform active:scale-95 border-2 border-amber-300"
+                    className="px-6 py-3 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 font-bold rounded-2xl text-xs sm:text-sm shadow-lg shadow-amber-300/50 flex items-center gap-2 transition-transform active:scale-95 border-2 border-amber-300 cursor-pointer"
                   >
                     <ShoppingBag className="w-4 h-4 text-purple-950" />
                     <span>Adicionar Sacolinha Completa ao Carrinho</span>
@@ -485,7 +783,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
               </div>
             </div>
 
-            {/* Items inside list */}
+            {/* Items inside list with sizes displayed */}
             <div>
               <p className="text-xs font-bold text-purple-950 mb-2">
                 Itens na Sacolinha ({selectedItems.length}):
@@ -496,18 +794,32 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
                   <p className="text-[11px] text-purple-900/80 mt-0.5">Avance para o Passo 2 para escolher seus mimos favoritos.</p>
                 </div>
               ) : (
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
                   {selectedItems.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between text-xs py-1 border-b border-amber-600/20">
-                      <span className="truncate max-w-[170px] text-purple-950 font-medium">{item.name}</span>
-                      <div className="flex items-center gap-2">
+                    <div key={item.id} className="flex items-center justify-between text-xs py-1.5 px-2 bg-white/50 rounded-xl border border-amber-600/20">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <p className="truncate text-purple-950 font-bold">{item.product.name}</p>
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {item.selectedSize && (
+                            <span className="text-[10px] font-extrabold text-purple-950 bg-amber-200/90 px-1.5 py-0.2 rounded-md border border-amber-300">
+                              Tam: {item.selectedSize}
+                            </span>
+                          )}
+                          {item.selectedColor && (
+                            <span className="text-[10px] font-bold text-pink-900 bg-pink-100/90 px-1.5 py-0.2 rounded-md border border-pink-200">
+                              Cor: {item.selectedColor}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
                         <span className="font-bold text-purple-950">R$ {item.price.toFixed(2)}</span>
                         <button
-                          onClick={() => toggleItemSelection(item)}
-                          className="text-purple-900 hover:text-rose-700 p-0.5 cursor-pointer"
-                          title="Remover"
+                          onClick={() => handleRemoveItemFromKit(item.id)}
+                          className="text-purple-900 hover:text-rose-700 p-1 cursor-pointer transition-colors"
+                          title="Remover este item da sacolinha"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -544,7 +856,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
 
             <button
               onClick={handleFinishKit}
-              className="w-full py-3 bg-purple-950 hover:bg-purple-900 text-amber-300 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2 border border-amber-400"
+              className="w-full py-3 bg-purple-950 hover:bg-purple-900 text-amber-300 font-bold rounded-2xl text-xs sm:text-sm shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2 border border-amber-400 cursor-pointer"
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Colocar Sacolinha no Carrinho</span>
@@ -557,4 +869,3 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
     </section>
   );
 };
-
