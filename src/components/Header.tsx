@@ -136,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar mimos, planners, conetas..."
+                placeholder="Buscar mimos..."
                 className="w-full pl-10 pr-9 py-2 bg-white hover:bg-amber-50/30 focus:bg-white border-2 border-[#FDE047] rounded-full text-xs sm:text-sm text-purple-950 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-300 transition-all shadow-2xs font-medium"
               />
               <Search className="w-4 h-4 text-amber-500 absolute left-3.5 top-3 pointer-events-none" />
