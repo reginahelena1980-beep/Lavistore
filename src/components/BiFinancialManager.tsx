@@ -20,7 +20,6 @@ import {
   Percent,
   Check,
   X,
-  Code2,
   Eye,
   Info,
   ArrowUpDown,
@@ -31,8 +30,9 @@ import {
   ExternalLink,
   Store,
   ShoppingBag,
-  Database,
-  Ruler
+  Ruler,
+  ArrowRightLeft,
+  UploadCloud
 } from 'lucide-react';
 import { BiProductCalculatedRecord, BiConsolidatedKpis, Product, Category } from '../types';
 import {
@@ -42,8 +42,7 @@ import {
   generateBiTemplateCsv,
   exportRecordsToXlsx,
   convertGoogleDriveUrlToDirectExportUrl,
-  DEFAULT_BI_SAMPLE_RECORDS,
-  PYTHON_PANDAS_PIPELINE_CODE
+  DEFAULT_BI_SAMPLE_RECORDS
 } from '../utils/biFinanceEngine';
 import {
   findSiblingBiRecords,
@@ -51,7 +50,15 @@ import {
   getGroupingKey
 } from '../utils/productGroupingEngine';
 import { PublishToVitrineModal } from './PublishToVitrineModal';
-import { BiDatabaseArchitectureModal } from './BiDatabaseArchitectureModal';
+import { GoogleSheetsModal } from './GoogleSheetsModal';
+import { 
+  getStoredSheetsConfig, 
+  GoogleSheetsConfig, 
+  updateUserInitialSpreadsheet, 
+  googleSignIn, 
+  getAccessToken 
+} from '../services/googleSheetsService';
+import { OrderData } from '../types';
 
 interface BiFinancialManagerProps {
   products?: Product[];
@@ -91,6 +98,11 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
   const [lastDriveSync, setLastDriveSync] = useState<string | null>(() => {
     return localStorage.getItem('lavistore_bi_last_drive_sync') || null;
   });
+  const [isLoadingSyncBack, setIsLoadingSyncBack] = useState<boolean>(false);
+  const [showConfirmSyncBackModal, setShowConfirmSyncBackModal] = useState<boolean>(false);
+  const [lastSyncBackTimestamp, setLastSyncBackTimestamp] = useState<string | null>(() => {
+    return localStorage.getItem('lavistore_bi_last_sync_back') || null;
+  });
 
   // Filtros interativos solicitados
   const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -103,10 +115,22 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
   const [showAddRowModal, setShowAddRowModal] = useState<boolean>(false);
   const [editingRecord, setEditingRecord] = useState<BiProductCalculatedRecord | null>(null);
   const [recordToDelete, setRecordToDelete] = useState<BiProductCalculatedRecord | null>(null);
-  const [showPythonCodeModal, setShowPythonCodeModal] = useState<boolean>(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
   const [recordToPublish, setRecordToPublish] = useState<BiProductCalculatedRecord | null>(null);
-  const [showArchitectureModal, setShowArchitectureModal] = useState<boolean>(false);
+  const [showGoogleSheetsModal, setShowGoogleSheetsModal] = useState<boolean>(false);
+  const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig | null>(() => getStoredSheetsConfig());
+  const [orders, setOrders] = useState<OrderData[]>([]);
+
+  useEffect(() => {
+    fetch('/api/orders')
+      .then(r => r.json())
+      .then(data => {
+        if (data.orders && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Formulário de adição / edição manual de linha
   const [rowForm, setRowForm] = useState({
@@ -324,6 +348,73 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       setUploadError(err.message || 'Erro ao conectar e importar a planilha do Google Drive.');
     } finally {
       setIsLoadingDrive(false);
+    }
+  };
+
+  // Canal Inverso: Iniciar atualização da planilha inicial com os dados de vendas do site
+  const handleStartUpdateInitialSpreadsheet = async () => {
+    const urlToUse = googleDriveUrl.trim() || localStorage.getItem('lavistore_bi_google_drive_url') || '';
+    if (!urlToUse) {
+      setUploadError('Por favor, informe o link da sua planilha do Google Sheets no campo correspondente.');
+      return;
+    }
+
+    // Se ainda não estiver autenticado com a conta Google, faz o login primeiro
+    const token = await getAccessToken();
+    if (!token) {
+      try {
+        await googleSignIn();
+      } catch (err: any) {
+        setUploadError('Para atualizar as células da sua planilha no Google Sheets, é necessário autorizar o acesso com sua conta Google.');
+        return;
+      }
+    }
+
+    // Abre diálogo explícito de confirmação para a operação mutante
+    setShowConfirmSyncBackModal(true);
+  };
+
+  // Executa o canal inverso na mesma planilha do lojista
+  const handleConfirmUpdateInitialSpreadsheet = async () => {
+    setShowConfirmSyncBackModal(false);
+    setIsLoadingSyncBack(true);
+    setUploadError(null);
+    setUploadSuccess(null);
+
+    const urlToUse = googleDriveUrl.trim() || localStorage.getItem('lavistore_bi_google_drive_url') || '';
+
+    try {
+      const result = await updateUserInitialSpreadsheet(urlToUse, records);
+      const now = new Date();
+      const syncTimestamp = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      
+      setLastSyncBackTimestamp(syncTimestamp);
+      localStorage.setItem('lavistore_bi_last_sync_back', syncTimestamp);
+      localStorage.setItem('lavistore_bi_google_drive_url', urlToUse);
+
+      const itemsWithSales = records.filter(r => r.quantidadeVendida > 0);
+      setUploadSuccess(
+        `Planilha inicial atualizada com sucesso! 📊 ${result.updatedRowsCount} produtos sincronizados na aba "${result.sheetTitle}" (${itemsWithSales.length} com vendas apuradas). As colunas de Quantidade Vendida e Saldos de Estoque já estão preenchidas no seu Google Sheets!`
+      );
+
+      if (onNotify) {
+        onNotify(`Planilha inicial no Google Sheets atualizada com as vendas do site! 🚀✨`);
+      }
+    } catch (err: any) {
+      console.error('Erro ao atualizar planilha inicial:', err);
+      if (err.message === 'AUTH_REQUIRED') {
+        try {
+          await googleSignIn();
+          const retryResult = await updateUserInitialSpreadsheet(urlToUse, records);
+          setUploadSuccess(`Planilha inicial atualizada com sucesso! 📊 ${retryResult.updatedRowsCount} produtos sincronizados.`);
+        } catch (retryErr: any) {
+          setUploadError(retryErr.message || 'Falha ao autenticar com o Google.');
+        }
+      } else {
+        setUploadError(err.message || 'Erro ao gravar os dados de vendas na sua planilha do Google Sheets.');
+      }
+    } finally {
+      setIsLoadingSyncBack(false);
     }
   };
 
@@ -599,27 +690,16 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
           </div>
 
           {/* Ações principais do topo */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               id="btn-bi-download-template"
               type="button"
               onClick={handleDownloadTemplate}
-              className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/30 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 text-purple-100 hover:text-white font-medium text-xs flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer backdrop-blur-xs"
               title="Baixar planilha padrão em formato CSV com colunas obrigatórias"
             >
-              <Download className="w-4 h-4 text-pink-300" />
+              <Download className="w-3.5 h-3.5 text-pink-200" />
               <span>Baixar Modelo CSV</span>
-            </button>
-
-            <button
-              id="btn-bi-show-python-code"
-              type="button"
-              onClick={() => setShowPythonCodeModal(true)}
-              className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/30 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer"
-              title="Ver código em Python/Pandas para pipelines e rotas de upload"
-            >
-              <Code2 className="w-4 h-4 text-amber-300" />
-              <span>Código Python / Pandas</span>
             </button>
 
             <button
@@ -640,10 +720,11 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                 });
                 setShowAddRowModal(true);
               }}
-              className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer border border-pink-400"
+              className="px-3 py-1.5 rounded-xl bg-pink-500/80 hover:bg-pink-500 border border-pink-400/50 text-white font-medium text-xs flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer"
+              title="Adicionar linha manualmente na apuração de BI"
             >
-              <Plus className="w-4 h-4" />
-              <span>+ Adicionar Linha</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Adicionar Linha</span>
             </button>
           </div>
         </div>
@@ -741,59 +822,87 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                 </div>
               </div>
 
-              {lastDriveSync && (
-                <div className="text-[11px] text-emerald-900 font-bold bg-emerald-100/90 px-3 py-1.5 rounded-xl border border-emerald-300 flex items-center gap-1.5 self-start sm:self-auto shadow-2xs">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Última sincronização: {lastDriveSync}</span>
-                </div>
-              )}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                {lastDriveSync && (
+                  <div className="text-[11px] text-emerald-900 font-bold bg-emerald-100/90 px-3 py-1.5 rounded-xl border border-emerald-300 flex items-center gap-1.5 self-start sm:self-auto shadow-2xs">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>📥 Importado: {lastDriveSync}</span>
+                  </div>
+                )}
+                {lastSyncBackTimestamp && (
+                  <div className="text-[11px] text-purple-900 font-bold bg-purple-100/90 px-3 py-1.5 rounded-xl border border-purple-300 flex items-center gap-1.5 self-start sm:self-auto shadow-2xs">
+                    <UploadCloud className="w-3.5 h-3.5 text-purple-600" />
+                    <span>📤 Gravado na Planilha: {lastSyncBackTimestamp}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Input de URL e botão de ação */}
-            <div className="space-y-2">
-              <label htmlFor="input-google-drive-url" className="block text-xs font-bold text-purple-950">
-                Link da Planilha no Google Drive ou Google Sheets:
+            {/* Input de URL e botões de ação bidirecional */}
+            <div className="space-y-3">
+              <label htmlFor="input-google-drive-url" className="block text-xs font-bold text-purple-950 flex items-center justify-between">
+                <span>Link da sua Planilha no Google Drive ou Google Sheets:</span>
+                <span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-bold">
+                  Sincronização Bidirecional (Leitura & Escrita)
+                </span>
               </label>
-              <div className="flex flex-col sm:flex-row gap-2.5">
-                <div className="relative flex-1">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-700">
-                    <Link2 className="w-4 h-4" />
-                  </div>
-                  <input
-                    id="input-google-drive-url"
-                    type="url"
-                    value={googleDriveUrl}
-                    onChange={(e) => setGoogleDriveUrl(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && googleDriveUrl.trim() && !isLoadingDrive) {
-                        e.preventDefault();
-                        handleImportFromGoogleDrive();
-                      }
-                    }}
-                    placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs.../edit?usp=sharing"
-                    className="w-full pl-10 pr-9 py-3 rounded-xl border-2 border-emerald-300 bg-white text-xs sm:text-sm text-purple-950 font-medium placeholder:text-slate-400 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition-all"
-                  />
-                  {googleDriveUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setGoogleDriveUrl('')}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
-                      title="Limpar link"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
 
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-700">
+                  <Link2 className="w-4 h-4" />
+                </div>
+                <input
+                  id="input-google-drive-url"
+                  type="url"
+                  value={googleDriveUrl}
+                  onChange={(e) => setGoogleDriveUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && googleDriveUrl.trim() && !isLoadingDrive) {
+                      e.preventDefault();
+                      handleImportFromGoogleDrive();
+                    }
+                  }}
+                  placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs.../edit?usp=sharing"
+                  className="w-full pl-10 pr-9 py-3 rounded-xl border-2 border-emerald-300 bg-white text-xs sm:text-sm text-purple-950 font-medium placeholder:text-slate-400 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-200 transition-all"
+                />
+                {googleDriveUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setGoogleDriveUrl('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title="Limpar link"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Botões das duas vias de sincronização */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {/* Via 1: Planilha -> Site */}
                 <button
                   id="btn-sync-google-drive"
                   type="button"
                   onClick={() => handleImportFromGoogleDrive()}
-                  disabled={isLoadingDrive || !googleDriveUrl.trim()}
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none cursor-pointer border border-emerald-400"
+                  disabled={isLoadingDrive || isLoadingSyncBack || !googleDriveUrl.trim()}
+                  className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 border border-slate-300 shadow-2xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  title="Ler produtos, custos e compras da planilha para o painel do site"
                 >
-                  <RefreshCw className={`w-4 h-4 ${isLoadingDrive ? 'animate-spin' : ''}`} />
-                  <span>{isLoadingDrive ? 'Sincronizando com Google...' : 'Sincronizar Planilha'}</span>
+                  <RefreshCw className={`w-4 h-4 text-slate-600 ${isLoadingDrive ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingDrive ? 'Lendo Planilha...' : '1. Importar Planilha (Sheets ➔ Site)'}</span>
+                </button>
+
+                {/* Via 2: Canal Inverso (Site -> Planilha Inicial) */}
+                <button
+                  id="btn-sync-back-google-sheets"
+                  type="button"
+                  onClick={handleStartUpdateInitialSpreadsheet}
+                  disabled={isLoadingSyncBack || isLoadingDrive || !googleDriveUrl.trim() || records.length === 0}
+                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-purple-950 via-purple-900 to-emerald-700 hover:from-purple-900 hover:to-emerald-800 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer border border-purple-400"
+                  title="Gravar as vendas realizadas no site diretamente na mesma planilha inicial do Google Sheets"
+                >
+                  <UploadCloud className={`w-4 h-4 text-emerald-300 ${isLoadingSyncBack ? 'animate-bounce' : ''}`} />
+                  <span>{isLoadingSyncBack ? 'Gravando no Google Sheets...' : '2. Gravar Vendas na Planilha (Site ➔ Sheets)'}</span>
                 </button>
               </div>
             </div>
@@ -802,16 +911,15 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
             <div className="p-4 rounded-xl bg-emerald-100/60 border border-emerald-200 text-xs text-slate-700 space-y-2">
               <div className="font-bold text-emerald-950 flex items-center gap-2">
                 <Info className="w-4 h-4 text-emerald-700 shrink-0" />
-                <span>Como configurar o link no Google Drive / Google Sheets:</span>
+                <span>Como funciona o Canal Inverso (Site ➔ Planilha Inicial):</span>
               </div>
-              <ol className="list-decimal list-inside text-[11px] text-slate-700 space-y-1 leading-relaxed pl-1">
-                <li>Abra a sua planilha no <strong>Google Sheets</strong> ou clique com o botão direito no arquivo no <strong>Google Drive</strong>.</li>
-                <li>Clique no botão <strong>"Compartilhar"</strong> no canto superior direito.</li>
-                <li>Em <em>Acesso Geral</em>, altere de "Restrito" para <strong>"Qualquer pessoa com o link"</strong> (modo Leitor).</li>
-                <li>Clique em <strong>"Copiar link"</strong> e cole no campo acima!</li>
-              </ol>
-              <div className="pt-1 text-[11px] text-emerald-900 font-semibold flex items-center gap-1">
-                <span>💡 <strong>Dica Pro:</strong> Sempre que você adicionar compras ou alterar vendas na planilha do Google Drive, basta clicar em "Sincronizar Planilha" para recalcular tudo no painel!</span>
+              <ul className="list-disc list-inside text-[11px] text-slate-700 space-y-1 leading-relaxed pl-1">
+                <li>O site localiza cada produto na sua planilha original através do <strong>Nome</strong> e <strong>Tam/Cor</strong>.</li>
+                <li>Atualiza diretamente as células de <strong>"Quantidade Vendida"</strong>, <strong>"Saldo de Estoque"</strong>, <strong>"Venda Total"</strong> e <strong>"Lucro Bruto"</strong>.</li>
+                <li>Mantém a sua planilha 100% íntegra, sem alterar suas cores, abas ou formatação original!</li>
+              </ul>
+              <div className="pt-1 text-[11px] text-purple-950 font-semibold flex items-center gap-1">
+                <span>✨ <strong>Dica:</strong> Sempre que fizer vendas no PIX ou Cartão pelo site, basta clicar no botão <strong>"2. Gravar Vendas na Planilha"</strong> para refletir os números no seu Google Sheets imediatamente.</span>
               </div>
             </div>
 
@@ -1126,14 +1234,20 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              id="btn-bi-db-architecture"
+              id="btn-bi-google-sheets"
               type="button"
-              onClick={() => setShowArchitectureModal(true)}
-              className="px-3.5 py-2 bg-purple-900 hover:bg-purple-950 text-amber-300 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer border border-purple-800"
-              title="Visualizar modelo de banco de dados, chaves estrangeiras e triggers ACID de sincronização em tempo real"
+              onClick={() => {
+                setSheetsConfig(getStoredSheetsConfig());
+                setShowGoogleSheetsModal(true);
+              }}
+              className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 border border-emerald-300/80 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer active:scale-95"
+              title="Sincronizar com o Google Sheets"
             >
-              <Database className="w-3.5 h-3.5 text-amber-300" />
-              <span>Lógica de Banco de Dados</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Google Sheets</span>
+              {sheetsConfig?.spreadsheetId && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Planilha Conectada"></span>
+              )}
             </button>
 
             <button
@@ -1141,11 +1255,11 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
               type="button"
               onClick={handleExportFilteredXlsx}
               disabled={filteredRecords.length === 0}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-              title="Exportar esta visão apurada para planilha Excel"
+              className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+              title="Exportar esta visão apurada para planilha Excel (.xlsx)"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Exportar Excel (.xlsx)</span>
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Exportar Excel</span>
             </button>
           </div>
         </div>
@@ -1685,49 +1799,6 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         </div>
       )}
 
-      {/* 9. MODAL: CÓDIGO DA ARQUITETURA PYTHON / PANDAS */}
-      {showPythonCodeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 rounded-3xl max-w-3xl w-full border-2 border-purple-500/40 shadow-2xl flex flex-col max-h-[88vh] overflow-hidden">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center">
-                  <Code2 className="w-4 h-4 text-amber-300" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-white">Arquitetura da Solução em Python & Pandas</h3>
-                  <p className="text-[11px] text-slate-400">Pipeline de ingestão, cálculo financeiro e rota FastAPI para integração backend</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(PYTHON_PANDAS_PIPELINE_CODE);
-                    if (onNotify) onNotify('Código Python copiado para a área de transferência! 📋');
-                  }}
-                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-colors"
-                >
-                  Copiar Código
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPythonCodeModal(false)}
-                  className="p-1 text-slate-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-5 overflow-y-auto flex-1 font-mono text-xs text-emerald-300 bg-slate-950/80 leading-relaxed whitespace-pre">
-              {PYTHON_PANDAS_PIPELINE_CODE}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 10. MODAL: PUBLICAR / EDITAR PRODUTO NA VITRINE DO E-COMMERCE */}
       {recordToPublish && (
         <PublishToVitrineModal
@@ -1742,11 +1813,77 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         />
       )}
 
-      {/* 11. MODAL: ARQUITETURA DE BANCO DE DADOS & TRIGGERS */}
-      {showArchitectureModal && (
-        <BiDatabaseArchitectureModal
-          onClose={() => setShowArchitectureModal(false)}
-        />
+      {/* 12. MODAL: INTEGRAÇÃO & SINCRONIZAÇÃO COM GOOGLE SHEETS */}
+      <GoogleSheetsModal
+        isOpen={showGoogleSheetsModal}
+        onClose={() => {
+          setShowGoogleSheetsModal(false);
+          setSheetsConfig(getStoredSheetsConfig());
+        }}
+        biRecords={records}
+        orders={orders}
+        onNotify={onNotify}
+      />
+
+      {/* 13. MODAL: CONFIRMAÇÃO DO CANAL INVERSO (SITE ➔ PLANILHA INICIAL) */}
+      {showConfirmSyncBackModal && (
+        <div className="fixed inset-0 z-[130] bg-purple-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl border-2 border-emerald-400 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-900 to-emerald-600 text-white flex items-center justify-center mx-auto shadow-md">
+              <UploadCloud className="w-7 h-7" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h4 className="font-['Mali'] font-bold text-lg text-purple-950">
+                Confirmar Gravação de Vendas na Planilha Original?
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                O site irá atualizar as colunas <strong>"Quantidade Vendida"</strong>, <strong>"Saldo de Estoque"</strong> e os cálculos financeiros diretamente na sua planilha original do Google Sheets.
+              </p>
+            </div>
+
+            {/* Resumo dos itens que receberão atualização */}
+            <div className="p-3.5 bg-purple-50 rounded-2xl border border-purple-200 text-xs space-y-2 max-h-48 overflow-y-auto">
+              <span className="font-bold text-purple-950 block">Produtos com movimentação de vendas no site:</span>
+              {records.filter(r => r.quantidadeVendida > 0).length === 0 ? (
+                <p className="text-slate-500 italic">Nenhum produto teve vendas ainda no painel. As células de Quantidade Vendida serão zeradas/mantidas sincronizadas.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {records.filter(r => r.quantidadeVendida > 0).map(r => (
+                    <li key={r.id} className="flex items-center justify-between text-[11px] bg-white p-2 rounded-xl border border-purple-100 shadow-2xs">
+                      <span className="font-bold text-slate-800">{r.produto} {r.tamCor ? `(${r.tamCor})` : ''}</span>
+                      <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        {r.quantidadeVendida} un. vendida(s) • Saldo: {r.saldoEstoqueQtd} un.
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200 truncate">
+              <strong>Planilha Alvo:</strong> {googleDriveUrl}
+            </div>
+
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmSyncBackModal(false)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmUpdateInitialSpreadsheet}
+                className="flex-1 py-2.5 bg-gradient-to-r from-purple-950 via-purple-900 to-emerald-700 hover:from-purple-900 hover:to-emerald-800 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Confirmar e Gravar no Sheets
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

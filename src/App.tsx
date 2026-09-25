@@ -61,6 +61,7 @@ import {
   createOrder,
   submitProductReview
 } from './services/storeApiService';
+import { appendOrderToSpreadsheet, getStoredSheetsConfig, updateUserInitialSpreadsheet } from './services/googleSheetsService';
 
 const TEST_PRODUCT_IDS = new Set(['lav-74750', 'lav-15329', 'lav-03352', 'lav-01', 'lav-02']);
 
@@ -1990,6 +1991,18 @@ export default function App() {
               console.warn('⚠️ Backend offline ou resposta simulada para e-mail:', err);
             });
 
+            // Sincronização automática em tempo real com Google Sheets se habilitado pelo lojista
+            try {
+              const sheetsCfg = getStoredSheetsConfig();
+              if (sheetsCfg && sheetsCfg.autoSync && sheetsCfg.spreadsheetId) {
+                appendOrderToSpreadsheet(sheetsCfg.spreadsheetId, orderData).catch(err => {
+                  console.warn('⚠️ Google Sheets auto-sync aviso:', err);
+                });
+              }
+            } catch (sheetErr) {
+              console.warn('Erro ao auto-sincronizar pedido no Google Sheets:', sheetErr);
+            }
+
             // Sincronização e Abatimento em Tempo Real no BI Financeiro e Estoque da Lavistore
             try {
               const biRaw = localStorage.getItem('lavistore_bi_records');
@@ -2036,6 +2049,16 @@ export default function App() {
                   if (hasChanges) {
                     localStorage.setItem('lavistore_bi_records', JSON.stringify(updatedBiRecords));
                     saveBiRecords(updatedBiRecords).catch(console.warn);
+
+                    // Canal Inverso Automático: Atualiza a planilha inicial do Google Sheets se configurada
+                    try {
+                      const initialDriveUrl = localStorage.getItem('lavistore_bi_google_drive_url');
+                      if (initialDriveUrl) {
+                        updateUserInitialSpreadsheet(initialDriveUrl, updatedBiRecords).catch(e => {
+                          console.warn('[Google Sheets] Aviso na sincronização automática da planilha inicial:', e);
+                        });
+                      }
+                    } catch (e) {}
                   }
                 }
               }

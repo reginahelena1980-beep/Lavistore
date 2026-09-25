@@ -20,10 +20,13 @@ import {
   QrCode, 
   FileText,
   AlertCircle,
-  PackageCheck
+  PackageCheck,
+  FileSpreadsheet
 } from 'lucide-react';
-import { OrderData } from '../types';
+import { OrderData, BiProductCalculatedRecord } from '../types';
 import { fetchOrders as fetchOrdersFromApi, updateOrderStatus } from '../services/storeApiService';
+import { GoogleSheetsModal } from './GoogleSheetsModal';
+import { getStoredSheetsConfig, GoogleSheetsConfig } from '../services/googleSheetsService';
 
 interface OrdersManagerProps {
   onRefreshOrders?: () => void;
@@ -36,6 +39,21 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'shipped'>('all');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
+  const [showGoogleSheetsModal, setShowGoogleSheetsModal] = useState<boolean>(false);
+  const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig | null>(() => getStoredSheetsConfig());
+  const [biRecords, setBiRecords] = useState<BiProductCalculatedRecord[]>([]);
+
+  // Load BI records for full synchronization
+  useEffect(() => {
+    fetch('/api/bi/records')
+      .then(r => r.json())
+      .then(d => {
+        if (d.records && Array.isArray(d.records)) {
+          setBiRecords(d.records);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Load orders from API & localStorage (merge and deduplicate)
   const fetchOrders = async () => {
@@ -288,11 +306,28 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
             Enviados
           </button>
 
+          {/* Google Sheets button */}
+          <button
+            type="button"
+            onClick={() => {
+              setSheetsConfig(getStoredSheetsConfig());
+              setShowGoogleSheetsModal(true);
+            }}
+            className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer ml-auto sm:ml-2"
+            title="Sincronizar pedidos e financeiro com Google Sheets"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+            <span>Google Sheets</span>
+            {sheetsConfig?.spreadsheetId && (
+              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse ml-0.5"></span>
+            )}
+          </button>
+
           {/* Reload button */}
           <button
             onClick={fetchOrders}
             disabled={isLoading}
-            className="p-2 bg-purple-100 hover:bg-purple-200 text-purple-950 rounded-xl transition-all ml-auto sm:ml-2"
+            className="p-2 bg-purple-100 hover:bg-purple-200 text-purple-950 rounded-xl transition-all"
             title="Recarregar Pedidos do Servidor"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -564,6 +599,16 @@ export const OrdersManager: React.FC<OrdersManagerProps> = () => {
         </div>
       )}
 
+      {/* Google Sheets Modal */}
+      <GoogleSheetsModal
+        isOpen={showGoogleSheetsModal}
+        onClose={() => {
+          setShowGoogleSheetsModal(false);
+          setSheetsConfig(getStoredSheetsConfig());
+        }}
+        biRecords={biRecords}
+        orders={orders}
+      />
     </div>
   );
 };
