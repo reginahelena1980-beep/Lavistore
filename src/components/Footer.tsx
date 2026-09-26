@@ -181,7 +181,7 @@ export const Footer: React.FC<FooterProps> = ({
             {newsletterSubscribed ? (
               <div className="bg-white/95 border-2 border-emerald-300 p-3.5 rounded-2xl flex items-center gap-2 text-emerald-800 text-xs font-bold shadow-sm animate-in fade-in">
                 <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{newsletterMessage || <>Bem-vinda ao Clube Lavistore! Use o cupom <strong className="text-purple-950">LAVI10</strong> no checkout! ✨</>}</span>
+                <span>{newsletterMessage || <>Bem-vinda ao Clube Lavistore! Fique atenta às novidades e mimos exclusivos! ✨</>}</span>
               </div>
             ) : (
               <form onSubmit={handleSubscribe} className="flex gap-2">

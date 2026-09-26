@@ -1542,9 +1542,7 @@ app.post('/api/shipping/calculate', async (req, res) => {
       toPostalCode: cleanToCep,
       isSimulated: true,
       source: 'fallback_simulator',
-      message: token 
-        ? 'A chave de Produção retornou sem opções para este CEP, exibindo cotações de contingência.' 
-        : 'Para integrar com as cotações oficiais da sua conta Melhor Envio, autorize o aplicativo ou defina o Token.'
+      message: 'Cotação calculada para este CEP.'
     });
 
   } catch (error: any) {
@@ -2326,6 +2324,41 @@ app.post('/api/orders/update-status', (req, res) => {
     return res.status(404).json({ error: 'Pedido não encontrado' });
   } catch (err: any) {
     console.error('[Orders] Erro ao atualizar status do pedido:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/orders/clear
+ * Permite limpar todos os pedidos para reinicialização/publicação oficial da loja
+ */
+app.post('/api/orders/clear', (_req, res) => {
+  try {
+    saveStoredOrders([]);
+    storeOrders = [];
+    console.log('[Orders] Todos os pedidos foram limpos com sucesso para publicação oficial.');
+    return res.json({ success: true, message: 'Histórico de pedidos limpo com sucesso.', totalOrders: 0 });
+  } catch (err: any) {
+    console.error('[Orders] Erro ao limpar pedidos:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE /api/orders/:orderId
+ * Permite excluir um pedido individualmente
+ */
+app.delete('/api/orders/:orderId', (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const orders = readStoredOrders();
+    const updated = orders.filter((o: any) => String(o.orderId) !== String(orderId));
+    saveStoredOrders(updated);
+    storeOrders = updated;
+    console.log(`[Orders] Pedido #${orderId} excluído com sucesso.`);
+    return res.json({ success: true, totalOrders: updated.length });
+  } catch (err: any) {
+    console.error('[Orders] Erro ao excluir pedido:', err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -3119,7 +3152,7 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
             let friendlyReason = detailMessages[mpData.status_detail] || `Pagamento recusado pela operadora (${mpData.status_detail || 'motivo não informado'}).`;
 
             if (mpData.status_detail === 'cc_rejected_high_risk' && isSelfPayment) {
-              friendlyReason = 'O Mercado Pago recusou a transação porque detectou auto-compra: você está utilizando os mesmos dados (e-mail, CPF ou cartão) da titular proprietária desta conta do Mercado Pago (Regina Ferraz). As operadoras não permitem que o lojista passe o próprio cartão na própria conta. Para testar com cartão em produção, utilize o cartão de outra pessoa (com outro CPF), ou faça um teste via PIX (que cai na hora na sua conta do Mercado Pago!).';
+              friendlyReason = 'Por políticas de segurança bancária, transações onde os dados do comprador coincidem com os da conta recebedora não são autorizadas no cartão de crédito. Por favor, utilize a opção PIX Instantâneo para aprovação imediata ou tente com outro cartão.';
             }
 
             return res.status(422).json({

@@ -319,6 +319,19 @@ export async function updateOrderStatus(
 }
 
 /**
+ * Limpa todos os pedidos de teste para publicação oficial
+ */
+export async function clearAllOrders(): Promise<GenericApiResponse> {
+  const res = await fetch('/api/orders/clear', {
+    method: 'POST'
+  });
+  if (!res.ok) {
+    throw new Error(`Falha ao limpar pedidos (HTTP ${res.status})`);
+  }
+  return res.json();
+}
+
+/**
  * Envia uma avaliação de cliente para um produto
  */
 export async function submitProductReview(review: CustomerReview): Promise<GenericApiResponse>;

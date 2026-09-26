@@ -1131,34 +1131,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </div>
                     </div>
 
-                    {isSelfPaymentError ? (
-                      <div className="pt-2 border-t border-rose-200/80 flex flex-col sm:flex-row gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPaymentMethod('pix');
-                            setPaymentErrorMessage(null);
-                            setIsSelfPaymentError(false);
-                          }}
-                          className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-98"
-                        >
-                          <QrCode className="w-4 h-4" />
-                          <span>Pagar via PIX Instantâneo (Recomendado)</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => executeMercadoPagoPayment(undefined, true)}
-                          className="flex-1 py-2 px-3 bg-purple-700 hover:bg-purple-800 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
-                        >
-                          <Sparkles className="w-4 h-4 text-amber-300" />
-                          <span>🧪 Concluir Pedido de Teste do Lojista</span>
-                        </button>
-                      </div>
-                    ) : (
+                    <div className="pt-2 border-t border-rose-200/80 flex flex-col gap-2">
                       <p className="text-[11px] text-rose-700 bg-rose-100/60 p-2 rounded-xl">
-                        💡 Dica: Se preferir, selecione a opção <strong>PIX Instantâneo</strong> com 5% de desconto automático.
+                        💡 Dica: Se preferir, selecione a opção <strong>PIX Instantâneo</strong> para aprovação imediata com desconto automático.
                       </p>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod('pix');
+                          setPaymentErrorMessage(null);
+                          setIsSelfPaymentError(false);
+                        }}
+                        className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-98"
+                      >
+                        <QrCode className="w-4 h-4" />
+                        <span>Pagar via PIX Instantâneo (Aprovação Imediata)</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1574,7 +1563,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       type="text"
                       value={couponInputText}
                       onChange={(e) => setCouponInputText(e.target.value)}
-                      placeholder="Ex: FRETEGRATIS ou LAVI10"
+                      placeholder="Digite seu cupom de desconto"
                       className="flex-1 px-3 py-1.5 bg-purple-950/80 border border-purple-700 rounded-xl text-xs text-white placeholder-purple-400 uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-pink-400"
                     />
                     <button
@@ -1593,74 +1582,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </p>
                 )}
 
-                {/* Opções Rápidas de Cupons com destaque para a Opção de Cupom BRINDE */}
-                <div className="pt-1 space-y-1 border-t border-purple-800/60">
-                  <span className="text-[10px] text-purple-300 font-bold block">
-                    Sugestões & Cupons Ativos:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {/* Opção Cupom BRINDE */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isGiftCoupon) {
-                          handleRemoveCoupon();
-                        } else {
-                          setCheckoutCoupon('BRINDE');
-                          if (setExternalAppliedCoupon) setExternalAppliedCoupon('BRINDE');
-                          const evalResult = evaluateCoupon('BRINDE', subtotal, 0, availableCoupons);
-                          setCouponFeedback({ message: evalResult.message, isError: false });
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all flex items-center gap-1 cursor-pointer ${
-                        isGiftCoupon
-                          ? 'bg-pink-500 text-white border-pink-400 shadow-xs'
-                          : 'bg-gradient-to-r from-pink-500/25 via-purple-500/25 to-amber-500/25 hover:from-pink-500/40 hover:to-amber-500/40 text-pink-200 border-pink-400/60 shadow-2xs'
-                      }`}
-                      title="Clique para selecionar o cupom BRINDE (Zera toda a compra!)"
-                    >
-                      <Gift className="w-3.5 h-3.5 text-pink-300" />
-                      <span>{isGiftCoupon ? '✓ Cupom BRINDE Ativo' : '🎁 Cupom BRINDE (Zera Compra)'}</span>
-                    </button>
 
-                    {availableCoupons && availableCoupons
-                      .filter(c => c.isActive && c.code.toUpperCase() !== 'BRINDE')
-                      .slice(0, 3)
-                      .map(c => {
-                        const isSelected = checkoutCoupon?.toUpperCase() === c.code.toUpperCase();
-                        return (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                handleRemoveCoupon();
-                              } else {
-                                setCheckoutCoupon(c.code);
-                                if (setExternalAppliedCoupon) setExternalAppliedCoupon(c.code);
-                                const evalResult = evaluateCoupon(c.code, subtotal, 0, availableCoupons);
-                                setCouponFeedback({ message: evalResult.message, isError: false });
-                              }
-                            }}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                              isSelected
-                                ? 'bg-amber-400 text-purple-950 border-amber-300 shadow-2xs'
-                                : 'bg-purple-800/80 hover:bg-purple-700 text-purple-200 border-purple-700'
-                            }`}
-                          >
-                            🎟️ {c.code}
-                          </button>
-                        );
-                      })}
-                  </div>
-                </div>
               </div>
 
               {/* Mensagem especial quando o Cupom BRINDE está ativo no checkout */}
               {isGiftCoupon && (
                 <div className="p-2.5 bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-amber-500/20 rounded-xl border border-pink-400/40 text-xs text-pink-200 font-bold flex items-center justify-center gap-1.5 shadow-2xs animate-in fade-in">
                   <Gift className="w-4 h-4 text-pink-300 shrink-0" />
-                  <span>Cupom BRINDE Selecionado: Total do Pedido R$ 0,00! 🌸</span>
+                  <span>Cupom Especial Ativo: Total do Pedido R$ 0,00! 🌸</span>
                 </div>
               )}
 
@@ -1730,35 +1659,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                   </div>
 
-                  {isSelfPaymentError && (
-                    <div className="pt-2 border-t border-rose-800/80 flex flex-col gap-2">
-                      <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-                        💡 Como concluir seu teste agora:
-                      </span>
-                      
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaymentMethod('pix');
-                          setPaymentErrorMessage(null);
-                          setIsSelfPaymentError(false);
-                        }}
-                        className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/40 active:scale-98"
-                      >
-                        <QrCode className="w-3.5 h-3.5" />
-                        <span>Pagar via PIX Instantâneo (Recomendado)</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => executeMercadoPagoPayment(undefined, true)}
-                        className="w-full py-2.5 px-3 bg-purple-800/90 hover:bg-purple-700 border border-purple-400/50 text-purple-100 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-98"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                        <span>🧪 Concluir como Pedido de Teste do Lojista (Sem Débito)</span>
-                      </button>
-                    </div>
-                  )}
+                  <div className="pt-2 border-t border-rose-800/80 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('pix');
+                        setPaymentErrorMessage(null);
+                        setIsSelfPaymentError(false);
+                      }}
+                      className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/40 active:scale-98"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>Pagar via PIX Instantâneo (Aprovação Imediata)</span>
+                    </button>
+                  </div>
                 </div>
               )}
 

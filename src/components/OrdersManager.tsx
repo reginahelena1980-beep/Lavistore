@@ -32,10 +32,11 @@ import {
   Tag,
   Gift,
   Sparkles,
-  PenTool
+  PenTool,
+  Trash2
 } from 'lucide-react';
 import { OrderData, BiProductCalculatedRecord } from '../types';
-import { fetchOrders as fetchOrdersFromApi, updateOrderStatus } from '../services/storeApiService';
+import { fetchOrders as fetchOrdersFromApi, updateOrderStatus, clearAllOrders } from '../services/storeApiService';
 import { GoogleSheetsModal } from './GoogleSheetsModal';
 import { getStoredSheetsConfig, GoogleSheetsConfig } from '../services/googleSheetsService';
 import { extractDedicationFromOrder, openDedicationPrintWindow, OrderDedicationInfo } from '../utils/dedicationHelper';
@@ -56,6 +57,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
   const [showGoogleSheetsModal, setShowGoogleSheetsModal] = useState<boolean>(false);
   const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig | null>(() => getStoredSheetsConfig());
   const [biRecords, setBiRecords] = useState<BiProductCalculatedRecord[]>([]);
+  const [showClearModal, setShowClearModal] = useState<boolean>(false);
 
   // Estados locais para edição de código de rastreamento por pedido
   const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({});
@@ -75,49 +77,46 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
       .catch(() => {});
   }, []);
 
-  // Carrega pedidos da API & localStorage (com deduplicação)
+  // Carrega pedidos da API & localStorage (com fallback)
   const fetchOrders = async () => {
     setIsLoading(true);
     let serverList: OrderData[] = [];
-    let localList: OrderData[] = [];
+    let hasServerSuccess = false;
 
     // 1. Fetch from server API via storeApiService
     try {
       serverList = await fetchOrdersFromApi();
+      hasServerSuccess = true;
     } catch (err) {
       console.warn('Erro ao carregar pedidos do servidor:', err);
     }
 
-    // 2. Read from localStorage fallback
-    try {
-      const saved = localStorage.getItem('lavistore_orders');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          localList = parsed;
-        }
+    let finalOrders: OrderData[] = [];
+
+    if (hasServerSuccess) {
+      // O servidor é a autoridade máxima. Atualiza o cache local.
+      finalOrders = serverList;
+      try {
+        localStorage.setItem('lavistore_orders', JSON.stringify(serverList));
+      } catch (err) {
+        console.error(err);
       }
-    } catch (err) {
-      console.error(err);
+    } else {
+      // 2. Read from localStorage fallback apenas se a chamada à API falhar
+      try {
+        const saved = localStorage.getItem('lavistore_orders');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            finalOrders = parsed;
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }
 
-    // Merge by orderId, preferring server record if present
-    const map = new Map<string, OrderData>();
-    localList.forEach(item => {
-      if (item && item.orderId) {
-        map.set(String(item.orderId), item);
-      }
-    });
-    serverList.forEach(item => {
-      if (item && item.orderId) {
-        map.set(String(item.orderId), {
-          ...(map.get(String(item.orderId)) || {}),
-          ...item
-        });
-      }
-    });
-
-    const merged = Array.from(map.values()).sort((a, b) => {
+    const merged = finalOrders.sort((a, b) => {
       const dateA = new Date(a.receivedAt || a.date || 0).getTime();
       const dateB = new Date(b.receivedAt || b.date || 0).getTime();
       return dateB - dateA;
@@ -137,9 +136,30 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
     // Se houver pedidos e nenhum expandido, expande o primeiro para o lojista já ver os itens
     if (merged.length > 0 && !expandedOrderId) {
       setExpandedOrderId(merged[0].orderId);
+    } else if (merged.length === 0) {
+      setExpandedOrderId(null);
     }
 
     setIsLoading(false);
+  };
+
+  const handleClearOrders = async () => {
+    try {
+      setIsLoading(true);
+      await clearAllOrders();
+      setOrders([]);
+      try {
+        localStorage.removeItem('lavistore_orders');
+      } catch {}
+      setShowClearModal(false);
+      if (onRefreshOrders) {
+        onRefreshOrders();
+      }
+    } catch (err) {
+      console.error('Erro ao limpar pedidos:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -639,9 +659,59 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
+
+          {/* Botão para limpar pedidos de teste */}
+          {orders.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowClearModal(true)}
+              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+              title="Limpar todos os pedidos para publicar a loja"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <span>Limpar Pedidos ({orders.length})</span>
+            </button>
+          )}
         </div>
 
       </div>
+
+      {/* Modal de confirmação para limpar pedidos */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 bg-purple-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl border-2 border-rose-200 animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-7 h-7" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="font-['Mali'] text-lg font-bold text-purple-950">
+                Limpar Pedidos de Teste?
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Esta ação apagará os pedidos de teste para que a loja seja publicada com a listagem de pedidos zerada, pronta para receber os pedidos reais das clientes.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowClearModal(false)}
+                className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleClearOrders}
+                disabled={isLoading}
+                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>Confirmar e Limpar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Orders List */}
       {filteredOrders.length === 0 ? (
@@ -1202,8 +1272,8 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
                           })
                         ) : (
                           <div className="py-6 text-center text-xs text-slate-500 space-y-1">
-                            <p className="font-bold text-slate-700">Nenhum item discriminado neste pedido teste.</p>
-                            <p className="text-[11px]">Faça uma compra real pelo site com o carrinho cheio para que todos os itens apareçam aqui com fotos e tamanhos!</p>
+                            <p className="font-bold text-slate-700">Nenhum item discriminado neste pedido.</p>
+                            <p className="text-[11px]">Os produtos comprados aparecerão aqui com fotos, tamanhos e quantidades discriminadas.</p>
                           </div>
                         )}
                       </div>

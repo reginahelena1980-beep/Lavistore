@@ -144,9 +144,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             setSelectedShippingOption(cheapest);
           }
         }
-        if (result.isSimulated) {
-          setShippingNotice(result.message || 'Cotação calculada para este CEP.');
-        }
+        setShippingNotice(null);
       } else {
         setShippingError('Nenhuma opção de frete disponível para este CEP no momento.');
       }
@@ -195,7 +193,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <span className="flex items-center gap-1 font-semibold text-purple-900">
                 <Truck className="w-3.5 h-3.5 text-pink-500" />
                 {isFreeShippingCoupon ? (
-                  <strong className="text-emerald-700">Cupom FRETEGRATIS Ativo! 🚚🎉</strong>
+                  <strong className="text-emerald-700">Cupom {appliedCoupon || 'de Frete Grátis'} Ativo! 🚚🎉</strong>
                 ) : amountToFreeShipping === 0 ? (
                   <strong className="text-emerald-700">Parabéns! Você ganhou Frete Grátis! 🎉</strong>
                 ) : (
@@ -449,7 +447,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       type="text"
                       value={couponInput}
                       onChange={(e) => setCouponInput(e.target.value)}
-                      placeholder="Cupom (ex: FRETEGRATIS, LAVI10)"
+                      placeholder="Digite seu cupom de desconto"
                       className="w-full pl-8 pr-3 py-1.5 bg-purple-50/70 border border-purple-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-400 uppercase font-semibold"
                     />
                     <Tag className="w-3.5 h-3.5 text-purple-400 absolute left-2.5 top-2.5" />
@@ -467,78 +465,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {couponMessage.text}
                   </p>
                 )}
-
-                {/* Opções Rápidas de Cupons (incluindo a opção de Cupom BRINDE) */}
-                <div className="pt-1 space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold block">
-                    Sugestões & Cupons Ativos:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {/* Botão de Destaque para a Opção de Cupom BRINDE */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isGiftCoupon) {
-                          setAppliedCoupon(null);
-                          setCouponInput('');
-                          setCouponMessage({ text: 'Cupom removido.', isError: false });
-                        } else {
-                          setAppliedCoupon('BRINDE');
-                          const evalResult = evaluateCoupon('BRINDE', subtotal, 0, availableCoupons);
-                          setCouponMessage({ text: evalResult.message, isError: false });
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all flex items-center gap-1 cursor-pointer ${
-                        isGiftCoupon
-                          ? 'bg-pink-600 text-white border-pink-700 shadow-xs'
-                          : 'bg-gradient-to-r from-pink-100 via-purple-100 to-amber-100 hover:from-pink-200 hover:to-amber-200 text-purple-950 border-pink-300 shadow-2xs'
-                      }`}
-                      title="Clique para selecionar o cupom BRINDE (Zera toda a compra!)"
-                    >
-                      <Gift className="w-3.5 h-3.5 text-pink-600" />
-                      <span>{isGiftCoupon ? '✓ Cupom BRINDE Ativo' : '🎁 Cupom BRINDE (Zera Compra)'}</span>
-                    </button>
-
-                    {/* Outros cupons ativos disponíveis */}
-                    {availableCoupons && availableCoupons
-                      .filter(c => c.isActive && c.code.toUpperCase() !== 'BRINDE')
-                      .slice(0, 3)
-                      .map(c => {
-                        const isSelected = appliedCoupon?.toUpperCase() === c.code.toUpperCase();
-                        return (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setAppliedCoupon(null);
-                                setCouponInput('');
-                                setCouponMessage({ text: 'Cupom removido.', isError: false });
-                              } else {
-                                setAppliedCoupon(c.code);
-                                const evalResult = evaluateCoupon(c.code, subtotal, 0, availableCoupons);
-                                setCouponMessage({ text: evalResult.message, isError: false });
-                              }
-                            }}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                              isSelected
-                                ? 'bg-purple-950 text-amber-300 border-purple-950 shadow-2xs'
-                                : 'bg-purple-50/80 hover:bg-purple-100 text-purple-900 border-purple-200'
-                            }`}
-                          >
-                            🎟️ {c.code}
-                          </button>
-                        );
-                      })}
-                  </div>
-                </div>
               </div>
 
-              {/* Mensagem especial quando o Cupom BRINDE está ativo */}
+              {/* Mensagem especial quando o Cupom Cortesia/Brinde está ativo */}
               {isGiftCoupon && (
                 <div className="p-2.5 bg-gradient-to-r from-pink-50 via-purple-50 to-amber-50 rounded-xl border border-pink-300 text-xs text-pink-950 font-bold flex items-center justify-center gap-1.5 shadow-2xs animate-in fade-in">
                   <Gift className="w-4 h-4 text-pink-600 shrink-0" />
-                  <span>Cupom BRINDE Selecionado: Valor da compra zerado para R$ 0,00! 🌸</span>
+                  <span>Cupom Especial Ativo: Valor da compra zerado para R$ 0,00! 🌸</span>
                 </div>
               )}
 

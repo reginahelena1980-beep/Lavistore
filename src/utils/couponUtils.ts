@@ -71,22 +71,13 @@ export function evaluateCoupon(
   }
 
   if (!matchedCoupon) {
-    // Sugestão dos cupons ativos disponíveis
-    const activeHints = couponList
-      .filter(c => c.isActive)
-      .slice(0, 4)
-      .map(c => c.code)
-      .join(', ');
-
     return {
       code: clean,
       isValid: false,
       isFreeShipping: false,
       isGift: false,
       calculatedDiscount: 0,
-      message: activeHints 
-        ? `Cupom "${clean}" não encontrado. Dica: experimente ${activeHints} ✨`
-        : `Cupom "${clean}" não encontrado ou expirado.`
+      message: `Cupom "${clean}" não encontrado ou expirado.`
     };
   }
 
