@@ -11,9 +11,7 @@ import {
   Heart,
   ShoppingBag,
   ExternalLink,
-  MessageCircle,
   CreditCard,
-  Mail,
   ShieldCheck,
   Loader2
 } from 'lucide-react';
@@ -35,7 +33,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
   const [copiedPix, setCopiedPix] = useState(false);
   const [copiedPagSeguro, setCopiedPagSeguro] = useState(false);
   const [copiedAmount, setCopiedAmount] = useState(false);
-  const [copiedWaMessage, setCopiedWaMessage] = useState(false);
   const [pixPaymentStatus, setPixPaymentStatus] = useState<'pending' | 'approved'>(
     orderData?.mercadoPagoStatus === 'approved' ? 'approved' : 'pending'
   );
@@ -126,69 +123,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     navigator.clipboard.writeText(formattedAmount);
     setCopiedAmount(true);
     setTimeout(() => setCopiedAmount(false), 2500);
-  };
-
-  // WhatsApp store notification logic (Requirement 4)
-  const storePhoneRaw = homePageConfig?.whatsappNumber || '5511987654321';
-  let cleanStorePhone = storePhoneRaw.replace(/\D/g, '');
-  if (cleanStorePhone.length === 10 || cleanStorePhone.length === 11) {
-    cleanStorePhone = `55${cleanStorePhone}`;
-  }
-
-  const itemsText = Array.isArray(orderData.items)
-    ? orderData.items.map((it: any) => {
-        const prod = it.product || it;
-        const name = prod.name || 'Produto Lavistore';
-        const qty = it.quantity || 1;
-        const price = Number(it.sizePrice || prod.price || 0);
-        const variantParts = [
-          it.selectedSize ? `Tam: ${it.selectedSize}` : null,
-          it.selectedColor ? `Cor: ${it.selectedColor}` : null,
-          it.isGiftWrapped ? '🎁 Presente' : null
-        ].filter(Boolean);
-        const variantStr = variantParts.length > 0 ? ` (${variantParts.join(', ')})` : '';
-        return `• ${qty}x ${name}${variantStr} - R$ ${(qty * price).toFixed(2)}`;
-      }).join('\n')
-    : 'Itens do pedido';
-
-  const storeNotificationEmail = homePageConfig?.orderNotificationEmail?.trim() || homePageConfig?.contactEmail?.trim() || '';
-
-  const waMessage = 
-`🌸 *NOVA VENDA CONCLUÍDA - LAVISTORE* 🌸
-━━━━━━━━━━━━━━━━━━━━━━
-📦 *Pedido:* #${orderData.orderId}
-📅 *Data:* ${orderData.date || new Date().toLocaleDateString('pt-BR')}
-
-👤 *DADOS DA CLIENTE:*
-• *Nome:* ${orderData.customerName}
-• *WhatsApp:* ${orderData.customerPhone}
-• *E-mail:* ${orderData.customerEmail}
-${orderData.customerCpf ? `• *CPF:* ${orderData.customerCpf}\n` : ''}
-📍 *ENDEREÇO DE ENTREGA:*
-${orderData.address}
-
-🛍️ *PRODUTOS COMPRADOS:*
-${itemsText}
-
-🚚 *ENVIO & FRETE:*
-• Opção: ${orderData.shippingMethod} (${orderData.shippingDeadline || 'Consulte o prazo'})
-• Frete: ${Number(orderData.shippingCost) === 0 ? 'GRÁTIS' : `R$ ${Number(orderData.shippingCost).toFixed(2)}`}
-
-💳 *FORMA DE PAGAMENTO:*
-• ${orderData.paymentMethod}
-${orderData.mercadoPagoPaymentId ? `• Transação Mercado Pago: #${orderData.mercadoPagoPaymentId}\n• Status: Pagamento Aprovado ✓\n` : ''}
-${orderData.pagSeguroUrl ? `• Link PagSeguro: ${orderData.pagSeguroUrl}\n` : ''}
-${orderData.couponApplied ? `🏷️ *Cupom:* ${orderData.couponApplied} (- R$ ${Number(orderData.discountAmount).toFixed(2)})\n` : ''}
-💰 *TOTAL DO PEDIDO: R$ ${Number(orderData.total).toFixed(2)}*
-━━━━━━━━━━━━━━━━━━━━━━
-✨ Pedido gerado pela loja virtual Lavistore.`;
-
-  const waLink = `https://wa.me/${cleanStorePhone}?text=${encodeURIComponent(waMessage)}`;
-
-  const handleCopyWaMessage = () => {
-    navigator.clipboard.writeText(waMessage);
-    setCopiedWaMessage(true);
-    setTimeout(() => setCopiedWaMessage(false), 2500);
   };
 
   const isPagSeguroPayment = (orderData.paymentMethod.includes('PagSeguro') || Boolean(orderData.pagSeguroUrl)) && Boolean(pagSeguroUrl);
@@ -450,68 +384,6 @@ ${orderData.couponApplied ? `🏷️ *Cupom:* ${orderData.couponApplied} (- R$ $
             )}
           </div>
         )}
-
-        {/* NOTIFICAÇÃO DE VENDA PARA O WHATSAPP DA LOJA (REQUIREMENT 4) */}
-        <div className="p-4 sm:p-5 bg-emerald-50/90 rounded-2xl border-2 border-emerald-300 space-y-3 text-left shadow-xs">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center">
-                <MessageCircle className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="text-xs sm:text-sm font-bold text-emerald-950">
-                  Notificação de Venda para o WhatsApp da Loja
-                </h4>
-                <p className="text-[10px] sm:text-[11px] text-emerald-800">
-                  Resumo pronto e estruturado para o lojista acompanhar os pedidos no WhatsApp ({storePhoneRaw})
-                </p>
-              </div>
-            </div>
-            <span className="text-[9px] bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-full hidden sm:inline-block">
-              wa.me automático
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-transform active:scale-95 shadow-xs"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Abrir WhatsApp da Loja (wa.me)</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-
-            <button
-              type="button"
-              onClick={handleCopyWaMessage}
-              className="w-full py-2.5 px-3 bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
-            >
-              {copiedWaMessage ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-emerald-600" />}
-              <span>{copiedWaMessage ? 'Mensagem Copiada!' : 'Copiar Resumo Formatado'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* NOTIFICAÇÃO DE VENDA POR E-MAIL (REQUIREMENT 3) */}
-        <div className="p-3.5 bg-purple-50/80 rounded-2xl border border-purple-200 text-left flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-purple-200 text-purple-900 flex items-center justify-center shrink-0">
-              <Mail className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-bold text-purple-950 block">
-                Notificação Automática por E-mail Transmitida
-              </span>
-              <span className="text-[11px] text-slate-600">
-                Os dados desta venda, produtos, frete e valor total foram transmitidos para <strong>{storeNotificationEmail}</strong>.
-              </span>
-            </div>
-          </div>
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" title="E-mail processado" />
-        </div>
 
         {/* Tracking Timeline */}
         <div className="p-4 bg-amber-50/60 rounded-2xl border-2 border-amber-200 space-y-3 text-left">

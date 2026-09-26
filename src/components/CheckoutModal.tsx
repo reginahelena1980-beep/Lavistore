@@ -18,7 +18,9 @@ import {
   AlertCircle,
   Info,
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  PenTool,
+  MessageCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CartItem, ShippingOption, Coupon, HomePageConfig, OrderData } from '../types';
@@ -147,10 +149,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }, [activePublicKey]);
 
-  // Extra gift flag
+  // Extra gift flag & dedication
   const [hidePrices, setHidePrices] = useState(true);
   const [orderNotes, setOrderNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Initial dedication from any item in cart (e.g. Sacolinha Amarela Kit)
+  const initialKitItem = useMemo(() => items.find(i => i.dedication || i.customKitData), [items]);
+  const [giftRecipient, setGiftRecipient] = useState(() => initialKitItem?.dedication?.recipient || initialKitItem?.customKitData?.recipient || '');
+  const [giftSender, setGiftSender] = useState(() => initialKitItem?.dedication?.sender || initialKitItem?.customKitData?.sender || '');
+  const [giftMessage, setGiftMessage] = useState(() => initialKitItem?.dedication?.message || initialKitItem?.customKitData?.message || '');
+  const [showDedicationCard, setShowDedicationCard] = useState(() => 
+    Boolean(initialKitItem?.dedication?.message || initialKitItem?.customKitData?.message || items.some(i => i.isGiftWrapped))
+  );
 
   // Cupom de Desconto / Frete Grátis
   const [checkoutCoupon, setCheckoutCoupon] = useState(externalAppliedCoupon || '');
@@ -429,6 +440,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setIsSelfPaymentError(false);
     }
 
+    // Resolve a dedicatória do pedido (seja digitada no checkout, vinda de kit da sacolinha amarela ou das observações)
+    const kitWithDed = items.find(i => i.dedication || i.customKitData);
+    const resolvedDedication = (giftMessage.trim() || giftRecipient.trim())
+      ? {
+          recipient: giftRecipient.trim() || 'Alguém Muito Especial',
+          sender: giftSender.trim() || customerName.trim() || 'Quem te ama',
+          message: giftMessage.trim(),
+          theme: 'Sakura Rosé'
+        }
+      : (kitWithDed?.dedication || (kitWithDed?.customKitData ? {
+          recipient: kitWithDed.customKitData.recipient,
+          sender: kitWithDed.customKitData.sender,
+          message: kitWithDed.customKitData.message,
+          ribbon: kitWithDed.customKitData.selectedRibbon?.name,
+          bag: kitWithDed.customKitData.bagType?.name,
+          theme: 'Sakura Rosé'
+        } : (orderNotes.trim().length > 3 ? {
+          recipient: 'Alguém Muito Especial',
+          sender: customerName.trim() || 'Quem te ama',
+          message: orderNotes.trim(),
+          theme: 'Sakura Rosé'
+        } : undefined)));
+
     // Se o cupom for BRINDE ou o total for zero, finaliza o pedido grátis diretamente sem chamar gateway de pagamento!
     if (isGiftCoupon || finalOrderTotal === 0) {
       const freeGiftOrder: OrderData = {
@@ -450,7 +484,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         shippingCost: 0,
         total: 0,
         hidePrices,
-        notes: orderNotes
+        notes: orderNotes,
+        dedication: resolvedDedication
       };
 
       try {
@@ -558,7 +593,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       shippingCost: finalShippingCost,
       total: finalOrderTotal,
       hidePrices,
-      notes: orderNotes
+      notes: orderNotes,
+      dedication: resolvedDedication
     };
 
     try {
@@ -1377,17 +1413,115 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
 
               {/* Opções de Presente */}
-              <div className="p-3 bg-pink-50/60 rounded-2xl border border-pink-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Gift className="w-4 h-4 text-pink-500" />
-                  <span className="text-xs font-bold text-pink-950">Omitir valores na nota fiscal para presente?</span>
+              <div className="space-y-3">
+                <div className="p-3 bg-pink-50/60 rounded-2xl border border-pink-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Gift className="w-4 h-4 text-pink-500" />
+                    <span className="text-xs font-bold text-pink-950">Omitir valores na nota fiscal para presente?</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={hidePrices}
+                    onChange={(e) => setHidePrices(e.target.checked)}
+                    className="w-4 h-4 text-pink-500 rounded accent-pink-500 cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={hidePrices}
-                  onChange={(e) => setHidePrices(e.target.checked)}
-                  className="w-4 h-4 text-pink-500 rounded accent-pink-500 cursor-pointer"
-                />
+
+                {/* Cartão de Dedicatória e Mensagem de Presente */}
+                <div className="p-4 bg-gradient-to-br from-pink-50/90 via-purple-50/80 to-amber-50/70 rounded-2xl border-2 border-pink-200/90 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-xl bg-pink-200 text-pink-800 flex items-center justify-center font-bold">
+                        <PenTool className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <h5 className="font-['Mali'] text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                          <span>Cartão de Dedicatória Floral (Presente)</span>
+                          <span className="text-[10px] bg-pink-100 text-pink-800 px-2 py-0.2 rounded-full border border-pink-300">
+                            Grátis 💌
+                          </span>
+                        </h5>
+                        <p className="text-[10px] text-slate-500">
+                          Impresso pela loja em cartãozinho perfumado 10x15cm
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowDedicationCard(!showDedicationCard)}
+                      className="text-xs font-bold text-pink-700 hover:text-pink-900 px-2.5 py-1 rounded-xl bg-pink-100/80 hover:bg-pink-200/80 transition-colors cursor-pointer"
+                    >
+                      {showDedicationCard ? 'Recolher' : 'Escrever Mensagem'}
+                    </button>
+                  </div>
+
+                  {showDedicationCard && (
+                    <div className="space-y-3 pt-2 border-t border-pink-200/80 animate-in fade-in">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="text-[11px] font-bold text-purple-900 block mb-1">
+                            Para (Nome de quem vai receber):
+                          </label>
+                          <input
+                            type="text"
+                            value={giftRecipient}
+                            onChange={(e) => setGiftRecipient(e.target.value)}
+                            placeholder="Ex: Beatriz / Filhota amada"
+                            className="w-full px-3 py-1.5 bg-white border border-pink-200 rounded-xl text-xs text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400 placeholder-slate-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-purple-900 block mb-1">
+                            De (Seu nome ou apelido carinhoso):
+                          </label>
+                          <input
+                            type="text"
+                            value={giftSender}
+                            onChange={(e) => setGiftSender(e.target.value)}
+                            placeholder="Ex: Com amor, Mamãe / Dinda"
+                            className="w-full px-3 py-1.5 bg-white border border-pink-200 rounded-xl text-xs text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400 placeholder-slate-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-purple-900 block mb-1">
+                          Mensagem da Dedicatória:
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={giftMessage}
+                          onChange={(e) => setGiftMessage(e.target.value)}
+                          placeholder="Escreva sua mensagem com muito afeto para imprimirmos no cartãozinho..."
+                          className="w-full p-2.5 bg-white border border-pink-200 rounded-xl text-xs text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400 leading-relaxed font-['Comfortaa'] placeholder-slate-400"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[10px] text-pink-700 bg-pink-100/60 p-2 rounded-xl">
+                        <span>🌸</span>
+                        <span>
+                          Sua mensagem será impressa com caligrafia charmosa no cartão floral de presente da Lavistore.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Observações Gerais do Pedido */}
+                <div className="p-3 bg-purple-50/50 rounded-2xl border border-purple-200/80 space-y-1.5">
+                  <label className="text-[11px] font-bold text-purple-900 flex items-center gap-1.5">
+                    <MessageCircle className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Observações para a expedição (opcional):</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    placeholder="Ex: Entregar na portaria, campainha 02, etc."
+                    className="w-full px-3 py-1.5 bg-white border border-purple-200 rounded-xl text-xs text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder-slate-400"
+                  />
+                </div>
               </div>
 
             </div>

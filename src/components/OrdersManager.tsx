@@ -600,6 +600,19 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
             Pendentes
           </button>
 
+          {/* Atalho para Central de Cartões e Dedicatórias */}
+          {onGoToCards && (
+            <button
+              type="button"
+              onClick={onGoToCards}
+              className="px-3 py-1.5 bg-gradient-to-r from-pink-600 via-rose-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+              title="Ir para a Central de Cartões e Dedicatórias de Presente"
+            >
+              <PenTool className="w-3.5 h-3.5 text-pink-200" />
+              <span>💌 Ver Cartões ({counts.dedicationCount})</span>
+            </button>
+          )}
+
           {/* Google Sheets button */}
           <button
             type="button"
@@ -798,6 +811,22 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
 
                     {/* Botão bem visível para abrir / fechar detalhes */}
                     <div className="flex items-center gap-2">
+                      {dedication && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDedicationPrintWindow(dedication);
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-pink-100 hover:bg-pink-200 text-pink-900 border border-pink-300 flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                          title="Imprimir cartão floral de dedicatória (10x15cm) em 1 clique"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-pink-600" />
+                          <span className="hidden sm:inline">Imprimir Cartão</span>
+                          <span className="sm:hidden">Cartão</span>
+                        </button>
+                      )}
+
                       <span className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs ${
                         isExpanded
                           ? 'bg-purple-900 text-amber-300 border border-purple-800'

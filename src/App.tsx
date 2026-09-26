@@ -1093,9 +1093,28 @@ export default function App() {
   };
 
   // Custom Kit Cart Handler
-  const handleAddKitToCart = (customKitProduct: Product) => {
-    handleAddToCart(customKitProduct, 1);
+  const handleAddKitToCart = (customKitProduct: Product, kitMetadata?: any) => {
+    const kitDedication = kitMetadata ? {
+      recipient: kitMetadata.recipient || 'Alguém muito especial',
+      sender: kitMetadata.sender || 'Quem te ama',
+      message: kitMetadata.message || '',
+      theme: 'Sakura Rosé',
+      ribbon: kitMetadata.selectedRibbon?.name,
+      bag: kitMetadata.bagType?.name
+    } : undefined;
+
+    setCartItems(prev => [
+      ...prev,
+      {
+        product: customKitProduct,
+        quantity: 1,
+        isGiftWrapped: true,
+        customKitData: kitMetadata,
+        dedication: kitDedication
+      }
+    ]);
     setIsCartOpen(true);
+    showToast(`🌸 "${customKitProduct.name.slice(0, 30)}..." adicionado à sua sacola!`);
   };
 
   // Favorites Handlers

@@ -848,9 +848,10 @@ app.post('/api/admin/request-password-reset', async (req, res) => {
 
     if (isConfigured && transporter) {
       try {
-        const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@lavistore.com.br';
+        const fromEmail = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || 'no-reply@lavistore.com.br';
+        const fromAddress = fromEmail.includes('<') ? fromEmail : `"Lavistore Presentes" <${fromEmail}>`;
         await transporter.sendMail({
-          from: `"Lavistore Presentes" <${fromEmail}>`,
+          from: fromAddress,
           to: targetEmail,
           subject: `🌸 Lavistore - Código de Recuperação de Senha (${code})`,
           html: `
@@ -1773,14 +1774,61 @@ app.post('/api/shipping/tracking', async (req, res) => {
 let storeOrders: any[] = readStoredOrders();
 
 /**
+ * Normaliza e resolve as credenciais e o host SMTP evitando erros comuns de configuração,
+ * como informar o endereço de e-mail no campo SMTP_HOST (ex: laviniatilapiafc@gmail.com).
+ */
+function resolveSmtpConfig() {
+  const rawHost = process.env.SMTP_HOST?.trim() || '';
+  const user = process.env.SMTP_USER?.trim() || '';
+  const pass = process.env.SMTP_PASS?.trim() || '';
+  let port = Number(process.env.SMTP_PORT) || 587;
+  let secure = process.env.SMTP_SECURE === 'true' || port === 465;
+  let host = rawHost;
+
+  // Se o usuário digitou um endereço de e-mail no campo SMTP_HOST (ex: laviniatilapiafc@gmail.com)
+  if (host.includes('@')) {
+    const domain = host.split('@')[1]?.toLowerCase().trim();
+    if (domain === 'gmail.com' || domain === 'googlemail.com') {
+      host = 'smtp.gmail.com';
+    } else if (domain === 'outlook.com' || domain === 'hotmail.com' || domain === 'live.com') {
+      host = 'smtp-mail.outlook.com';
+      port = 587;
+      secure = false;
+    } else if (domain === 'yahoo.com' || domain === 'yahoo.com.br') {
+      host = 'smtp.mail.yahoo.com';
+    } else if (domain) {
+      host = `smtp.${domain}`;
+    }
+  }
+
+  // Se o host foi informado como "gmail" ou "gmail.com"
+  if (host.toLowerCase() === 'gmail' || host.toLowerCase() === 'gmail.com') {
+    host = 'smtp.gmail.com';
+  }
+
+  // Se o host não foi informado mas o usuário é @gmail.com
+  if (!host && user.toLowerCase().endsWith('@gmail.com')) {
+    host = 'smtp.gmail.com';
+  }
+
+  // Se o host for smtp.gmail.com, ajusta portas padrão recomendadas
+  if (host.toLowerCase() === 'smtp.gmail.com') {
+    if (port !== 465 && port !== 587) {
+      port = 587;
+    }
+    if (port === 465) {
+      secure = true;
+    }
+  }
+
+  return { host, port, secure, user, pass, rawHost };
+}
+
+/**
  * Cria ou obtém o transporter do Nodemailer
  */
 function createMailTransporter() {
-  const host = process.env.SMTP_HOST?.trim();
-  const port = Number(process.env.SMTP_PORT) || 587;
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim();
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+  const { host, port, secure, user, pass } = resolveSmtpConfig();
 
   if (host && user && pass) {
     return {
@@ -1792,14 +1840,23 @@ function createMailTransporter() {
           user,
           pass,
         },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        tls: {
+          rejectUnauthorized: false
+        }
       }),
       isConfigured: true,
+      resolvedHost: host,
+      user
     };
   }
 
   return {
     transporter: null,
     isConfigured: false,
+    resolvedHost: host || null,
+    user: user || null
   };
 }
 
@@ -2179,7 +2236,8 @@ app.post('/api/orders', async (req, res) => {
 
     if (isConfigured && transporter) {
       try {
-        const fromAddress = process.env.SMTP_FROM || `Lavistore <${process.env.SMTP_USER}>`;
+        const rawFrom = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || 'loja@lavistore.com.br';
+        const fromAddress = rawFrom.includes('<') ? rawFrom : `"Lavistore" <${rawFrom}>`;
         const info = await transporter.sendMail({
           from: fromAddress,
           to: storeEmail,
@@ -2415,7 +2473,7 @@ app.delete('/api/newsletter/leads/:id', (req, res) => {
  * Retorna status da configuração de envio de e-mails
  */
 app.get('/api/email/config', (_req, res) => {
-  const { isConfigured } = createMailTransporter();
+  const { isConfigured, resolvedHost } = createMailTransporter();
   const emailCfg = getStoreEmailConfig();
   const storeEmail = process.env.STORE_EMAIL || emailCfg.primaryEmail || '';
   const storeWhatsApp = process.env.STORE_WHATSAPP || '';
@@ -2427,7 +2485,7 @@ app.get('/api/email/config', (_req, res) => {
     storeWhatsApp,
     pagSeguroUrl,
     mode: isConfigured ? 'smtp_active' : 'simulation_ready',
-    smtpHost: process.env.SMTP_HOST || null,
+    smtpHost: resolvedHost || process.env.SMTP_HOST || null,
     smtpUser: process.env.SMTP_USER ? '***' : null
   });
 });
@@ -2475,7 +2533,8 @@ app.post('/api/email/test', async (req, res) => {
     const textContent = generateOrderEmailText(sampleOrder);
 
     if (isConfigured && transporter) {
-      const fromAddress = process.env.SMTP_FROM || `Lavistore <${process.env.SMTP_USER}>`;
+      const rawFrom = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || 'loja@lavistore.com.br';
+      const fromAddress = rawFrom.includes('<') ? rawFrom : `"Lavistore Presentes" <${rawFrom}>`;
       const info = await transporter.sendMail({
         from: fromAddress,
         to: targetEmail,
@@ -3200,7 +3259,8 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
 
     if (isSmtpConfigured && transporter) {
       try {
-        const fromAddress = process.env.SMTP_FROM || `Lavistore <${process.env.SMTP_USER}>`;
+        const rawFrom = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || 'loja@lavistore.com.br';
+        const fromAddress = rawFrom.includes('<') ? rawFrom : `"Lavistore Presentes" <${rawFrom}>`;
         const info = await transporter.sendMail({
           from: fromAddress,
           to: storeEmail,
