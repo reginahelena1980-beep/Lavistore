@@ -558,7 +558,7 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             </h3>
 
             <div className="space-y-4">
-              {renderFieldEditor('catalogTitle', 'Título da Seção de Produtos', 'Título exibido acima do catálogo.', false, 'Nossos Mimos Encantados ✨')}
+              {renderFieldEditor('catalogTitle', 'Título da Seção de Produtos', 'Título exibido acima do catálogo.', false, 'Nossos Mimos ✨')}
               {renderFieldEditor('catalogSubtitle', 'Subtítulo da Seção de Produtos', 'Texto explicativo sobre filtros e estoque.', true, 'Encontre os mimos perfeitos com estoque atualizado em tempo real.')}
             </div>
           </div>

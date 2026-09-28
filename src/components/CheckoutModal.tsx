@@ -758,7 +758,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <Flower2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-['Playfair_Display'] font-bold text-lg text-purple-950">Finalizar Compra Encantada</h3>
+              <h3 className="font-['Playfair_Display'] font-bold text-lg text-purple-950">Finalizar Compra</h3>
               <div className="flex items-center gap-2">
                 <p className="text-[11px] text-purple-600 font-medium">Ambiente 100% Seguro com Criptografia SSL</p>
                 {melhorEnvioStatus && (

@@ -74,7 +74,7 @@ export const GiftCardGenerator: React.FC = () => {
             <span>Dedicatórias & Cartões</span>
           </div>
           <h2 className="font-['Playfair_Display'] text-2xl sm:text-4xl font-bold text-purple-950">
-            Gerador de Dedicatórias Encantadoras
+            Gerador de Dedicatórias
           </h2>
           <p className="font-['Quicksand'] text-sm sm:text-base text-slate-600 font-medium">
             Crie cartões personalizados e mensagens afetuosas para acompanhar seus presentes ou enviar para alguém querido.
