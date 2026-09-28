@@ -8,6 +8,7 @@ import {
   MELHOR_ENVIO_CLIENT_ID,
   MELHOR_ENVIO_SUPPORT_EMAIL,
   MELHOR_ENVIO_USER_AGENT,
+  DEFAULT_MELHOR_ENVIO_TOKEN,
   getStoredTokenData,
   saveTokenData,
   generateOAuthAuthorizeUrl,
@@ -28,6 +29,8 @@ import {
   DEFAULT_MP_PUBLIC_KEY,
   DEFAULT_MP_ACCESS_TOKEN
 } from './mercadoPagoServer';
+import { initializeApp as initFirebaseApp, getApps as getFirebaseApps, getApp as getFirebaseApp } from 'firebase/app';
+import { getFirestore as getServerFirestore, doc as getFsDoc, getDoc as getFsDocSnap, setDoc as setFsDocSnap } from 'firebase/firestore';
 
 /**
  * SERVIDOR EXPRESS LAVISTORE
@@ -61,6 +64,25 @@ const ADMIN_VAULT_FILE = path.join(process.cwd(), 'src', 'data', 'admin_persiste
 const BI_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'bi_records.json');
 const NEWSLETTER_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'newsletter_leads.json');
 const ORDERS_DATA_FILE = path.join(process.cwd(), 'src', 'data', 'orders.json');
+
+// Conexão resiliente do Firebase Firestore no servidor Express para persistência soberana definitiva
+let serverDb: any = null;
+try {
+  const cfgPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(cfgPath)) {
+    const rawCfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
+    if (rawCfg && rawCfg.apiKey && rawCfg.projectId) {
+      const existingApps = getFirebaseApps();
+      const serverApp = existingApps.some(a => a.name === 'lavistore-server')
+        ? getFirebaseApp('lavistore-server')
+        : initFirebaseApp(rawCfg, 'lavistore-server');
+      serverDb = getServerFirestore(serverApp);
+      console.log('[Server Firebase] Firestore conectado no servidor com sucesso para persistência soberana.');
+    }
+  }
+} catch (e: any) {
+  console.warn('[Server Firebase] Inicialização do Firestore no servidor:', e?.message || e);
+}
 
 /**
  * Helper: Gravação atômica segura de arquivos JSON
@@ -231,6 +253,18 @@ function initializePersistentStorage() {
     if (!fs.existsSync(PERSISTENT_NEWSLETTER_FILE) && fs.existsSync(NEWSLETTER_DATA_FILE)) {
       safeWriteJsonFile(PERSISTENT_NEWSLETTER_FILE, safeReadJsonFile(NEWSLETTER_DATA_FILE) || []);
     }
+
+    // 4. Inicializa o token de produção do Melhor Envio no cofre se ainda não estiver gravado
+    const persistentTokenFile = path.join(PERSISTENT_DATA_DIR, 'melhor_envio_token.json');
+    if (!fs.existsSync(persistentTokenFile) && DEFAULT_MELHOR_ENVIO_TOKEN) {
+      safeWriteJsonFile(persistentTokenFile, {
+        access_token: DEFAULT_MELHOR_ENVIO_TOKEN,
+        token_type: 'Bearer',
+        updated_at: new Date().toISOString(),
+        source: 'manual'
+      });
+      console.log('[Storage] Token de produção do Melhor Envio inicializado com sucesso.');
+    }
   } catch (err: any) {
     console.error('[Storage] Erro na inicialização do armazenamento persistente:', err.message);
   }
@@ -335,7 +369,7 @@ app.get('/api/admin/settings', (_req, res) => {
  * POST /api/admin/settings
  * Salva as configurações administrativas blindando contra qualquer deploy futuro
  */
-app.post('/api/admin/settings', (req, res) => {
+app.post('/api/admin/settings', async (req, res) => {
   try {
     const incoming = req.body;
     if (!incoming || typeof incoming !== 'object') {
@@ -382,6 +416,16 @@ app.post('/api/admin/settings', (req, res) => {
     safeWriteJsonFile(STORE_DATA_FILE, updatedStore);
     safeWriteJsonFile(ADMIN_VAULT_FILE, updatedSettings);
 
+    // Grava também no Firestore para persistência global entre usuários
+    if (serverDb) {
+      try {
+        const docRef = getFsDoc(serverDb, 'settings', 'store_config');
+        await setFsDocSnap(docRef, updatedSettings, { merge: true });
+      } catch (fsErr: any) {
+        console.warn('[Server Firebase] Aviso ao sincronizar settings no Firestore:', fsErr?.message);
+      }
+    }
+
     console.log(`[Admin Settings] Configurações blindadas com sucesso em ${now}`);
 
     return res.json({
@@ -399,7 +443,7 @@ app.post('/api/admin/settings', (req, res) => {
  * Retorna as fotos, produtos, frases e configurações salvas para publicação oficial.
  * As configurações administrativas blindadas SEMPRE têm prioridade absoluta.
  */
-app.get('/api/store/data', (_req, res) => {
+app.get('/api/store/data', async (_req, res) => {
   try {
     let finalData = safeReadJsonFile(PERSISTENT_STORE_FILE)
       || safeReadJsonFile(STORE_DATA_FILE)
@@ -407,6 +451,27 @@ app.get('/api/store/data', (_req, res) => {
 
     const adminSettings = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE)
       || safeReadJsonFile(ADMIN_VAULT_FILE);
+
+    // Consulta soberana no Firestore para garantir persistência mesmo em novos deploys e múltiplos containers
+    if (serverDb) {
+      try {
+        const docRef = getFsDoc(serverDb, 'settings', 'store_config');
+        const snap = await getFsDocSnap(docRef);
+        if (snap.exists()) {
+          const cloudData = snap.data();
+          if (cloudData && (Array.isArray(cloudData.products) || cloudData.homePageConfig || cloudData.heroConfig)) {
+            finalData = {
+              ...(finalData || {}),
+              ...cloudData,
+              isLockedByAdmin: true
+            };
+            console.log('[Server Firebase] Dados soberanos da loja recuperados do Firestore com sucesso!');
+          }
+        }
+      } catch (cloudErr: any) {
+        console.warn('[Server Firebase] Aviso ao ler dados do Firestore:', cloudErr?.message);
+      }
+    }
 
     if (finalData) {
       const isLocked = Boolean(adminSettings?.isLockedByAdmin || finalData?.isLockedByAdmin);
@@ -473,7 +538,7 @@ app.get('/api/admin/vault', (_req, res) => {
  * POST /api/admin/vault
  * Grava atomicamente o cofre protegido do Administrador em persistent_data e src/data
  */
-app.post('/api/admin/vault', (req, res) => {
+app.post('/api/admin/vault', async (req, res) => {
   try {
     const vault = req.body;
     if (!vault || typeof vault !== 'object') {
@@ -497,6 +562,17 @@ app.post('/api/admin/vault', (req, res) => {
       safeWriteJsonFile(BI_DATA_FILE, vault.biRecords);
     }
 
+    // Grava também no Firestore para persistência global entre usuários
+    if (serverDb) {
+      try {
+        const docRef = getFsDoc(serverDb, 'settings', 'store_config');
+        await setFsDocSnap(docRef, vaultWithMeta, { merge: true });
+        console.log(`[Server Firebase] Cofre do administrador gravado no Firestore (${now})`);
+      } catch (fsErr: any) {
+        console.warn('[Server Firebase] Aviso ao gravar cofre no Firestore:', fsErr?.message);
+      }
+    }
+
     return res.json({
       success: true,
       message: 'Cofre do Administrador travado e protegido contra qualquer deploy!',
@@ -514,7 +590,7 @@ app.post('/api/admin/vault', (req, res) => {
  * para que fiquem disponíveis para qualquer visitante no site publicado.
  * NUNCA descarta campos editados pelo Administrador.
  */
-app.post('/api/store/sync', (req, res) => {
+app.post('/api/store/sync', async (req, res) => {
   try {
     const { products, heroConfig, homePageConfig, categories, reviews, coupons, filterBarConfig, bagTypes, ribbonOptions, biRecords } = req.body;
 
@@ -605,6 +681,17 @@ app.post('/api/store/sync', (req, res) => {
     if (Array.isArray(biRecords) && biRecords.length > 0) {
       safeWriteJsonFile(PERSISTENT_BI_FILE, biRecords);
       safeWriteJsonFile(BI_DATA_FILE, biRecords);
+    }
+
+    // Grava atomicamente no Firestore na nuvem para persistência permanente entre todos os dispositivos e usuários
+    if (serverDb) {
+      try {
+        const docRef = getFsDoc(serverDb, 'settings', 'store_config');
+        await setFsDocSnap(docRef, payloadToSave, { merge: true });
+        console.log(`[Server Firebase] Configurações da loja persistidas com sucesso no Firestore na nuvem (${now})`);
+      } catch (fsErr: any) {
+        console.warn('[Server Firebase] Aviso ao gravar Firestore:', fsErr?.message);
+      }
     }
 
     console.log(`[Store Data] Loja sincronizada com sucesso e blindada contra deploys (${now})`);
@@ -1631,6 +1718,66 @@ app.post('/api/shipping/oauth/token', async (req, res) => {
     });
   } catch (err: any) {
     return res.status(400).json({ error: 'Falha ao trocar código por token', details: err.message });
+  }
+});
+
+/**
+ * POST /api/shipping/oauth/client-credentials
+ * Endpoint que faz requisição fetch para https://www.melhorenvio.com.br/oauth/token
+ * utilizando grant_type client_credentials e credenciais de produção
+ */
+app.post('/api/shipping/oauth/client-credentials', async (req, res) => {
+  try {
+    const payload = {
+      grant_type: 'client_credentials',
+      client_id: 30288,
+      client_secret: 'NbUeUvisVNkpPZCd2k7bSh79IOPeQSMPvJJwslzO',
+      scope: 'shipping-calculate shipping-checkout shipping-companies'
+    };
+
+    console.log('[Melhor Envio] Testando geração de token via client_credentials...');
+    const response = await fetch('https://www.melhorenvio.com.br/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Lavistore Kids (estilobeeadm@gmail.com)'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const status = response.status;
+    let data: any = {};
+    try {
+      data = await response.json();
+    } catch {
+      data = { raw: await response.text().catch(() => '') };
+    }
+
+    // Se tiver retornado access_token com sucesso, podemos até salvar opcionalmente ou devolver
+    if (response.ok && data?.access_token) {
+      saveTokenData({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        token_type: data.token_type || 'Bearer',
+        expires_in: data.expires_in,
+        expires_at: data.expires_in ? Date.now() + (data.expires_in * 1000) : undefined,
+        scope: data.scope,
+        source: 'oauth'
+      });
+    }
+
+    return res.status(status).json({
+      success: response.ok,
+      status,
+      data
+    });
+  } catch (err: any) {
+    console.error('[Melhor Envio] Erro na requisição client-credentials:', err);
+    return res.status(500).json({
+      success: false,
+      error: err.message || 'Erro ao conectar à API do Melhor Envio'
+    });
   }
 });
 

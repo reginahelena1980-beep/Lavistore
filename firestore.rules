@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Configurações da loja (catálogo, produtos, banner, textos, frases, rodapé)
+    // Leitura pública irrestrita para que todos os clientes vejam as atualizações em tempo real
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Pedidos realizados pelos clientes
+    match /orders/{orderId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if true;
+    }
+
+    // Inscrições na newsletter
+    match /newsletter_leads/{leadId} {
+      allow read: if true;
+      allow create: if true;
+      allow delete: if true;
+    }
+
+    // Registros de BI Financeiro
+    match /bi_records/{recordId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Regra padrão de contingência
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

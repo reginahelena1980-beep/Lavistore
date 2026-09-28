@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "StoreConfig": {
+      "title": "Store Configuration",
+      "description": "Configurações soberanas da loja Lavistore (produtos, textos, categorias, banners e blindagem)",
+      "type": "object",
+      "properties": {
+        "isLockedByAdmin": { "type": "boolean" },
+        "lastAdminSavedAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "products": { "type": "array" },
+        "homePageConfig": { "type": "object" },
+        "heroConfig": { "type": "object" },
+        "categories": { "type": "array" },
+        "coupons": { "type": "array" },
+        "bagTypes": { "type": "array" },
+        "ribbonOptions": { "type": "array" },
+        "filterBarConfig": { "type": "object" },
+        "reviews": { "type": "array" }
+      }
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Pedidos dos clientes da loja",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "NewsletterLead": {
+      "title": "Newsletter Lead",
+      "description": "Inscrições na newsletter da loja",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/settings/{settingId}": {
+      "schema": "StoreConfig",
+      "description": "Armazena as configurações globais e catálogo da loja"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Pedidos dos clientes da loja"
+    },
+    "/newsletter_leads/{leadId}": {
+      "schema": "NewsletterLead",
+      "description": "Leads do Clube de Mimos"
+    }
+  }
+}

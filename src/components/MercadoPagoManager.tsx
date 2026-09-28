@@ -234,7 +234,7 @@ export const MercadoPagoManager: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="text-sky-300 font-medium block">Public Key (Produção)</span>
               <button
-                onClick={() => handleCopy(data?.publicKey || 'APP_USR-3d4386ef-56c9-4327-8ca6-ccee96d68b27', 'publicKey')}
+                onClick={() => handleCopy(data?.publicKey || '', 'publicKey')}
                 className="text-sky-400 hover:text-white"
                 title="Copiar Public Key"
               >
@@ -481,7 +481,7 @@ export const MercadoPagoManager: React.FC = () => {
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-slate-500 block text-[11px]">Chave Pública Ativa:</span>
               <span className="font-mono text-slate-800 font-bold block truncate mt-0.5">
-                {data?.publicKey || 'APP_USR-3d4386ef-56c9-4327-8ca6-ccee96d68b27'}
+                {data?.publicKey || 'Configurada nas Credenciais de Produção'}
               </span>
             </div>
 

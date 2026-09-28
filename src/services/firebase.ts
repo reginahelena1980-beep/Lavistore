@@ -9,13 +9,19 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import firebaseAppletConfig from '../../firebase-applet-config.json';
 
 let appInstance: FirebaseApp | null = null;
 let firestoreInstance: Firestore | null = null;
 let isConfigured = false;
 
 function resolveFirebaseConfig() {
-  // 1. Tentar ler de variáveis de ambiente Vite
+  // 1. Tentar ler do arquivo oficial provisionado firebase-applet-config.json
+  if (firebaseAppletConfig && (firebaseAppletConfig as any).apiKey && (firebaseAppletConfig as any).projectId) {
+    return firebaseAppletConfig;
+  }
+
+  // 2. Tentar ler de variáveis de ambiente Vite
   const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
   const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
 

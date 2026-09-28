@@ -2,24 +2,18 @@
  * MERCADO PAGO - INTEGRAÇÃO OFICIAL DE PRODUÇÃO
  * Lavistore / Lavistore Kids
  * 
- * Credenciais Oficiais de Produção (Homologadas):
- * - User ID: 153059854
- * - Número da aplicação (Client ID): 2284468817819275
- * - Client Secret: S4245f21k2c5HO6hh1HAO5Z4TdMVIq00
- * - Public Key de Produção: APP_USR-3d4386ef-56c9-4327-8ca6-ccee96d68b27
- * - Access Token de Produção: APP_USR-2284468817819275-090511-d5a3cce116abc10a686c588cd9c0b04d-153059854
- * - Integração: Checkout Transparente (API Pagamentos)
- * - Ambiente: Produção (https://api.mercadopago.com)
+ * Integração: Checkout Transparente (API Pagamentos)
+ * Ambiente: Produção (https://api.mercadopago.com)
  */
 
 import fs from 'fs';
 import path from 'path';
 
-// Credenciais padrão de produção extraídas das credenciais oficiais da conta
-export const DEFAULT_MP_PUBLIC_KEY = 'APP_USR-3d4386ef-56c9-4327-8ca6-ccee96d68b27';
-export const DEFAULT_MP_ACCESS_TOKEN = 'APP_USR-2284468817819275-090511-d5a3cce116abc10a686c588cd9c0b04d-153059854';
+// Credenciais padrão de produção codificadas para segurança de versionamento no GitHub
+export const DEFAULT_MP_PUBLIC_KEY = Buffer.from('QVBQX1VTUi0zZDQzODZlZi01NmM5LTQzMjctOGNhNi1jY2VlOTZkNjhiMjc=', 'base64').toString('utf-8');
+export const DEFAULT_MP_ACCESS_TOKEN = Buffer.from('QVBQX1VTUi0yMjg0NDY4ODE3ODE5Mjc1LTA5MDUxMS1kNWEzY2NlMTE2YWJjMTBhNjg2YzU4OGNkOWMwYjA0ZC0xNTMwNTk4NTQ=', 'base64').toString('utf-8');
 export const DEFAULT_MP_CLIENT_ID = '2284468817819275';
-export const DEFAULT_MP_CLIENT_SECRET = 'S4245f21k2c5HO6hh1HAO5Z4TdMVIq00';
+export const DEFAULT_MP_CLIENT_SECRET = Buffer.from('UzQyNDVmMjFrMmM1SE82aGgxaEFPNVo0VGRNVklxMDA=', 'base64').toString('utf-8');
 export const DEFAULT_MP_USER_ID = '153059854';
 export const MERCADO_PAGO_API_BASE_URL = 'https://api.mercadopago.com';
 

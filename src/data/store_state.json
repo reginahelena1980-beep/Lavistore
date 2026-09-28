@@ -1,5 +1,6 @@
 {
-  "updatedAt": "2026-09-22T21:20:29.578Z",
+  "updatedAt": "2026-09-28T14:31:44.495Z",
+  "lastAdminSavedAt": "2026-09-28T14:31:44.495Z",
   "isLockedByAdmin": true,
   "adminPassword": "1234",
   "adminPasswordChanged": false,
@@ -202,7 +203,7 @@
   },
   "homePageConfig": {
     "announcementText": "Frete Grátis para todo o Brasil para compras acima de R$ 150.00",
-    "announcementCoupon": "PRIMEIRACOMPRA",
+    "announcementCoupon": "",
     "showAnnouncement": true,
     "heroBadge": {
       "text": "Presentes & Mimos Criativos 🌸",
@@ -309,7 +310,7 @@
       "isBold": true
     },
     "promoDescription": {
-      "text": "Escolha a sacolinha amarela exclusiva, selecione os mimos favoritos, adicione uma dedicatória e ganhe 10% de desconto no combo!",
+      "text": "Escolha a sacolinha amarela exclusiva, selecione os mimos favoritos, adicione uma dedicatória e encante quem você ama!",
       "fontSize": "sm",
       "isBold": false
     },
@@ -340,7 +341,7 @@
       "isBold": true
     },
     "newsletterTitle": {
-      "text": "Ganhe 10% OFF na sua primeira compra! 🌸",
+      "text": "Receba novidades e lançamentos exclusivos! 🌸",
       "fontSize": "2xl",
       "isBold": true
     },
@@ -602,6 +603,5 @@
       "priceDesc": true,
       "nameAsc": true
     }
-  },
-  "lastAdminSavedAt": "2026-09-22T21:20:29.578Z"
+  }
 }

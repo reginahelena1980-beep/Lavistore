@@ -65,6 +65,19 @@ import { appendOrderToSpreadsheet, getStoredSheetsConfig, updateUserInitialSprea
 
 const TEST_PRODUCT_IDS = new Set(['lav-74750', 'lav-15329', 'lav-03352', 'lav-01', 'lav-02']);
 
+const DEFAULT_HERO_CONFIG: HeroConfig = {
+  image: defaultHeroImg,
+  badge: "Presentes Criativos & Mimos com Amor 🌸",
+  title: "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
+  subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+  imageFit: 'cover',
+  imageScale: 100,
+  imagePosition: 'center',
+  imagePositionX: 50,
+  imagePositionY: 50,
+  bannerHeight: 'medium'
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('catalog');
   const [selectedCategory, setSelectedCategory] = useState('todos');
@@ -99,12 +112,16 @@ export default function App() {
     try {
       const vault = getLocalAdminVault();
       if (vault?.homePageConfig) {
-        return mergeHomePageConfigSafely(vault.homePageConfig, DEFAULT_HOME_PAGE_CONFIG);
+        const merged = mergeHomePageConfigSafely(vault.homePageConfig, DEFAULT_HOME_PAGE_CONFIG);
+        if (merged.announcementCoupon === 'PRIMEIRACOMPRA') merged.announcementCoupon = '';
+        return merged;
       }
       const saved = localStorage.getItem('lavistore_home_page_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        return mergeHomePageConfigSafely(parsed, DEFAULT_HOME_PAGE_CONFIG);
+        const merged = mergeHomePageConfigSafely(parsed, DEFAULT_HOME_PAGE_CONFIG);
+        if (merged.announcementCoupon === 'PRIMEIRACOMPRA') merged.announcementCoupon = '';
+        return merged;
       }
     } catch (e) {
       console.error(e);
@@ -123,34 +140,22 @@ export default function App() {
 
   // Hero Banner Customization State (Persisted in localStorage & Admin Vault)
   const [heroConfig, setHeroConfig] = useState<HeroConfig>(() => {
-    const defaultHero: HeroConfig = {
-      image: defaultHeroImg,
-      badge: "",
-      title: "",
-      subtitle: "",
-      imageFit: 'cover',
-      imageScale: 100,
-      imagePosition: 'center',
-      imagePositionX: 50,
-      imagePositionY: 50,
-      bannerHeight: 'medium'
-    };
     try {
       const vault = getLocalAdminVault();
       if (vault?.heroConfig) {
-        return mergeHeroConfigSafely(vault.heroConfig, defaultHero);
+        return mergeHeroConfigSafely(vault.heroConfig, DEFAULT_HERO_CONFIG);
       }
       const saved = localStorage.getItem('lavistore_hero_config');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.title) {
-          return mergeHeroConfigSafely(parsed, defaultHero);
+          return mergeHeroConfigSafely(parsed, DEFAULT_HERO_CONFIG);
         }
       }
     } catch (e) {
       console.error(e);
     }
-    return mergeHeroConfigSafely(storeState.heroConfig as unknown as HeroConfig, defaultHero);
+    return mergeHeroConfigSafely(storeState.heroConfig as unknown as HeroConfig, DEFAULT_HERO_CONFIG);
   });
 
   // Filter Bar Configuration State (Price & Sort, Persisted in localStorage)
@@ -586,101 +591,144 @@ export default function App() {
           // Se veio da API Express/servidor, avalia se o cofre local possui versão mais recente.
           const preferLocal = isFromFirestore ? false : shouldPreferLocalAdminVault(localVault, d);
 
-            // 1. PRODUTOS: Mesclagem segura garantindo que nenhuma edição do admin seja perdida
-            const serverProducts: Product[] = Array.isArray(d.products) ? d.products : [];
-            let localProds: Product[] = [];
-            if (localVault?.products && Array.isArray(localVault.products) && localVault.products.length > 0) {
-              localProds = localVault.products;
-            } else {
-              try {
-                const raw = localStorage.getItem('lavistore_products') || localStorage.getItem('lavistore_products_safety_backup');
-                if (raw) localProds = JSON.parse(raw);
-              } catch {}
-            }
+          // 1. PRODUTOS: Se preferLocal for false (novo dispositivo/visitante ou Firestore soberano),
+          // os produtos do servidor/Firestore têm autoridade máxima absoluta.
+          const serverProducts: Product[] = Array.isArray(d.products) ? d.products : [];
+          let localProds: Product[] = [];
+          if (localVault?.products && Array.isArray(localVault.products) && localVault.products.length > 0) {
+            localProds = localVault.products;
+          }
 
-            const rawFinalProducts = mergeProductsSafely(
-              localProds.length > 0 ? localProds : serverProducts,
-              serverProducts
-            );
+          let rawFinalProducts: Product[] = [];
+          if (preferLocal && localProds.length > 0) {
+            rawFinalProducts = mergeProductsSafely(localProds, serverProducts);
+          } else if (serverProducts.length > 0) {
+            rawFinalProducts = serverProducts;
+          } else if (localProds.length > 0) {
+            rawFinalProducts = localProds;
+          } else {
+            rawFinalProducts = PRODUCTS;
+          }
 
-            // Filtra produtos de teste garantindo apenas os produtos e mimos reais da loja
-            const finalProducts = rawFinalProducts.filter(p => {
-              if (!p || !p.name) return false;
-              const lowerName = p.name.toLowerCase();
-              const lowerId = (p.id || '').toLowerCase();
-              return !lowerName.includes('teste') && !TEST_PRODUCT_IDS.has(lowerId);
-            });
+          // Filtra produtos de teste garantindo apenas os produtos e mimos reais da loja
+          const finalProducts = rawFinalProducts.filter(p => {
+            if (!p || !p.name) return false;
+            const lowerName = p.name.toLowerCase();
+            const lowerId = (p.id || '').toLowerCase();
+            return !lowerName.includes('teste') && !TEST_PRODUCT_IDS.has(lowerId);
+          });
 
-            if (finalProducts.length > 0) {
-              setProducts(finalProducts);
-              safeSetItem('lavistore_products', JSON.stringify(finalProducts));
-            }
+          if (finalProducts.length > 0) {
+            setProducts(finalProducts);
+            safeSetItem('lavistore_products', JSON.stringify(finalProducts));
+          }
 
-            // 2. HOMEPAGE CONFIG (Cabeçalho, Rodapé, Contato, Frases, WhatsApp, E-mail, Selos)
-            const primaryHome = preferLocal 
-              ? (localVault?.homePageConfig || homePageConfig) 
-              : (d.homePageConfig || localVault?.homePageConfig || homePageConfig);
-            const finalHome = mergeHomePageConfigSafely(primaryHome, d.homePageConfig);
-            setHomePageConfig(finalHome);
-            safeSetItem('lavistore_home_page_config', JSON.stringify(finalHome));
+          // 2. HOMEPAGE CONFIG (Cabeçalho, Rodapé, Contato, Frases, WhatsApp, E-mail, Selos)
+          let finalHome: HomePageConfig;
+          if (preferLocal && localVault?.homePageConfig) {
+            finalHome = mergeHomePageConfigSafely(localVault.homePageConfig, d.homePageConfig);
+          } else if (d.homePageConfig) {
+            finalHome = mergeHomePageConfigSafely(d.homePageConfig, DEFAULT_HOME_PAGE_CONFIG);
+          } else {
+            finalHome = localVault?.homePageConfig || homePageConfig;
+          }
+          if (finalHome.announcementCoupon === 'PRIMEIRACOMPRA') {
+            finalHome.announcementCoupon = '';
+          }
+          setHomePageConfig(finalHome);
+          safeSetItem('lavistore_home_page_config', JSON.stringify(finalHome));
 
-            // 3. HERO BANNER
-            const primaryHero = preferLocal
-              ? (localVault?.heroConfig || heroConfig)
-              : (d.heroConfig || localVault?.heroConfig || heroConfig);
-            const finalHero = mergeHeroConfigSafely(primaryHero, d.heroConfig);
-            setHeroConfig(finalHero);
-            safeSetItem('lavistore_hero_config', JSON.stringify(finalHero));
+          // 3. HERO BANNER
+          let finalHero: HeroConfig;
+          if (preferLocal && localVault?.heroConfig) {
+            finalHero = mergeHeroConfigSafely(localVault.heroConfig, d.heroConfig);
+          } else if (d.heroConfig) {
+            finalHero = mergeHeroConfigSafely(d.heroConfig, DEFAULT_HERO_CONFIG);
+          } else {
+            finalHero = localVault?.heroConfig || heroConfig;
+          }
+          setHeroConfig(finalHero);
+          safeSetItem('lavistore_hero_config', JSON.stringify(finalHero));
 
-            // 4. CATEGORIAS
-            const primaryCats = preferLocal
-              ? (localVault?.categories || categories)
-              : (d.categories || localVault?.categories || categories);
-            const finalCats = mergeCategoriesSafely(primaryCats, d.categories || []);
-            setCategories(finalCats);
-            safeSetItem('lavistore_categories', JSON.stringify(finalCats));
+          // 4. CATEGORIAS
+          let finalCats: Category[];
+          if (preferLocal && localVault?.categories && localVault.categories.length > 0) {
+            finalCats = mergeCategoriesSafely(localVault.categories, d.categories || []);
+          } else if (Array.isArray(d.categories) && d.categories.length > 0) {
+            finalCats = d.categories;
+          } else {
+            finalCats = localVault?.categories || categories;
+          }
+          setCategories(finalCats);
+          safeSetItem('lavistore_categories', JSON.stringify(finalCats));
 
-            // 5. CUPONS
-            const primaryCoupons = preferLocal
-              ? (localVault?.coupons || coupons)
-              : (d.coupons || localVault?.coupons || coupons);
-            const finalCoupons = mergeCouponsSafely(primaryCoupons, d.coupons || []);
-            setCoupons(finalCoupons);
-            safeSetItem('lavistore_coupons', JSON.stringify(finalCoupons));
+          // 5. CUPONS
+          let finalCoupons: Coupon[];
+          if (preferLocal && localVault?.coupons && localVault.coupons.length > 0) {
+            finalCoupons = mergeCouponsSafely(localVault.coupons, d.coupons || []);
+          } else if (Array.isArray(d.coupons) && d.coupons.length > 0) {
+            finalCoupons = d.coupons;
+          } else {
+            finalCoupons = localVault?.coupons || coupons;
+          }
+          setCoupons(finalCoupons);
+          safeSetItem('lavistore_coupons', JSON.stringify(finalCoupons));
 
-            // 6. SACOLINHAS (Embalagens)
-            const primaryBags = preferLocal
-              ? (localVault?.bagTypes || bagTypes)
-              : (d.bagTypes || localVault?.bagTypes || bagTypes);
-            const finalBags = mergeBagTypesSafely(primaryBags, d.bagTypes || []);
-            setBagTypes(finalBags);
-            safeSetItem('lavistore_bag_types', JSON.stringify(finalBags));
+          // 6. SACOLINHAS (Embalagens)
+          let finalBags: BagType[];
+          if (preferLocal && localVault?.bagTypes && localVault.bagTypes.length > 0) {
+            finalBags = mergeBagTypesSafely(localVault.bagTypes, d.bagTypes || []);
+          } else if (Array.isArray(d.bagTypes) && d.bagTypes.length > 0) {
+            finalBags = d.bagTypes;
+          } else {
+            finalBags = localVault?.bagTypes || bagTypes;
+          }
+          setBagTypes(finalBags);
+          safeSetItem('lavistore_bag_types', JSON.stringify(finalBags));
 
-            // 7. FITAS
-            const primaryRibbons = preferLocal
-              ? (localVault?.ribbonOptions || ribbonOptions)
-              : (d.ribbonOptions || localVault?.ribbonOptions || ribbonOptions);
-            const finalRibbons = mergeRibbonOptionsSafely(primaryRibbons, d.ribbonOptions || []);
-            setRibbonOptions(finalRibbons);
-            safeSetItem('lavistore_ribbon_options', JSON.stringify(finalRibbons));
+          // 7. FITAS
+          let finalRibbons: RibbonOption[];
+          if (preferLocal && localVault?.ribbonOptions && localVault.ribbonOptions.length > 0) {
+            finalRibbons = mergeRibbonOptionsSafely(localVault.ribbonOptions, d.ribbonOptions || []);
+          } else if (Array.isArray(d.ribbonOptions) && d.ribbonOptions.length > 0) {
+            finalRibbons = d.ribbonOptions;
+          } else {
+            finalRibbons = localVault?.ribbonOptions || ribbonOptions;
+          }
+          setRibbonOptions(finalRibbons);
+          safeSetItem('lavistore_ribbon_options', JSON.stringify(finalRibbons));
 
-            // 8. FILTROS
-            const finalFilters = {
-              ...DEFAULT_FILTER_BAR_CONFIG,
-              ...(d.filterBarConfig || {}),
-              ...((preferLocal ? localVault?.filterBarConfig : {}) || {})
-            };
-            setFilterBarConfig(finalFilters);
-            safeSetItem('lavistore_filter_bar_config', JSON.stringify(finalFilters));
+          // 8. FILTROS
+          const finalFilters: FilterBarConfig = (preferLocal && localVault?.filterBarConfig)
+            ? { ...DEFAULT_FILTER_BAR_CONFIG, ...(d.filterBarConfig || {}), ...localVault.filterBarConfig }
+            : (d.filterBarConfig ? { ...DEFAULT_FILTER_BAR_CONFIG, ...d.filterBarConfig } : (localVault?.filterBarConfig || filterBarConfig));
+          setFilterBarConfig(finalFilters);
+          safeSetItem('lavistore_filter_bar_config', JSON.stringify(finalFilters));
 
-            // 9. DEPOIMENTOS
-            if (Array.isArray(d.reviews) && d.reviews.length > 0) {
-              setReviews(d.reviews);
-              safeSetItem('lavistore_reviews', JSON.stringify(d.reviews));
-            }
+          // 9. DEPOIMENTOS
+          if (Array.isArray(d.reviews) && d.reviews.length > 0) {
+            setReviews(d.reviews);
+            safeSetItem('lavistore_reviews', JSON.stringify(d.reviews));
+          }
 
-            // Atualiza o cofre local consolidado com as configurações protegidas
-            saveLocalAdminVault({
+          // Atualiza o cofre local consolidado com as configurações protegidas
+          saveLocalAdminVault({
+            products: finalProducts,
+            homePageConfig: finalHome,
+            heroConfig: finalHero,
+            categories: finalCats,
+            coupons: finalCoupons,
+            bagTypes: finalBags,
+            ribbonOptions: finalRibbons,
+            filterBarConfig: finalFilters
+          });
+
+          // Se o cofre local continha edições administrativas que o servidor ainda não possuía
+          // (ex: deploy recente que subiu com arquivos padrão ou servidor recém-reiniciado),
+          // RE-SINCRONIZA IMEDIATAMENTE O SERVIDOR PARA BLINDAR A BASE DE DADOS!
+          if (preferLocal) {
+            console.log('🛡️ [Admin Shield] Re-hidratando e blindando o servidor com as configurações do Administrador...');
+            handlePublishToServer({
               products: finalProducts,
               homePageConfig: finalHome,
               heroConfig: finalHero,
@@ -689,26 +737,10 @@ export default function App() {
               bagTypes: finalBags,
               ribbonOptions: finalRibbons,
               filterBarConfig: finalFilters
-            });
-
-            // Se o cofre local continha edições administrativas que o servidor ainda não possuía
-            // (ex: deploy recente que subiu com arquivos padrão ou servidor recém-reiniciado),
-            // RE-SINCRONIZA IMEDIATAMENTE O SERVIDOR PARA BLINDAR A BASE DE DADOS!
-            if (preferLocal) {
-              console.log('🛡️ [Admin Shield] Re-hidratando e blindando o servidor com as configurações do Administrador...');
-              handlePublishToServer({
-                products: finalProducts,
-                homePageConfig: finalHome,
-                heroConfig: finalHero,
-                categories: finalCats,
-                coupons: finalCoupons,
-                bagTypes: finalBags,
-                ribbonOptions: finalRibbons,
-                filterBarConfig: finalFilters
-              }, false);
-            }
-            return;
+            }, false);
           }
+          return;
+        }
       } catch (err) {
         console.warn('Store sync initialization notice:', err);
       } finally {
@@ -1463,7 +1495,7 @@ export default function App() {
                     <Flower2 className="w-5 h-5 text-amber-500 fill-amber-300 shrink-0" />
                     <h2 className={`font-['Mali'] text-purple-950 ${getFontSizeClass(homePageConfig.catalogTitle?.fontSize, '2xl')} ${getFontWeightClass(homePageConfig.catalogTitle?.isBold, true)}`}>
                       {selectedCategory === 'todos' 
-                        ? (homePageConfig.catalogTitle?.text || 'Nossos Mimos Encantados ✨')
+                        ? (homePageConfig.catalogTitle?.text || 'Nossos Mimos ✨')
                         : (categories.find(c => c.id === selectedCategory)
                             ? `${categories.find(c => c.id === selectedCategory)?.icon} ${categories.find(c => c.id === selectedCategory)?.name}`
                             : 'Mimos Selecionados')}
@@ -1552,7 +1584,7 @@ export default function App() {
                   </h3>
 
                   <p className={`font-['Comfortaa'] text-purple-900 max-w-lg leading-relaxed ${getFontSizeClass(homePageConfig.promoDescription?.fontSize, 'xs')} ${getFontWeightClass(homePageConfig.promoDescription?.isBold, false)}`}>
-                    {homePageConfig.promoDescription?.text || 'Nossas sacolinhas amarelas exclusivas com laço de cetim, mimos favoritos selecionados, cheirinho doce artesanal e dedicatória com 10% de desconto!'}
+                    {homePageConfig.promoDescription?.text || 'Nossas sacolinhas amarelas exclusivas com laço de cetim, mimos favoritos selecionados, cheirinho doce artesanal e dedicatória para encantar!'}
                   </p>
                 </div>
 
@@ -2182,11 +2214,13 @@ export default function App() {
         onClose={() => setIsCategoryEditorOpen(false)}
         onSave={(newCategories) => {
           setCategories(newCategories);
-          showToast('🏷️ Categorias salvas e atualizadas no rodapé com sucesso!');
+          handlePublishToServer({ categories: newCategories }, false);
+          showToast('🏷️ Categorias salvas e atualizadas no servidor com sucesso!');
         }}
         onResetToDefault={() => {
           setCategories(DEFAULT_CATEGORIES);
-          showToast('🔄 Categorias restauradas para o padrão!');
+          handlePublishToServer({ categories: DEFAULT_CATEGORIES }, false);
+          showToast('🔄 Categorias restauradas para o padrão original!');
         }}
       />
 
@@ -2206,15 +2240,15 @@ export default function App() {
           currentValue={homePageConfig[activeEditingField.fieldKey] ?? { text: '', fontSize: 'base', isBold: false }}
           onClose={() => setActiveEditingField(null)}
           onSave={(fKey, updated) => {
-            setHomePageConfig(prev => {
-              const currentVal = prev[fKey];
-              const isStringField = typeof currentVal === 'string' || fKey === 'footerCreditsText';
-              return {
-                ...prev,
-                [fKey]: isStringField ? updated.text : updated
-              };
-            });
-            showToast(`✏️ Campo "${activeEditingField?.label}" atualizado com sucesso!`);
+            const currentVal = homePageConfig[fKey];
+            const isStringField = typeof currentVal === 'string' || fKey === 'footerCreditsText';
+            const updatedConfig = {
+              ...homePageConfig,
+              [fKey]: isStringField ? updated.text : updated
+            };
+            setHomePageConfig(updatedConfig);
+            handlePublishToServer({ homePageConfig: updatedConfig }, false);
+            showToast(`✏️ Campo "${activeEditingField?.label}" salvo no servidor com sucesso!`);
           }}
         />
       )}

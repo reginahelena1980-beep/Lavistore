@@ -55,6 +55,15 @@ export const MelhorEnvioManager: React.FC = () => {
   const [trackingResult, setTrackingResult] = useState<any>(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
 
+  // Estados para teste direto de token via client_credentials
+  const [testingCredentials, setTestingCredentials] = useState(false);
+  const [credentialsTestResult, setCredentialsTestResult] = useState<{
+    status: number;
+    success: boolean;
+    data: any;
+    token?: string;
+  } | null>(null);
+
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Carrega configurações
@@ -167,6 +176,51 @@ export const MelhorEnvioManager: React.FC = () => {
       setFeedback({ type: 'error', message: err.message });
     } finally {
       setSavingToken(false);
+    }
+  };
+
+  // Testar requisição POST client_credentials diretamente
+  const handleTestClientCredentials = async () => {
+    try {
+      setTestingCredentials(true);
+      setCredentialsTestResult(null);
+      const res = await fetch('/api/shipping/oauth/client-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const json = await res.json();
+      const status = json.status || res.status;
+      const data = json.data || json;
+      const token = data?.access_token;
+
+      setCredentialsTestResult({
+        status,
+        success: Boolean(res.ok && token),
+        data,
+        token
+      });
+
+      if (token) {
+        setManualToken(token);
+        setFeedback({
+          type: 'success',
+          message: '🎉 Access token gerado com sucesso via client_credentials! O campo abaixo foi preenchido automaticamente.'
+        });
+        await loadConfig();
+      } else {
+        const errorDesc = data?.error_description || data?.message || data?.error || 'Falha na autenticação';
+        setFeedback({
+          type: 'error',
+          message: `Melhor Envio (HTTP ${status}): ${errorDesc}`
+        });
+      }
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        message: `Erro na requisição: ${err.message}`
+      });
+    } finally {
+      setTestingCredentials(false);
     }
   };
 
@@ -534,6 +588,114 @@ export const MelhorEnvioManager: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Bloco Interativo de Teste: POST /oauth/token (client_credentials) */}
+      <div className="bg-gradient-to-r from-slate-900 to-purple-950 text-white rounded-3xl p-6 shadow-sm border border-purple-800/40 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-300 flex items-center justify-center font-mono font-bold text-sm shrink-0">
+              POST
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-serif font-bold text-white text-base">
+                  Testar Geração de Token OAuth (client_credentials)
+                </h3>
+                <span className="text-[10px] bg-purple-800/60 text-purple-200 px-2 py-0.5 rounded-full font-mono">
+                  Client ID: 30288
+                </span>
+              </div>
+              <p className="text-xs text-purple-200 mt-0.5">
+                Dispara a requisição POST para <code className="font-mono text-amber-300">https://www.melhorenvio.com.br/oauth/token</code> e exibe o token ou status retornado.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleTestClientCredentials}
+              disabled={testingCredentials}
+              className="py-2.5 px-4 bg-amber-400 hover:bg-amber-300 text-purple-950 font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              {testingCredentials ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Testando API...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4 fill-purple-950" />
+                  Executar POST /oauth/token
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Resposta do teste visual */}
+        {credentialsTestResult && (
+          <div className="bg-black/50 p-4 rounded-2xl border border-white/10 space-y-3 font-mono text-xs">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 font-mono">
+                <span className={`w-2.5 h-2.5 rounded-full ${credentialsTestResult.success ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                Status HTTP: <strong className={credentialsTestResult.success ? 'text-emerald-400' : 'text-rose-400'}>{credentialsTestResult.status}</strong>
+              </span>
+
+              {credentialsTestResult.token && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(credentialsTestResult.token!);
+                      setCopiedKey('test_token');
+                      setTimeout(() => setCopiedKey(null), 2500);
+                    }}
+                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs flex items-center gap-1.5 font-sans font-bold cursor-pointer"
+                  >
+                    {copiedKey === 'test_token' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" /> Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" /> Copiar Token
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {credentialsTestResult.token ? (
+              <div className="space-y-1">
+                <p className="text-emerald-300 font-bold font-sans">access_token recebido com sucesso:</p>
+                <div className="p-2.5 bg-black/60 rounded-xl break-all text-emerald-200 select-all border border-emerald-900/60 max-h-32 overflow-y-auto">
+                  {credentialsTestResult.token}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-rose-300 font-semibold font-sans">Retorno recebido da API do Melhor Envio:</p>
+                <pre className="p-3 bg-black/60 rounded-xl text-rose-200 overflow-x-auto text-[11px] border border-rose-900/40">
+                  {JSON.stringify(credentialsTestResult.data, null, 2)}
+                </pre>
+                {credentialsTestResult.status === 401 && (
+                  <div className="p-3 bg-purple-900/40 rounded-xl border border-purple-700/50 font-sans text-xs text-purple-200 space-y-1.5">
+                    <p className="font-bold text-amber-300 flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4" /> Diagnóstico da Resposta 401 (invalid_client):
+                    </p>
+                    <p>
+                      Na API oficial do Melhor Envio, aplicativos comuns usam o fluxo de <strong>Authorization Code</strong> ou a geração de <strong>Token Manual Permanente</strong> diretamente no painel. O modo <code>client_credentials</code> só é autorizado pela equipe do Melhor Envio para integrações M2M corporativas específicas.
+                    </p>
+                    <p className="text-amber-200 font-medium">
+                      👉 <strong>Como obter o token em 1 minuto:</strong> Acesse <a href="https://melhorenvio.com.br" target="_blank" rel="noreferrer" className="underline hover:text-white inline-flex items-center gap-1">melhorenvio.com.br <ExternalLink className="w-3 h-3" /></a> &gt; Painel &gt; Configurações &gt; Permissões de Acesso (Tokens) &gt; Novo Token &gt; Marque as permissões e salve. Cole o token gerado no campo <strong>2. Inserir Token de Produção Manualmente</strong> acima!
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Card 3: Testador Rápido de Cotação de Produção */}
