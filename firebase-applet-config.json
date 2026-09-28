@@ -1,12 +1,12 @@
 {
-  "projectId": "gen-lang-client-0136071567",
-  "appId": "1:1061531096793:web:4eb3de665fa665a87e50c8",
-  "apiKey": "AIzaSyCGrNrQ9jvG_dYuhcHoKVstKyssq1SKrds",
-  "authDomain": "gen-lang-client-0136071567.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-lavistore-5a2185dc-01a6-45fe-a622-bded387d4da0",
-  "storageBucket": "gen-lang-client-0136071567.firebasestorage.app",
-  "messagingSenderId": "1061531096793",
-  "measurementId": "",
-  "oAuthClientId": "1061531096793-5to11jh8ck2kjnbp033c14dv8s7rji1b.apps.googleusercontent.com",
+  "projectId": "lavistorekides",
+  "appId": "1:657145040484:web:38d6961e2eb7fca1a04f81",
+  "apiKey": "AIzaSyBhBlBv82oIsNaJ1HVHwbuJtFMw09c1zps",
+  "authDomain": "lavistorekides.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "lavistorekides.appspot.com",
+  "messagingSenderId": "657145040484",
+  "measurementId": "G-03GEH7RLW8",
+  "oauthClientId": "",
   "recaptchaSiteKey": ""
 }

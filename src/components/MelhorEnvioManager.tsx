@@ -300,15 +300,15 @@ export const MelhorEnvioManager: React.FC = () => {
         </div>
 
         {/* Informações Oficiais Cadastradas */}
-        <div className="mt-6 pt-5 border-t border-purple-800/60 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+        <div className="mt-6 pt-5 border-t border-purple-800/60 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
           <div className="bg-purple-900/40 p-3 rounded-xl border border-purple-800/40">
-            <span className="text-purple-300 font-medium block">Endpoint Base</span>
+            <span className="text-purple-300 font-medium block">Endpoint Oficial</span>
             <span className="font-mono text-white text-xs select-all">https://melhorenvio.com.br</span>
           </div>
 
           <div className="bg-purple-900/40 p-3 rounded-xl border border-purple-800/40">
             <div className="flex items-center justify-between">
-              <span className="text-purple-300 font-medium block">Client ID Oficial</span>
+              <span className="text-purple-300 font-medium block">Client ID</span>
               <button
                 onClick={() => handleCopy('30288', 'client_id')}
                 className="text-amber-300 hover:text-amber-200"
@@ -321,9 +321,25 @@ export const MelhorEnvioManager: React.FC = () => {
           </div>
 
           <div className="bg-purple-900/40 p-3 rounded-xl border border-purple-800/40">
-            <span className="text-purple-300 font-medium block">Suporte & User-Agent</span>
-            <span className="font-mono text-white text-xs truncate block" title="Lavistore (estilobeeadm@gmail.com)">
-              estilobeeadm@gmail.com
+            <div className="flex items-center justify-between">
+              <span className="text-purple-300 font-medium block">Client Secret</span>
+              <button
+                onClick={() => handleCopy('NbUeUvisVNkpPZCd2k7bSh79IOPeQSMpVjJwsIzO', 'client_secret')}
+                className="text-amber-300 hover:text-amber-200"
+                title="Copiar Client Secret"
+              >
+                {copiedKey === 'client_secret' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            <span className="font-mono text-amber-300 text-xs truncate block" title="NbUeUvisVNkpPZCd2k7bSh79IOPeQSMpVjJwsIzO">
+              NbUe...sIzO (40 chars)
+            </span>
+          </div>
+
+          <div className="bg-purple-900/40 p-3 rounded-xl border border-purple-800/40">
+            <span className="text-purple-300 font-medium block">Suporte & App</span>
+            <span className="font-mono text-white text-xs truncate block" title="Lavistore Kids (estilobeeadm@gmail.com)">
+              Lavistore Kids
             </span>
           </div>
 
@@ -336,7 +352,7 @@ export const MelhorEnvioManager: React.FC = () => {
                 </span>
               ) : (
                 <span className="text-amber-300 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" /> Aguardando Autorização
+                  <AlertCircle className="w-3.5 h-3.5" /> Aguardando Token
                 </span>
               )}
             </span>
@@ -397,7 +413,9 @@ export const MelhorEnvioManager: React.FC = () => {
               <li>Clique no botão abaixo para abrir a página oficial de consentimento.</li>
               <li>Faça login na sua conta do Melhor Envio (se ainda não estiver conectado).</li>
               <li>Aprove as permissões de cotação e emissão de etiquetas.</li>
-              <li>O sistema salva o token de acesso e refresh token automaticamente no cofre seguro.</li>
+              <li>
+                Como o aplicativo está cadastrado com a URL <code className="bg-purple-200/60 px-1 py-0.5 rounded font-mono text-[11px]">https://www.lavistorekids.com.br</code>, se a tela redirecionar para a loja, basta copiar o código <code className="bg-purple-200/60 px-1 py-0.5 rounded font-mono text-[11px]">?code=...</code> da barra de endereço e colar no campo abaixo.
+              </li>
             </ol>
           </div>
 

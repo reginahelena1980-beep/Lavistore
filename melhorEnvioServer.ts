@@ -4,9 +4,9 @@
  * Credenciais e Endpoints Oficiais:
  * - Base URL: https://melhorenvio.com.br
  * - Client ID: 30288
- * - Client Secret: NbUeUvisVNkpPZCd27bSh79IOPeQSMPVjJwslzO
+ * - Client Secret: NbUeUvisVNkpPZCd2k7bSh79IOPeQSMpVjJwsIzO
  * - Suporte / Contato: estilobeeadm@gmail.com
- * - User-Agent Obrigatório: Lavistore (estilobeeadm@gmail.com)
+ * - User-Agent Obrigatório: Lavistore Kids (estilobeeadm@gmail.com)
  * - Headers Obrigatórios: Accept: application/json, Content-Type: application/json
  */
 
@@ -15,10 +15,10 @@ import path from 'path';
 
 // Configurações Oficiais de Produção
 export const MELHOR_ENVIO_PRODUCTION_BASE_URL = 'https://melhorenvio.com.br';
-export const MELHOR_ENVIO_CLIENT_ID = '30288';
-export const MELHOR_ENVIO_CLIENT_SECRET = 'NbUeUvisVNkpPZCd27bSh79IOPeQSMPVjJwslzO';
-export const MELHOR_ENVIO_SUPPORT_EMAIL = 'estilobeeadm@gmail.com';
-export const MELHOR_ENVIO_APP_NAME = 'Lavistore';
+export const MELHOR_ENVIO_CLIENT_ID = process.env.MELHOR_ENVIO_CLIENT_ID || '30288';
+export const MELHOR_ENVIO_CLIENT_SECRET = process.env.MELHOR_ENVIO_CLIENT_SECRET || 'NbUeUvisVNkpPZCd2k7bSh79IOPeQSMpVjJwsIzO';
+export const MELHOR_ENVIO_SUPPORT_EMAIL = process.env.MELHOR_ENVIO_EMAIL || 'estilobeeadm@gmail.com';
+export const MELHOR_ENVIO_APP_NAME = 'Lavistore Kids';
 export const MELHOR_ENVIO_USER_AGENT = `${MELHOR_ENVIO_APP_NAME} (${MELHOR_ENVIO_SUPPORT_EMAIL})`;
 export const MELHOR_ENVIO_SCOPES = [
   'shipping-calculate',
@@ -172,48 +172,64 @@ export async function exchangeOAuthCode(code: string, redirectUri: string): Prom
     throw new Error('Código de autorização não fornecido.');
   }
 
+  const cleanCode = code.trim();
+  // Lista de possíveis URIs de redirecionamento registradas no Melhor Envio
+  const candidateUris = Array.from(new Set([
+    redirectUri,
+    'https://www.lavistorekids.com.br',
+    'https://www.lavistorekids.com.br/api/shipping/oauth/callback',
+    'https://lavistore.ai.studio/'
+  ].filter(Boolean)));
+
   console.log(`[Melhor Envio] Trocando authorization_code por tokens de produção (Client ID: ${MELHOR_ENVIO_CLIENT_ID})...`);
 
-  const payload = {
-    grant_type: 'authorization_code',
-    client_id: MELHOR_ENVIO_CLIENT_ID,
-    client_secret: MELHOR_ENVIO_CLIENT_SECRET,
-    redirect_uri: redirectUri,
-    code: code.trim()
-  };
+  let lastError = '';
 
-  const response = await fetch(`${MELHOR_ENVIO_PRODUCTION_BASE_URL}/oauth/token`, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'User-Agent': MELHOR_ENVIO_USER_AGENT
-    },
-    body: JSON.stringify(payload)
-  });
+  for (const uri of candidateUris) {
+    const payload = {
+      grant_type: 'authorization_code',
+      client_id: MELHOR_ENVIO_CLIENT_ID,
+      client_secret: MELHOR_ENVIO_CLIENT_SECRET,
+      redirect_uri: uri,
+      code: cleanCode
+    };
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    console.error(`[Melhor Envio] Falha na troca do token (${response.status}):`, errorBody);
-    throw new Error(`Falha ao obter token de produção (${response.status}): ${errorBody}`);
+    try {
+      const response = await fetch(`${MELHOR_ENVIO_PRODUCTION_BASE_URL}/oauth/token`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'User-Agent': MELHOR_ENVIO_USER_AGENT
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const json: any = await response.json();
+        if (json.access_token) {
+          const tokenData = saveTokenData({
+            access_token: json.access_token,
+            refresh_token: json.refresh_token,
+            token_type: json.token_type || 'Bearer',
+            expires_in: json.expires_in,
+            scope: json.scope,
+            source: 'oauth'
+          });
+          console.log(`[Melhor Envio] Token obtido com sucesso em produção usando redirect_uri "${uri}"!`);
+          return tokenData;
+        }
+      } else {
+        const errorBody = await response.text();
+        lastError = errorBody;
+        console.warn(`[Melhor Envio] Tentativa com redirect_uri "${uri}" falhou (${response.status}):`, errorBody);
+      }
+    } catch (err: any) {
+      lastError = err.message;
+    }
   }
 
-  const json: any = await response.json();
-
-  if (!json.access_token) {
-    throw new Error('Resposta do Melhor Envio não conteve access_token.');
-  }
-
-  const tokenData = saveTokenData({
-    access_token: json.access_token,
-    refresh_token: json.refresh_token,
-    token_type: json.token_type || 'Bearer',
-    expires_in: json.expires_in,
-    scope: json.scope,
-    source: 'oauth'
-  });
-
-  return tokenData;
+  throw new Error(`Falha ao obter token de produção: ${lastError}`);
 }
 
 /**

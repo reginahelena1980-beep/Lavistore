@@ -21,6 +21,13 @@ import {
   trackShipments,
   getConnectedAccountInfo
 } from './melhorEnvioServer';
+import {
+  getMercadoPagoCredentials,
+  saveMercadoPagoCredentials,
+  testMercadoPagoConnection,
+  DEFAULT_MP_PUBLIC_KEY,
+  DEFAULT_MP_ACCESS_TOKEN
+} from './mercadoPagoServer';
 
 /**
  * SERVIDOR EXPRESS LAVISTORE
@@ -2610,12 +2617,8 @@ app.post('/api/email/test', async (req, res) => {
  * Retorna as credenciais públicas do Mercado Pago para inicializar o Payment Brick
  */
 app.get('/api/mercadopago/config', (_req, res) => {
-  const rawKey = (
-    process.env.VITE_MP_PUBLIC_KEY?.trim() ||
-    process.env.VITE_MERCADO_PAGO_PUBLIC_KEY?.trim() ||
-    process.env.MERCADO_PAGO_PUBLIC_KEY?.trim() ||
-    ''
-  );
+  const creds = getMercadoPagoCredentials();
+  const rawKey = creds.publicKey || '';
 
   // Validação estrita: elimina qualquer chave teste fictícia com zeros
   const isValidPublicKey = Boolean(
@@ -2625,16 +2628,73 @@ app.get('/api/mercadopago/config', (_req, res) => {
     rawKey !== 'TEST-00000000-0000-0000-0000-000000000000'
   );
 
-  const publicKey = isValidPublicKey ? rawKey : '';
-  const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+  const publicKey = isValidPublicKey ? rawKey : creds.publicKey;
+  const accessToken = creds.accessToken;
   const isConfigured = Boolean(accessToken && accessToken.length > 10);
 
   res.json({
     publicKey,
     isConfigured,
-    hasCustomPublicKey: isValidPublicKey,
-    environment: publicKey.startsWith('TEST') ? 'sandbox' : 'production'
+    hasCustomPublicKey: Boolean(publicKey && publicKey.length > 15),
+    environment: creds.environment,
+    clientId: creds.clientId,
+    userId: creds.userId,
+    updatedAt: creds.updatedAt
   });
+});
+
+/**
+ * GET /api/mercadopago/credentials
+ * Retorna credenciais e status para o painel de administração da Lavistore
+ */
+app.get('/api/mercadopago/credentials', (_req, res) => {
+  const creds = getMercadoPagoCredentials();
+  res.json({
+    publicKey: creds.publicKey,
+    hasAccessToken: Boolean(creds.accessToken && creds.accessToken.length > 10),
+    accessTokenMasked: creds.accessToken ? `${creds.accessToken.slice(0, 15)}...${creds.accessToken.slice(-8)}` : '',
+    clientId: creds.clientId || '',
+    userId: creds.userId || '',
+    environment: creds.environment,
+    updatedAt: creds.updatedAt,
+    lastTestedAt: creds.lastTestedAt,
+    lastTestStatus: creds.lastTestStatus,
+    lastTestMessage: creds.lastTestMessage,
+    availableMethods: creds.availableMethods || []
+  });
+});
+
+/**
+ * POST /api/mercadopago/credentials
+ * Permite ao administrador atualizar ou ajustar chaves do Mercado Pago
+ */
+app.post('/api/mercadopago/credentials', (req, res) => {
+  try {
+    const { publicKey, accessToken, clientId, clientSecret, userId } = req.body;
+    const updated = saveMercadoPagoCredentials({
+      ...(publicKey ? { publicKey: String(publicKey).trim() } : {}),
+      ...(accessToken ? { accessToken: String(accessToken).trim() } : {}),
+      ...(clientId ? { clientId: String(clientId).trim() } : {}),
+      ...(clientSecret ? { clientSecret: String(clientSecret).trim() } : {}),
+      ...(userId ? { userId: String(userId).trim() } : {})
+    });
+    res.json({ success: true, message: 'Credenciais do Mercado Pago atualizadas com sucesso!', config: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/mercadopago/test_connection
+ * Testa a conexão autenticada com a API oficial do Mercado Pago em tempo real
+ */
+app.post('/api/mercadopago/test_connection', async (_req, res) => {
+  try {
+    const result = await testMercadoPagoConnection();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 /**
@@ -2716,11 +2776,10 @@ app.post('/api/mercadopago/tokenize_card', async (req, res) => {
       publicKey: clientPublicKey
     } = req.body;
 
+    const creds = getMercadoPagoCredentials();
     const rawKey = (
       (typeof clientPublicKey === 'string' ? clientPublicKey.trim() : '') ||
-      process.env.VITE_MP_PUBLIC_KEY?.trim() ||
-      process.env.VITE_MERCADO_PAGO_PUBLIC_KEY?.trim() ||
-      process.env.MERCADO_PAGO_PUBLIC_KEY?.trim() ||
+      creds.publicKey ||
       ''
     );
 
@@ -2731,9 +2790,8 @@ app.post('/api/mercadopago/tokenize_card', async (req, res) => {
       !rawKey.includes('00000000') &&
       rawKey !== 'TEST-00000000-0000-0000-0000-000000000000'
     );
-    const resolvedPublicKey = isValidKey ? rawKey : '';
-
-    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+    const resolvedPublicKey = isValidKey ? rawKey : creds.publicKey;
+    const accessToken = creds.accessToken;
 
     if (!resolvedPublicKey && (!accessToken || accessToken.length < 10)) {
       return res.status(400).json({ 
@@ -2916,7 +2974,8 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Dados do pedido ausentes ou inválidos.' });
     }
 
-    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+    const creds = getMercadoPagoCredentials();
+    const accessToken = creds.accessToken?.trim();
     const rawCpf = String(payer?.identification?.number || orderData.customerCpf || '').replace(/\D/g, '');
     let cleanCpf = '';
     if (isValidDocumentServer(rawCpf)) {
@@ -3354,7 +3413,8 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
 app.get('/api/mercadopago/payment_status/:id', async (req, res) => {
   try {
     const paymentId = req.params.id;
-    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+    const creds = getMercadoPagoCredentials();
+    const accessToken = creds.accessToken?.trim();
 
     if (!paymentId) {
       return res.status(400).json({ error: 'ID do pagamento não informado.' });
@@ -3413,7 +3473,8 @@ app.post('/api/mercadopago/webhook', async (req, res) => {
     console.log(`[Mercado Pago Webhook] Notificação recebida: Topic=${query.topic || body.type}, PaymentId=${paymentId}`);
 
     if (paymentId) {
-      const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+      const creds = getMercadoPagoCredentials();
+      const accessToken = creds.accessToken?.trim();
       if (accessToken) {
         const mpResp = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
           headers: {
