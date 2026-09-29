@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { OrderData, BiProductCalculatedRecord } from '../types';
 import { fetchOrders as fetchOrdersFromApi, updateOrderStatus, clearAllOrders } from '../services/storeApiService';
+import { subscribeToOrders } from '../services/firestoreConfigService';
 import { GoogleSheetsModal } from './GoogleSheetsModal';
 import { getStoredSheetsConfig, GoogleSheetsConfig } from '../services/googleSheetsService';
 import { extractDedicationFromOrder, openDedicationPrintWindow, OrderDedicationInfo } from '../utils/dedicationHelper';
@@ -163,7 +164,28 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
   };
 
   useEffect(() => {
+    let isSubscribed = true;
+    const unsubscribe = subscribeToOrders((cloudOrders) => {
+      if (!isSubscribed || !cloudOrders) return;
+      if (Array.isArray(cloudOrders)) {
+        setOrders(cloudOrders);
+        const initialTracking: Record<string, string> = {};
+        cloudOrders.forEach(o => {
+          if (o.trackingCode) {
+            initialTracking[o.orderId] = o.trackingCode;
+          }
+        });
+        setTrackingInputs(prev => ({ ...initialTracking, ...prev }));
+        setIsLoading(false);
+      }
+    });
+
     fetchOrders();
+
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
   }, []);
 
   // Atualiza o status e/ou código de rastreamento do pedido

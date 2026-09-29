@@ -36,6 +36,31 @@
         "email": { "type": "string" },
         "createdAt": { "type": "string" }
       }
+    },
+    "SessionNote": {
+      "title": "Session Note",
+      "description": "Native Friend session notes synchronized with Google Drive and Firestore",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "teacherEmail": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "sessionDate": { "type": "string" },
+        "topic": { "type": "string" },
+        "vocabulary": { "type": "array" },
+        "grammarCorrections": { "type": "array" },
+        "pronunciationNotes": { "type": "string" },
+        "homework": { "type": "string" },
+        "nextSteps": { "type": "string" },
+        "generalFeedback": { "type": "string" },
+        "fluencyScore": { "type": "number" },
+        "googleDrive": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "studentName", "sessionDate", "topic"]
     }
   },
   "firestore": {
@@ -50,6 +75,10 @@
     "/newsletter_leads/{leadId}": {
       "schema": "NewsletterLead",
       "description": "Leads do Clube de Mimos"
+    },
+    "/session_notes/{noteId}": {
+      "schema": "SessionNote",
+      "description": "Native Friend teacher and student session notes with Google Drive synchronization"
     }
   }
 }

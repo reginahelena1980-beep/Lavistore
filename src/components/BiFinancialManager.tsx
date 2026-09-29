@@ -59,6 +59,11 @@ import {
   getAccessToken 
 } from '../services/googleSheetsService';
 import { OrderData } from '../types';
+import { 
+  subscribeToBiRecords, 
+  fetchBiRecordsFromFirestore, 
+  saveBiRecordsToFirestore 
+} from '../services/firestoreConfigService';
 
 interface BiFinancialManagerProps {
   products?: Product[];
@@ -147,18 +152,40 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Carrega registros da API do servidor ou fallback
+  // Carrega e sincroniza registros com o Firebase Firestore em tempo real
   useEffect(() => {
+    let isSubscribed = true;
+
+    // Ouvinte em tempo real no Firestore
+    const unsubscribe = subscribeToBiRecords((cloudRecords) => {
+      if (!isSubscribed || !cloudRecords) return;
+      if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+        setRecords(cloudRecords);
+        if (onRecordsChange) onRecordsChange(cloudRecords);
+        setIsLoading(false);
+      }
+    });
+
     async function loadData() {
       setIsLoading(true);
+      try {
+        const cloudRecords = await fetchBiRecordsFromFirestore();
+        if (isSubscribed && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+          setRecords(cloudRecords);
+          if (onRecordsChange) onRecordsChange(cloudRecords);
+          setIsLoading(false);
+          return;
+        }
+      } catch {}
+
       try {
         const res = await fetch('/api/bi/records');
         if (res.ok) {
           const data = await res.json();
-          if (data.records && Array.isArray(data.records) && data.records.length > 0) {
-            setRecords(data.records);
-            localStorage.setItem('lavistore_bi_records', JSON.stringify(data.records));
-            if (onRecordsChange) onRecordsChange(data.records);
+          const list = Array.isArray(data) ? data : (data.records || []);
+          if (isSubscribed && list.length > 0) {
+            setRecords(list);
+            if (onRecordsChange) onRecordsChange(list);
             setIsLoading(false);
             return;
           }
@@ -173,9 +200,8 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         try {
           const parsed = JSON.parse(local);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            // Se o cache local contiver dados corrompidos pelo mapeamento antigo (ex: mes numérico como "32.5"), ignora
             const isCorrupted = parsed.some((p: any) => /^\d+[.,]\d+$/.test(String(p.mes || '')));
-            if (!isCorrupted) {
+            if (!isCorrupted && isSubscribed) {
               setRecords(parsed);
               if (onRecordsChange) onRecordsChange(parsed);
               setIsLoading(false);
@@ -185,24 +211,39 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         } catch {}
       }
 
-      // Se não houver nada, inicializa com os registros modelo da Lavistore (Meias de Panda, Canetas, etc.)
-      setRecords(DEFAULT_BI_SAMPLE_RECORDS);
-      if (onRecordsChange) onRecordsChange(DEFAULT_BI_SAMPLE_RECORDS);
-      setIsLoading(false);
+      // Se não houver nada, inicializa com os registros modelo da Lavistore
+      if (isSubscribed) {
+        setRecords(DEFAULT_BI_SAMPLE_RECORDS);
+        if (onRecordsChange) onRecordsChange(DEFAULT_BI_SAMPLE_RECORDS);
+        setIsLoading(false);
+      }
     }
 
     loadData();
+
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
   }, []);
 
-  // Persiste no backend e localStorage quando os dados são atualizados
+  // Persiste no Firebase Firestore e no backend quando os dados são atualizados
   const persistRecords = async (newRecords: BiProductCalculatedRecord[]) => {
     setRecords(newRecords);
-    localStorage.setItem('lavistore_bi_records', JSON.stringify(newRecords));
     if (onRecordsChange) {
       onRecordsChange(newRecords);
     }
 
+    // 1. Grava diretamente no Firebase Firestore
     try {
+      await saveBiRecordsToFirestore(newRecords);
+    } catch (fsErr) {
+      console.warn('[BI Firestore] Aviso ao gravar registros no Firestore:', fsErr);
+    }
+
+    // 2. Grava no cache e endpoint de contingência
+    try {
+      localStorage.setItem('lavistore_bi_records', JSON.stringify(newRecords));
       await fetch('/api/bi/records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,7 +1,5 @@
 @import "tailwindcss";
 
-@import url('https://db.onlinewebfonts.com/c/188d1fa8197b9332b368f98b00285a05?family=Balqis');
-
 @font-face {
   font-family: 'Balqis';
   src: url('https://db.onlinewebfonts.com/t/188d1fa8197b9332b368f98b00285a05.woff2') format('woff2'),

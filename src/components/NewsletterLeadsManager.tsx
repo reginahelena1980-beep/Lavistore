@@ -28,6 +28,7 @@ import {
   subscribeNewsletter, 
   fetchOrders 
 } from '../services/storeApiService';
+import { subscribeToNewsletterLeads } from '../services/firestoreConfigService';
 
 interface NewsletterLeadsManagerProps {
   onNotify?: (message: string) => void;
@@ -141,7 +142,21 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
   };
 
   useEffect(() => {
+    let isSubscribed = true;
+    const unsubscribe = subscribeToNewsletterLeads((cloudLeads) => {
+      if (!isSubscribed || !cloudLeads) return;
+      if (Array.isArray(cloudLeads)) {
+        setLeads(cloudLeads);
+        setIsLoading(false);
+      }
+    });
+
     fetchLeads();
+
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
   }, []);
 
   // Filtered leads

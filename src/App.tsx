@@ -44,7 +44,6 @@ import {
   mergeCategoriesSafely,
   mergeBagTypesSafely,
   mergeRibbonOptionsSafely,
-  shouldPreferLocalAdminVault,
   saveLocalAdminVault, 
   getLocalAdminVault,
   downloadAdminBackupFile,
@@ -61,6 +60,11 @@ import {
   createOrder,
   submitProductReview
 } from './services/storeApiService';
+import { 
+  subscribeToStoreConfig, 
+  saveStoreConfigToFirestore 
+} from './services/firestoreConfigService';
+import { isFirebaseReady } from './services/firebase';
 import { appendOrderToSpreadsheet, getStoredSheetsConfig, updateUserInitialSpreadsheet } from './services/googleSheetsService';
 
 const TEST_PRODUCT_IDS = new Set(['lav-74750', 'lav-15329', 'lav-03352', 'lav-01', 'lav-02']);
@@ -493,7 +497,7 @@ export default function App() {
 
   const [isPublishingToServer, setIsPublishingToServer] = useState(false);
 
-  // Sincronização persistente com o servidor para publicação oficial (Blindagem do Administrador)
+  // Sincronização persistente com o Firebase Firestore e servidor para publicação oficial
   const handlePublishToServer = async (customPayload?: Partial<AdminCustomVault>, showFeedback = true): Promise<boolean> => {
     setIsPublishingToServer(true);
     try {
@@ -503,7 +507,7 @@ export default function App() {
         if (localBi) biRecordsList = JSON.parse(localBi);
       } catch {}
 
-      const payload = {
+      const payload: Partial<AdminCustomVault> = {
         products: customPayload?.products ?? products,
         heroConfig: customPayload?.heroConfig ?? heroConfig,
         homePageConfig: customPayload?.homePageConfig ?? homePageConfig,
@@ -517,10 +521,11 @@ export default function App() {
         ...customPayload
       };
 
-      // 1. Grava no cofre atômico local do administrador para imunidade total
-      saveLocalAdminVault(payload);
+      // 1. Grava diretamente no Firebase Firestore (Nuvem em Tempo Real)
+      const firestoreSuccess = await saveStoreConfigToFirestore(payload);
 
-      // Atualiza também chaves individuais no localStorage
+      // 2. Atualiza o cache local do navegador para suporte offline
+      saveLocalAdminVault(payload);
       if (payload.products) safeSetItem('lavistore_products', JSON.stringify(payload.products));
       if (payload.homePageConfig) safeSetItem('lavistore_home_page_config', JSON.stringify(payload.homePageConfig));
       if (payload.heroConfig) safeSetItem('lavistore_hero_config', JSON.stringify(payload.heroConfig));
@@ -530,11 +535,9 @@ export default function App() {
       if (payload.ribbonOptions) safeSetItem('lavistore_ribbon_options', JSON.stringify(payload.ribbonOptions));
       if (payload.filterBarConfig) safeSetItem('lavistore_filter_bar_config', JSON.stringify(payload.filterBarConfig));
 
-      // 2. Grava nos endpoints do servidor via storeApiService (/api/store/sync e /api/admin/settings)
-      const syncRes = await syncStoreData(payload);
-
-      // Grava no endpoint de configurações administrativas blindadas
+      // 3. Sincronização com o endpoint Express para espelhamento e contingência
       try {
+        await syncStoreData(payload);
         await saveAdminSettings({
           homePageConfig: payload.homePageConfig,
           heroConfig: payload.heroConfig,
@@ -545,227 +548,131 @@ export default function App() {
           filterBarConfig: payload.filterBarConfig
         });
       } catch (settingsErr) {
-        console.warn('[Admin Shield] Aviso ao gravar /api/admin/settings:', settingsErr);
+        console.warn('[Admin Shield] Aviso ao sincronizar com servidor Express:', settingsErr);
       }
 
-      if (syncRes.success) {
-        if (showFeedback) {
-          showToast('🛡️ Todas as configurações foram salvas e blindadas contra futuros deploys! ✨');
-        }
-        setIsPublishingToServer(false);
-        return true;
-      }
-    } catch (err) {
-      console.error('Erro ao sincronizar dados da loja:', err);
       if (showFeedback) {
-        showToast('⚠️ Erro de conexão com o servidor. Dados salvos com segurança no cofre local!');
+        showToast('🛡️ Todas as alterações foram salvas e sincronizadas instantaneamente no Firestore! ✨');
+      }
+      setIsPublishingToServer(false);
+      return true;
+    } catch (err) {
+      console.error('Erro ao sincronizar dados da loja no Firestore:', err);
+      if (showFeedback) {
+        showToast('⚠️ Erro ao salvar na nuvem. Dados salvos localmente.');
       }
     }
     setIsPublishingToServer(false);
     return false;
   };
 
-  // Na inicialização da loja: sincronização inteligente e não-destrutiva (proteção total contra perda de dados)
+  // Sincronização em Tempo Real (onSnapshot) com o Firebase Firestore
   useEffect(() => {
-    const initStoreSync = async () => {
-      // 1. Snapshot de segurança
-      try {
-        const localProdsRaw = localStorage.getItem('lavistore_products');
-        if (localProdsRaw) {
-          localStorage.setItem('lavistore_products_safety_backup', localProdsRaw);
+    let isSubscribed = true;
+
+    // 1. Ouvinte em tempo real (onSnapshot): Reflete instantaneamente qualquer alteração do Admin para todos os usuários
+    const unsubscribe = subscribeToStoreConfig((cloudData) => {
+      if (!isSubscribed || !cloudData) return;
+
+      console.info('⚡ [Firestore Real-Time] Atualização soberana recebida do Firebase Firestore em tempo real!');
+
+      // PRODUTOS
+      if (Array.isArray(cloudData.products) && cloudData.products.length > 0) {
+        const clean = cloudData.products.filter(p => p && p.id && !TEST_PRODUCT_IDS.has(p.id) && !p.name?.toLowerCase().includes('teste'));
+        if (clean.length > 0) {
+          setProducts(clean);
+          safeSetItem('lavistore_products', JSON.stringify(clean));
         }
-      } catch {}
+      }
 
-      // 2. Carrega o cofre protegido do administrador
-      const localVault = getLocalAdminVault();
+      // HOMEPAGE CONFIG
+      if (cloudData.homePageConfig) {
+        const mergedHome = mergeHomePageConfigSafely(cloudData.homePageConfig, DEFAULT_HOME_PAGE_CONFIG);
+        if (mergedHome.announcementCoupon === 'PRIMEIRACOMPRA') {
+          mergedHome.announcementCoupon = '';
+        }
+        setHomePageConfig(mergedHome);
+        safeSetItem('lavistore_home_page_config', JSON.stringify(mergedHome));
+      }
 
+      // HERO BANNER
+      if (cloudData.heroConfig) {
+        const mergedHero = mergeHeroConfigSafely(cloudData.heroConfig, DEFAULT_HERO_CONFIG);
+        setHeroConfig(mergedHero);
+        safeSetItem('lavistore_hero_config', JSON.stringify(mergedHero));
+      }
+
+      // CATEGORIAS
+      if (Array.isArray(cloudData.categories) && cloudData.categories.length > 0) {
+        setCategories(cloudData.categories);
+        safeSetItem('lavistore_categories', JSON.stringify(cloudData.categories));
+      }
+
+      // CUPONS
+      if (Array.isArray(cloudData.coupons) && cloudData.coupons.length > 0) {
+        setCoupons(cloudData.coupons);
+        safeSetItem('lavistore_coupons', JSON.stringify(cloudData.coupons));
+      }
+
+      // SACOLINHAS
+      if (Array.isArray(cloudData.bagTypes) && cloudData.bagTypes.length > 0) {
+        setBagTypes(cloudData.bagTypes);
+        safeSetItem('lavistore_bag_types', JSON.stringify(cloudData.bagTypes));
+      }
+
+      // FITAS
+      if (Array.isArray(cloudData.ribbonOptions) && cloudData.ribbonOptions.length > 0) {
+        setRibbonOptions(cloudData.ribbonOptions);
+        safeSetItem('lavistore_ribbon_options', JSON.stringify(cloudData.ribbonOptions));
+      }
+
+      // FILTROS
+      if (cloudData.filterBarConfig) {
+        setFilterBarConfig(cloudData.filterBarConfig);
+        safeSetItem('lavistore_filter_bar_config', JSON.stringify(cloudData.filterBarConfig));
+      }
+
+      // DEPOIMENTOS
+      if (Array.isArray(cloudData.reviews)) {
+        setReviews(cloudData.reviews);
+        safeSetItem('lavistore_reviews', JSON.stringify(cloudData.reviews));
+      }
+
+      setIsConfigLoading(false);
+    });
+
+    // 2. Consulta inicial rápida de contingência (caso o ouvinte demore alguns milissegundos)
+    const initStoreSync = async () => {
       try {
-        // READ-FIRST: Consulta soberana no Firestore (getDoc puro), com fallback seguro para API Express
         const sovereignResult = await fetchSovereignStoreConfig();
-
-        if (sovereignResult.data) {
+        if (sovereignResult.data && isSubscribed) {
           const d = sovereignResult.data;
-          const isFromFirestore = sovereignResult.source === 'firestore';
-
-          // Se veio do Firestore, o documento é soberano absoluto e imune a qualquer build/deploy.
-          // Se veio da API Express/servidor, avalia se o cofre local possui versão mais recente.
-          const preferLocal = isFromFirestore ? false : shouldPreferLocalAdminVault(localVault, d);
-
-          // 1. PRODUTOS: Se preferLocal for false (novo dispositivo/visitante ou Firestore soberano),
-          // os produtos do servidor/Firestore têm autoridade máxima absoluta.
-          const serverProducts: Product[] = Array.isArray(d.products) ? d.products : [];
-          let localProds: Product[] = [];
-          if (localVault?.products && Array.isArray(localVault.products) && localVault.products.length > 0) {
-            localProds = localVault.products;
+          if (Array.isArray(d.products) && d.products.length > 0) {
+            const clean = d.products.filter(p => p && p.id && !TEST_PRODUCT_IDS.has(p.id) && !p.name?.toLowerCase().includes('teste'));
+            if (clean.length > 0) setProducts(clean);
           }
-
-          let rawFinalProducts: Product[] = [];
-          if (preferLocal && localProds.length > 0) {
-            rawFinalProducts = mergeProductsSafely(localProds, serverProducts);
-          } else if (serverProducts.length > 0) {
-            rawFinalProducts = serverProducts;
-          } else if (localProds.length > 0) {
-            rawFinalProducts = localProds;
-          } else {
-            rawFinalProducts = PRODUCTS;
-          }
-
-          // Filtra produtos de teste garantindo apenas os produtos e mimos reais da loja
-          const finalProducts = rawFinalProducts.filter(p => {
-            if (!p || !p.name) return false;
-            const lowerName = p.name.toLowerCase();
-            const lowerId = (p.id || '').toLowerCase();
-            return !lowerName.includes('teste') && !TEST_PRODUCT_IDS.has(lowerId);
-          });
-
-          if (finalProducts.length > 0) {
-            setProducts(finalProducts);
-            safeSetItem('lavistore_products', JSON.stringify(finalProducts));
-          }
-
-          // 2. HOMEPAGE CONFIG (Cabeçalho, Rodapé, Contato, Frases, WhatsApp, E-mail, Selos)
-          let finalHome: HomePageConfig;
-          if (preferLocal && localVault?.homePageConfig) {
-            finalHome = mergeHomePageConfigSafely(localVault.homePageConfig, d.homePageConfig);
-          } else if (d.homePageConfig) {
-            finalHome = mergeHomePageConfigSafely(d.homePageConfig, DEFAULT_HOME_PAGE_CONFIG);
-          } else {
-            finalHome = localVault?.homePageConfig || homePageConfig;
-          }
-          if (finalHome.announcementCoupon === 'PRIMEIRACOMPRA') {
-            finalHome.announcementCoupon = '';
-          }
-          setHomePageConfig(finalHome);
-          safeSetItem('lavistore_home_page_config', JSON.stringify(finalHome));
-
-          // 3. HERO BANNER
-          let finalHero: HeroConfig;
-          if (preferLocal && localVault?.heroConfig) {
-            finalHero = mergeHeroConfigSafely(localVault.heroConfig, d.heroConfig);
-          } else if (d.heroConfig) {
-            finalHero = mergeHeroConfigSafely(d.heroConfig, DEFAULT_HERO_CONFIG);
-          } else {
-            finalHero = localVault?.heroConfig || heroConfig;
-          }
-          setHeroConfig(finalHero);
-          safeSetItem('lavistore_hero_config', JSON.stringify(finalHero));
-
-          // 4. CATEGORIAS
-          let finalCats: Category[];
-          if (preferLocal && localVault?.categories && localVault.categories.length > 0) {
-            finalCats = mergeCategoriesSafely(localVault.categories, d.categories || []);
-          } else if (Array.isArray(d.categories) && d.categories.length > 0) {
-            finalCats = d.categories;
-          } else {
-            finalCats = localVault?.categories || categories;
-          }
-          setCategories(finalCats);
-          safeSetItem('lavistore_categories', JSON.stringify(finalCats));
-
-          // 5. CUPONS
-          let finalCoupons: Coupon[];
-          if (preferLocal && localVault?.coupons && localVault.coupons.length > 0) {
-            finalCoupons = mergeCouponsSafely(localVault.coupons, d.coupons || []);
-          } else if (Array.isArray(d.coupons) && d.coupons.length > 0) {
-            finalCoupons = d.coupons;
-          } else {
-            finalCoupons = localVault?.coupons || coupons;
-          }
-          setCoupons(finalCoupons);
-          safeSetItem('lavistore_coupons', JSON.stringify(finalCoupons));
-
-          // 6. SACOLINHAS (Embalagens)
-          let finalBags: BagType[];
-          if (preferLocal && localVault?.bagTypes && localVault.bagTypes.length > 0) {
-            finalBags = mergeBagTypesSafely(localVault.bagTypes, d.bagTypes || []);
-          } else if (Array.isArray(d.bagTypes) && d.bagTypes.length > 0) {
-            finalBags = d.bagTypes;
-          } else {
-            finalBags = localVault?.bagTypes || bagTypes;
-          }
-          setBagTypes(finalBags);
-          safeSetItem('lavistore_bag_types', JSON.stringify(finalBags));
-
-          // 7. FITAS
-          let finalRibbons: RibbonOption[];
-          if (preferLocal && localVault?.ribbonOptions && localVault.ribbonOptions.length > 0) {
-            finalRibbons = mergeRibbonOptionsSafely(localVault.ribbonOptions, d.ribbonOptions || []);
-          } else if (Array.isArray(d.ribbonOptions) && d.ribbonOptions.length > 0) {
-            finalRibbons = d.ribbonOptions;
-          } else {
-            finalRibbons = localVault?.ribbonOptions || ribbonOptions;
-          }
-          setRibbonOptions(finalRibbons);
-          safeSetItem('lavistore_ribbon_options', JSON.stringify(finalRibbons));
-
-          // 8. FILTROS
-          const finalFilters: FilterBarConfig = (preferLocal && localVault?.filterBarConfig)
-            ? { ...DEFAULT_FILTER_BAR_CONFIG, ...(d.filterBarConfig || {}), ...localVault.filterBarConfig }
-            : (d.filterBarConfig ? { ...DEFAULT_FILTER_BAR_CONFIG, ...d.filterBarConfig } : (localVault?.filterBarConfig || filterBarConfig));
-          setFilterBarConfig(finalFilters);
-          safeSetItem('lavistore_filter_bar_config', JSON.stringify(finalFilters));
-
-          // 9. DEPOIMENTOS
-          if (Array.isArray(d.reviews) && d.reviews.length > 0) {
-            setReviews(d.reviews);
-            safeSetItem('lavistore_reviews', JSON.stringify(d.reviews));
-          }
-
-          // Atualiza o cofre local consolidado com as configurações protegidas
-          saveLocalAdminVault({
-            products: finalProducts,
-            homePageConfig: finalHome,
-            heroConfig: finalHero,
-            categories: finalCats,
-            coupons: finalCoupons,
-            bagTypes: finalBags,
-            ribbonOptions: finalRibbons,
-            filterBarConfig: finalFilters
-          });
-
-          // Se o cofre local continha edições administrativas que o servidor ainda não possuía
-          // (ex: deploy recente que subiu com arquivos padrão ou servidor recém-reiniciado),
-          // RE-SINCRONIZA IMEDIATAMENTE O SERVIDOR PARA BLINDAR A BASE DE DADOS!
-          if (preferLocal) {
-            console.log('🛡️ [Admin Shield] Re-hidratando e blindando o servidor com as configurações do Administrador...');
-            handlePublishToServer({
-              products: finalProducts,
-              homePageConfig: finalHome,
-              heroConfig: finalHero,
-              categories: finalCats,
-              coupons: finalCoupons,
-              bagTypes: finalBags,
-              ribbonOptions: finalRibbons,
-              filterBarConfig: finalFilters
-            }, false);
-          }
-          return;
+          if (d.homePageConfig) setHomePageConfig(mergeHomePageConfigSafely(d.homePageConfig, DEFAULT_HOME_PAGE_CONFIG));
+          if (d.heroConfig) setHeroConfig(mergeHeroConfigSafely(d.heroConfig, DEFAULT_HERO_CONFIG));
+          if (Array.isArray(d.categories) && d.categories.length > 0) setCategories(d.categories);
+          if (Array.isArray(d.coupons) && d.coupons.length > 0) setCoupons(d.coupons);
+          if (Array.isArray(d.bagTypes) && d.bagTypes.length > 0) setBagTypes(d.bagTypes);
+          if (Array.isArray(d.ribbonOptions) && d.ribbonOptions.length > 0) setRibbonOptions(d.ribbonOptions);
+          if (d.filterBarConfig) setFilterBarConfig(d.filterBarConfig);
+          if (Array.isArray(d.reviews) && d.reviews.length > 0) setReviews(d.reviews);
         }
       } catch (err) {
         console.warn('Store sync initialization notice:', err);
       } finally {
-        setIsConfigLoading(false);
+        if (isSubscribed) setIsConfigLoading(false);
       }
-
-      // Se o servidor estiver temporariamente indisponível, sincroniza os dados locais com o servidor
-      try {
-        const localProds = localStorage.getItem('lavistore_products');
-        if (localProds) {
-          const parsed = JSON.parse(localProds);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const sanitized = parsed.filter((p: Product) => {
-              if (!p || !p.name) return false;
-              const lowerName = p.name.toLowerCase();
-              const lowerId = (p.id || '').toLowerCase();
-              return !lowerName.includes('teste') && !TEST_PRODUCT_IDS.has(lowerId);
-            });
-            setProducts(sanitized);
-          }
-        }
-      } catch {}
     };
 
     initStoreSync();
+
+    return () => {
+      isSubscribed = false;
+      unsubscribe();
+    };
   }, []);
 
   // Handlers para Backup Completo do Administrador

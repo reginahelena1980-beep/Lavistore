@@ -30,7 +30,13 @@ import {
   DEFAULT_MP_ACCESS_TOKEN
 } from './mercadoPagoServer';
 import { initializeApp as initFirebaseApp, getApps as getFirebaseApps, getApp as getFirebaseApp } from 'firebase/app';
-import { getFirestore as getServerFirestore, doc as getFsDoc, getDoc as getFsDocSnap, setDoc as setFsDocSnap } from 'firebase/firestore';
+import { 
+  getFirestore as getServerFirestore, 
+  initializeFirestore as initServerFirestore,
+  doc as getFsDoc, 
+  getDoc as getFsDocSnap, 
+  setDoc as setFsDocSnap 
+} from 'firebase/firestore';
 
 /**
  * SERVIDOR EXPRESS LAVISTORE
@@ -76,7 +82,11 @@ try {
       const serverApp = existingApps.some(a => a.name === 'lavistore-server')
         ? getFirebaseApp('lavistore-server')
         : initFirebaseApp(rawCfg, 'lavistore-server');
-      serverDb = getServerFirestore(serverApp);
+      try {
+        serverDb = initServerFirestore(serverApp, { ignoreUndefinedProperties: true }, rawCfg.firestoreDatabaseId || '(default)');
+      } catch {
+        serverDb = getServerFirestore(serverApp, rawCfg.firestoreDatabaseId || '(default)');
+      }
       console.log('[Server Firebase] Firestore conectado no servidor com sucesso para persistência soberana.');
     }
   }

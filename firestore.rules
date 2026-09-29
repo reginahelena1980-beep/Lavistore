@@ -29,6 +29,13 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Native Friend - Session Notes (sincronizados em tempo real com Google Drive e Firestore)
+    match /session_notes/{noteId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
     // Regra padrão de contingência
     match /{document=**} {
       allow read, write: if true;
