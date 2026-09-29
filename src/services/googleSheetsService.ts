@@ -18,6 +18,7 @@ import {
 } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { BiProductCalculatedRecord, OrderData } from '../types';
+import { parseSpreadsheetBuffer } from '../utils/biFinanceEngine';
 
 export const WORKSPACE_SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets'
@@ -366,13 +367,313 @@ export function colIndexToLetter(colIndex: number): string {
   return letter;
 }
 
+/**
+ * Extrai automaticamente o ID da planilha (Spreadsheet ID) a partir de qualquer formato de link do Google Sheets ou ID isolado.
+ * Suporta:
+ * - https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit...
+ * - https://docs.google.com/spreadsheets/u/0/d/{SPREADSHEET_ID}/...
+ * - https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv
+ * - https://drive.google.com/file/d/{SPREADSHEET_ID}/view...
+ * - {SPREADSHEET_ID} (ID alfanumérico direto)
+ */
 export function extractSpreadsheetId(urlOrId: string): string | null {
-  if (!urlOrId) return null;
+  if (!urlOrId || typeof urlOrId !== 'string') return null;
   const trimmed = urlOrId.trim();
-  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/i);
-  if (match && match[1]) return match[1];
+
+  // 1. URL padrão do Google Sheets: /spreadsheets/(?:u/\d+/)?d/([a-zA-Z0-9-_]+)
+  const sheetsMatch = trimmed.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9-_]+)/i);
+  if (sheetsMatch && sheetsMatch[1]) return sheetsMatch[1];
+
+  // 2. Link do Google Drive: /file/d/([a-zA-Z0-9-_]+) ou ?id=([a-zA-Z0-9-_]+)
+  const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9-_]+)/i) || trimmed.match(/[?&]id=([a-zA-Z0-9-_]+)/i);
+  if (driveMatch && driveMatch[1]) return driveMatch[1];
+
+  // 3. ID puro isolado (mínimo 20 caracteres sem barras ou espaços)
   if (/^[a-zA-Z0-9-_]{20,}$/.test(trimmed)) return trimmed;
+
   return null;
+}
+
+/**
+ * Extrai o ID da aba (gid) caso exista no link do Google Sheets (ex: #gid=123456 ou ?gid=123456)
+ */
+export function extractSheetGid(urlOrId: string): string | null {
+  if (!urlOrId || typeof urlOrId !== 'string') return null;
+  const match = urlOrId.trim().match(/[#?&]gid=([0-9]+)/i);
+  return match && match[1] ? match[1] : null;
+}
+
+/**
+ * Converte qualquer link de visualização ou compartilhamento do Google Sheets para o endpoint oficial de exportação CSV pública:
+ * https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv
+ */
+export function convertToGoogleSheetsCsvUrl(urlOrId: string): string {
+  const spreadsheetId = extractSpreadsheetId(urlOrId);
+  if (!spreadsheetId) {
+    throw new Error('Link ou ID da planilha do Google Sheets inválido. Cole a URL completa (ex: https://docs.google.com/spreadsheets/d/.../edit).');
+  }
+
+  const gid = extractSheetGid(urlOrId);
+  if (gid && gid !== '0') {
+    return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+  }
+
+  return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
+}
+
+/**
+ * Tipagem estrita para uma linha bruta em JSON derivada do CSV da planilha
+ */
+export interface GoogleSheetRawRow {
+  [columnHeader: string]: string;
+}
+
+/**
+ * Tipagem estrita para o resultado completo da importação da planilha
+ */
+export interface GoogleSheetImportResult {
+  spreadsheetId: string;
+  csvUrl: string;
+  rawJson: GoogleSheetRawRow[];
+  records: BiProductCalculatedRecord[];
+  totalRows: number;
+  warnings: string[];
+}
+
+/**
+ * Transforma o texto CSV bruto em JSON estruturado com cabeçalhos como chaves dos objetos,
+ * respeitando normas RFC-4180 (aspas, vírgulas ou ponto-e-vírgula como delimitadores).
+ */
+export function parseCsvToStructuredJson(csvText: string): {
+  headers: string[];
+  rows: GoogleSheetRawRow[];
+} {
+  if (!csvText || typeof csvText !== 'string') {
+    return { headers: [], rows: [] };
+  }
+
+  const cleanText = csvText.replace(/^\uFEFF/, '').trim();
+  if (!cleanText) {
+    return { headers: [], rows: [] };
+  }
+
+  // Detecta o delimitador analisando a primeira linha
+  const firstLine = cleanText.split(/\r?\n/)[0] || '';
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semicolonCount = (firstLine.match(/;/g) || []).length;
+  const tabCount = (firstLine.match(/\t/g) || []).length;
+
+  let delimiter = ',';
+  if (semicolonCount > commaCount && semicolonCount >= tabCount) {
+    delimiter = ';';
+  } else if (tabCount > commaCount && tabCount > semicolonCount) {
+    delimiter = '\t';
+  }
+
+  // Parser robusto com suporte a campos entre aspas contendo quebras de linha e delimitadores
+  const parsedGrid: string[][] = [];
+  let currentRow: string[] = [];
+  let currentCell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < cleanText.length; i++) {
+    const char = cleanText[i];
+    const nextChar = cleanText[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        currentCell += '"';
+        i++; // pula aspas escapadas
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      currentRow.push(currentCell.trim());
+      currentCell = '';
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      if (char === '\r' && nextChar === '\n') {
+        i++; // consome \r\n
+      }
+      currentRow.push(currentCell.trim());
+      currentCell = '';
+
+      if (currentRow.some(col => col.length > 0)) {
+        parsedGrid.push(currentRow);
+      }
+      currentRow = [];
+    } else {
+      currentCell += char;
+    }
+  }
+
+  if (currentCell.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentCell.trim());
+    if (currentRow.some(col => col.length > 0)) {
+      parsedGrid.push(currentRow);
+    }
+  }
+
+  if (parsedGrid.length < 2) {
+    return { headers: parsedGrid[0] || [], rows: [] };
+  }
+
+  const rawHeaders = parsedGrid[0].map(h => h.replace(/^["']|["']$/g, '').trim());
+  const dataRows = parsedGrid.slice(1);
+
+  const rows: GoogleSheetRawRow[] = dataRows.map(row => {
+    const rowObj: GoogleSheetRawRow = {};
+    rawHeaders.forEach((header, index) => {
+      const val = row[index] !== undefined ? row[index].replace(/^["']|["']$/g, '').trim() : '';
+      rowObj[header] = val;
+    });
+    return rowObj;
+  });
+
+  return {
+    headers: rawHeaders,
+    rows
+  };
+}
+
+/**
+ * Realiza fetch no endpoint CSV do Google Sheets e trata possíveis erros de permissão ou formato
+ */
+export async function fetchGoogleSheetCsv(urlOrId: string): Promise<{
+  csvText: string;
+  csvUrl: string;
+  spreadsheetId: string;
+}> {
+  const spreadsheetId = extractSpreadsheetId(urlOrId);
+  if (!spreadsheetId) {
+    throw new Error('Link ou ID da planilha do Google Sheets inválido. Verifique o link informado.');
+  }
+
+  const csvUrl = convertToGoogleSheetsCsvUrl(urlOrId);
+
+  let responseText = '';
+  let directFetchOk = false;
+
+  // 1. Tenta fetch direto no endpoint oficial CSV do Google Sheets
+  try {
+    const response = await fetch(csvUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/csv,text/plain,*/*'
+      },
+      redirect: 'follow'
+    });
+
+    if (response.ok) {
+      responseText = await response.text();
+      directFetchOk = true;
+    } else if (response.status === 404) {
+      throw new Error('Planilha não encontrada no Google Sheets (404). Verifique se o link ou ID está correto.');
+    } else if (response.status === 401 || response.status === 403) {
+      throw new Error('A planilha está com acesso RESTRITO. No Google Sheets, clique em "Compartilhar" (canto superior direito) e altere para "Qualquer pessoa com o link" (como Leitor).');
+    }
+  } catch (err: any) {
+    if (err.message && (err.message.includes('404') || err.message.includes('RESTRITO'))) {
+      throw err;
+    }
+    // Erros de CORS ou rede: tentará o fallback seguro via backend
+  }
+
+  // 2. Fallback via backend proxy caso o fetch direto seja bloqueado pelo navegador (CORS)
+  if (!directFetchOk) {
+    try {
+      const fallbackRes = await fetch('/api/bi/import-google-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: csvUrl })
+      });
+
+      const fallbackRawText = await fallbackRes.text();
+      let fallbackData: any;
+      try {
+        fallbackData = JSON.parse(fallbackRawText);
+      } catch {
+        throw new Error('O servidor retornou uma resposta não reconhecida. Certifique-se de que a planilha está pública para "Qualquer pessoa com o link".');
+      }
+
+      if (!fallbackRes.ok || !fallbackData.success) {
+        throw new Error(fallbackData.error || 'Não foi possível carregar os dados da planilha do Google Sheets.');
+      }
+
+      if (fallbackData.csvText) {
+        responseText = fallbackData.csvText;
+      } else if (fallbackData.dataBase64) {
+        const binStr = window.atob(fallbackData.dataBase64);
+        const bytes = new Uint8Array(binStr.length);
+        for (let i = 0; i < binStr.length; i++) {
+          bytes[i] = binStr.charCodeAt(i);
+        }
+        responseText = new TextDecoder('utf-8').decode(bytes);
+      } else {
+        throw new Error('Os dados da planilha não foram recebidos corretamente.');
+      }
+    } catch (fbErr: any) {
+      throw new Error(fbErr.message || 'Erro ao conectar à planilha do Google Sheets. Verifique o link e se a permissão está pública.');
+    }
+  }
+
+  // 3. Validação de conteúdo HTML retornado (típico quando a planilha exige login ou permissão)
+  const sample = responseText.slice(0, 1000).toLowerCase();
+  const isHtml = sample.includes('<!doctype html') || sample.includes('<html') || sample.includes('<head>') || sample.startsWith('the page c');
+  const isGoogleLogin = (
+    sample.includes('accounts.google.com') ||
+    sample.includes('servicelogin') ||
+    sample.includes('sign in') ||
+    sample.includes('drive.google.com/signin') ||
+    sample.includes('access denied')
+  );
+
+  if (isHtml || isGoogleLogin) {
+    throw new Error('Esta planilha do Google Sheets está com acesso RESTRITO (privada). No Google Sheets, clique em "Compartilhar" (canto superior direito) e altere o Acesso Geral para "Qualquer pessoa com o link" (como Leitor).');
+  }
+
+  if (!responseText.trim()) {
+    throw new Error('A planilha baixada do Google Sheets está vazia.');
+  }
+
+  return {
+    csvText: responseText,
+    csvUrl,
+    spreadsheetId
+  };
+}
+
+/**
+ * Importa a planilha do Google Sheets a partir de URL ou ID, converte o CSV para JSON estruturado,
+ * valida colunas obrigatórias e calcula os registros financeiros de BI da Lavistore.
+ */
+export async function importGoogleSheetAsRecords(urlOrId: string): Promise<GoogleSheetImportResult> {
+  const { csvText, csvUrl, spreadsheetId } = await fetchGoogleSheetCsv(urlOrId);
+  const { rows } = parseCsvToStructuredJson(csvText);
+
+  if (rows.length === 0) {
+    throw new Error('A planilha está vazia ou não possui linhas de produtos abaixo do cabeçalho.');
+  }
+
+  // Processa as linhas usando o motor de validação e cálculos financeiros
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(csvText);
+  const parsed = parseSpreadsheetBuffer(bytes);
+
+  if (!parsed.success || parsed.records.length === 0) {
+    const errorDetails = parsed.errors.length > 0
+      ? parsed.errors.join(' | ')
+      : 'Não foi possível identificar as colunas obrigatórias na planilha.';
+    throw new Error(`${errorDetails} Certifique-se de que a primeira linha possui: Ano, Mês, Produto, Tam/Cor, Descrição, Quantidade Comprada, Custo Total, Preço de Venda.`);
+  }
+
+  return {
+    spreadsheetId,
+    csvUrl,
+    rawJson: rows,
+    records: parsed.records,
+    totalRows: parsed.records.length,
+    warnings: parsed.warnings
+  };
 }
 
 export interface UpdateInitialSheetResult {

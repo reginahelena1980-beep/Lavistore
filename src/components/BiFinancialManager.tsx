@@ -56,7 +56,10 @@ import {
   GoogleSheetsConfig, 
   updateUserInitialSpreadsheet, 
   googleSignIn, 
-  getAccessToken 
+  getAccessToken,
+  extractSpreadsheetId,
+  convertToGoogleSheetsCsvUrl,
+  importGoogleSheetAsRecords
 } from '../services/googleSheetsService';
 import { OrderData } from '../types';
 import { 
@@ -324,11 +327,11 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     }
   };
 
-  // Importação de planilha via Link do Google Drive / Google Sheets
+  // Importação de planilha via Link do Google Sheets (Sheets -> Site)
   const handleImportFromGoogleDrive = async (overrideUrl?: string) => {
     const urlToUse = (overrideUrl !== undefined ? overrideUrl : googleDriveUrl).trim();
     if (!urlToUse) {
-      setUploadError('Por favor, informe o link de compartilhamento da sua planilha no Google Drive ou Google Sheets.');
+      setUploadError('Por favor, informe o link de compartilhamento da sua planilha no Google Sheets ou Google Drive.');
       return;
     }
 
@@ -338,39 +341,21 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     setUploadWarnings([]);
 
     try {
-      const res = await fetch('/api/bi/import-google-drive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: urlToUse })
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Falha ao importar do Google Drive.');
+      // 1. Extrai o ID da planilha e converte para o endpoint oficial CSV
+      const spreadsheetId = extractSpreadsheetId(urlToUse);
+      if (!spreadsheetId) {
+        throw new Error('Link ou ID da planilha do Google Sheets inválido. Cole a URL completa (ex: https://docs.google.com/spreadsheets/d/.../edit).');
       }
 
-      // Decodifica base64 para Uint8Array
-      const binaryString = window.atob(data.dataBase64);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+      // 2. Importa os registros diretamente do endpoint CSV oficial do Google Sheets
+      const result = await importGoogleSheetAsRecords(urlToUse);
+
+      if (!result.records || result.records.length === 0) {
+        throw new Error('Nenhum registro de produto válido pôde ser importado da planilha.');
       }
 
-      // Processa através do motor de cálculos e validação
-      const parsed = parseSpreadsheetBuffer(bytes);
-
-      if (!parsed.success || parsed.records.length === 0) {
-        setUploadError(
-          parsed.errors.join(' | ') ||
-          'Não foi possível identificar as colunas obrigatórias na planilha do Google Drive.'
-        );
-        if (parsed.warnings.length > 0) setUploadWarnings(parsed.warnings);
-        return;
-      }
-
-      // Persiste os registros calculados no banco de dados da aplicação
-      await persistRecords(parsed.records);
+      // 3. Persiste os registros calculados no banco de dados da aplicação
+      await persistRecords(result.records);
 
       const now = new Date();
       const syncTimestamp = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
@@ -378,15 +363,22 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       localStorage.setItem('lavistore_bi_google_drive_url', urlToUse);
       localStorage.setItem('lavistore_bi_last_drive_sync', syncTimestamp);
 
-      setUploadSuccess(`Planilha sincronizada do Google Drive com sucesso! ${parsed.records.length} produtos apurados.`);
-      if (parsed.warnings.length > 0) {
-        setUploadWarnings(parsed.warnings);
+      setUploadSuccess(`Planilha importada com sucesso via Google Sheets CSV! ${result.records.length} produtos apurados.`);
+      if (result.warnings && result.warnings.length > 0) {
+        setUploadWarnings(result.warnings);
       }
       if (onNotify) {
-        onNotify(`Planilha do Google Drive sincronizada! ${parsed.records.length} produtos apurados no BI. 📊✨`);
+        onNotify(`Planilha do Google Sheets sincronizada! ${result.records.length} produtos apurados no BI. 📊✨`);
       }
     } catch (err: any) {
-      setUploadError(err.message || 'Erro ao conectar e importar a planilha do Google Drive.');
+      console.error('[Google Sheets Import]', err);
+      // Trata erros de forma amigável para o lojista
+      const msg = err?.message || 'Erro ao conectar e importar a planilha do Google Sheets.';
+      if (msg.includes('Unexpected token') || msg.includes('is not valid JSON')) {
+        setUploadError('A planilha retornou uma resposta não reconhecida. Certifique-se de que no Google Sheets o compartilhamento está configurado como "Qualquer pessoa com o link" (como Leitor).');
+      } else {
+        setUploadError(msg);
+      }
     } finally {
       setIsLoadingDrive(false);
     }

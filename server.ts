@@ -1332,28 +1332,32 @@ app.post('/api/bi/import-google-drive', async (req, res) => {
 
     // Se o retorno for uma página HTML, o arquivo requer autenticação ou está privado
     const previewText = buffer.slice(0, 1000).toString('utf-8');
-    if (previewText.includes('<!DOCTYPE html') || previewText.includes('<html') || contentType.includes('text/html')) {
-      if (
-        previewText.includes('accounts.google.com') ||
-        previewText.includes('ServiceLogin') ||
-        previewText.includes('Sign in - Google Accounts') ||
-        previewText.includes('drive.google.com/signin')
-      ) {
-        return res.status(403).json({
-          error: 'Esta planilha no Google Drive/Sheets está com acesso RESTRITO (privada). No Google Sheets ou Drive, clique em "Compartilhar" no canto superior direito e mude o Acesso Geral para "Qualquer pessoa com o link" (como Leitor).'
-        });
-      }
+    const previewLower = previewText.toLowerCase();
+    if (
+      previewText.includes('<!DOCTYPE html') || 
+      previewText.includes('<html') || 
+      contentType.includes('text/html') ||
+      previewLower.startsWith('the page c') ||
+      previewLower.includes('accounts.google.com') ||
+      previewLower.includes('servicelogin') ||
+      previewLower.includes('sign in - google accounts') ||
+      previewLower.includes('drive.google.com/signin')
+    ) {
+      return res.status(403).json({
+        error: 'Esta planilha no Google Sheets está com acesso RESTRITO (privada). No Google Sheets, clique em "Compartilhar" no canto superior direito e mude o Acesso Geral para "Qualquer pessoa com o link" (como Leitor).'
+      });
     }
 
     if (buffer.length < 5) {
-      return res.status(400).json({ error: 'O arquivo baixado do Google Drive está vazio.' });
+      return res.status(400).json({ error: 'O arquivo baixado do Google Sheets está vazio.' });
     }
 
     return res.json({
       success: true,
-      message: 'Planilha baixada do Google Drive com sucesso!',
+      message: 'Planilha baixada do Google Sheets com sucesso!',
       contentType,
       sizeBytes: buffer.length,
+      csvText: buffer.toString('utf-8'),
       dataBase64: buffer.toString('base64'),
       isSpreadsheet: true
     });
