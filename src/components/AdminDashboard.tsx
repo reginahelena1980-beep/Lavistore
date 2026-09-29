@@ -627,7 +627,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in font-['Comfortaa'] pb-12">
+    <div className="w-full max-w-full space-y-6 animate-in fade-in font-['Comfortaa'] pb-12">
       {/* Top Banner & Quick Metrics - Exibido somente na aba principal de Produtos */}
       {adminSection === 'products' ? (
         <div className="bg-white/85 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-amber-200/80 shadow-2xs relative overflow-hidden">

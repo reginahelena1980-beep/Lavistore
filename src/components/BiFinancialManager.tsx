@@ -700,7 +700,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
   }, [filteredRecords]);
 
   return (
-    <div className="space-y-8 animate-in fade-in font-['Comfortaa'] pb-12">
+    <div className="w-full max-w-full space-y-6 sm:space-y-8 animate-in fade-in font-['Comfortaa'] pb-12">
       {/* 1. CABEÇALHO EXECUTIVO DO MÓDULO BI */}
       <div className="bg-gradient-to-r from-purple-950 via-purple-900 to-pink-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border-2 border-purple-800">
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-8 opacity-10 pointer-events-none">
@@ -1253,7 +1253,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       </div>
 
       {/* 5. TABELA DINÂMICA DETALHADA DE DESEMPENHO (PARTE 2 E 3 DA SOLICITAÇÃO) */}
-      <div className="bg-white/95 backdrop-blur-md rounded-3xl border-2 border-amber-200 shadow-md overflow-hidden space-y-0">
+      <div className="w-full bg-white/95 backdrop-blur-md rounded-3xl border-2 border-amber-200 shadow-md overflow-hidden space-y-0">
         <div className="p-5 sm:p-6 border-b border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-amber-50/60 to-pink-50/40">
           <div>
             <h2 className="font-['Mali'] text-lg sm:text-xl font-bold text-purple-950 flex items-center gap-2">
@@ -1317,36 +1317,36 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-amber-50">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-amber-100/70 text-purple-950 uppercase text-[10px] font-bold tracking-wider border-b-2 border-amber-200">
                   {/* 1ª COLUNA: VITRINE DA LOJA (Acesso direto sem scroll) */}
-                  <th className="py-3 px-3.5 text-center min-w-[175px] bg-pink-100/80 border-r border-amber-200">
-                    <div className="flex items-center justify-center gap-1.5 text-pink-950 font-extrabold">
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap bg-pink-100/80 border-r border-amber-200">
+                    <div className="flex items-center justify-center gap-1 text-pink-950 font-extrabold">
                       <Store className="w-3.5 h-3.5 text-pink-600" />
                       <span>Vitrine da Loja</span>
                     </div>
                   </th>
-                  <th className="py-3 px-3.5 min-w-[190px]">Produto</th>
-                  <th className="py-3 px-3.5 text-center min-w-[110px]">
+                  <th className="py-2.5 px-2.5 min-w-[150px] whitespace-nowrap">Produto</th>
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap">
                     <div className="flex items-center justify-center gap-1 text-purple-950">
                       <Ruler className="w-3.5 h-3.5 text-purple-600" />
                       <span>Tam/Cor</span>
                     </div>
                   </th>
-                  <th className="py-3 px-3.5">Período</th>
-                  <th className="py-3 px-3.5 text-center">Compras (Qtd)</th>
-                  <th className="py-3 px-3.5 text-center">Vendas (Qtd)</th>
-                  <th className="py-3 px-3.5 text-center">Saldo Estoque</th>
-                  <th className="py-3 px-3.5 text-right">Custo Unit.</th>
-                  <th className="py-3 px-3.5 text-right">Preço Venda</th>
-                  <th className="py-3 px-3.5 text-right">Faturamento</th>
-                  <th className="py-3 px-3.5 text-right">CPV (Custo Venda)</th>
-                  <th className="py-3 px-3.5 text-right">Lucro Bruto</th>
-                  <th className="py-3 px-3.5 text-center">Margem</th>
-                  <th className="py-3 px-3.5 text-right">Custo Estoque</th>
-                  <th className="py-3 px-3.5 text-center min-w-[90px]">Ações BI</th>
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Período</th>
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Compras (Qtd)</th>
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Vendas (Qtd)</th>
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Saldo Estoque</th>
+                  <th className="py-2.5 px-2 text-right whitespace-nowrap">Custo Unit.</th>
+                  <th className="py-2.5 px-2 text-right whitespace-nowrap">Preço Venda</th>
+                  <th className="py-2.5 px-2 text-right whitespace-nowrap">Faturamento</th>
+                  <th className="py-2.5 px-2 text-right whitespace-nowrap">CPV (Custo)</th>
+                  <th className="py-2.5 px-2 text-right whitespace-nowrap">Lucro Bruto</th>
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Margem</th>
+                  <th className="py-2.5 px-2 text-right whitespace-nowrap">Custo Estoque</th>
+                  <th className="py-2.5 px-2 text-center whitespace-nowrap">Ações BI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100">
@@ -1358,18 +1358,18 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                   return (
                     <tr key={r.id} className="hover:bg-amber-50/50 transition-colors">
                       {/* 1ª COLUNA: BOTÃO DE PUBLICAÇÃO & STATUS DA VITRINE */}
-                      <td className="py-3 px-3.5 text-center bg-pink-50/40 border-r border-amber-200">
-                        <div className="flex flex-col items-center justify-center gap-1.5">
+                      <td className="py-2.5 px-2 text-center bg-pink-50/40 border-r border-amber-200 whitespace-nowrap">
+                        <div className="flex flex-col items-center justify-center gap-1">
                           {isPublished ? (
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 type="button"
                                 onClick={() => setRecordToPublish(r)}
                                 title={`Editar foto, preço e detalhes de "${r.produto}" na vitrine`}
-                                className="px-2.5 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 text-[11px] font-bold flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                                className="px-2 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 text-[10px] font-bold flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                               >
-                                <Store className="w-3.5 h-3.5 text-purple-700" />
-                                <span>Editar Vitrine</span>
+                                <Store className="w-3 h-3 text-purple-700" />
+                                <span>Editar</span>
                               </button>
 
                               {matchingProduct && onViewProductLive && (
@@ -1377,9 +1377,9 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                                   type="button"
                                   onClick={() => onViewProductLive(matchingProduct)}
                                   title={`Visualizar "${r.produto}" ao vivo na vitrine dos clientes`}
-                                  className="p-1.5 rounded-xl bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 transition-colors cursor-pointer"
+                                  className="p-1 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 transition-colors cursor-pointer"
                                 >
-                                  <Eye className="w-3.5 h-3.5" />
+                                  <Eye className="w-3 h-3" />
                                 </button>
                               )}
                             </div>
@@ -1388,19 +1388,19 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                               type="button"
                               onClick={() => setRecordToPublish(r)}
                               title={`Publicar "${r.produto} (${r.tamCor})" diretamente na vitrine da loja`}
-                              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-[11px] font-extrabold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95 border border-pink-400 whitespace-nowrap"
+                              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95 border border-pink-400 whitespace-nowrap"
                             >
-                              <Store className="w-3.5 h-3.5 text-amber-200" />
-                              <span>Publicar na Vitrine 🌸</span>
+                              <Store className="w-3 h-3 text-amber-200" />
+                              <span>Publicar 🌸</span>
                             </button>
                           )}
 
                           {/* Status badge sob o botão */}
-                          <div className="flex items-center gap-1 flex-wrap justify-center">
+                          <div className="flex items-center gap-1 justify-center whitespace-nowrap">
                             {isPublished ? (
                               <>
-                                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-pink-100 text-pink-900 border border-pink-200">
-                                  <span>🛍️ Na Vitrine</span>
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-pink-100 text-pink-900 border border-pink-200">
+                                  🛍️ Vitrine
                                 </span>
                                 {r.saldoEstoqueQtd <= 0 ? (
                                   <span className="text-[9px] text-rose-700 font-bold">
@@ -1417,7 +1417,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                                 )}
                               </>
                             ) : (
-                              <span className="text-[10px] text-slate-400 font-medium">
+                              <span className="text-[9px] text-slate-400 font-medium">
                                 Não Publicado
                               </span>
                             )}
@@ -1426,26 +1426,26 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                       </td>
 
                       {/* 2ª COLUNA: PRODUTO */}
-                      <td className="py-3 px-3.5">
-                        <div className="flex items-center gap-2.5">
+                      <td className="py-2.5 px-2.5 text-left">
+                        <div className="flex items-center gap-2">
                           {displayThumb ? (
                             <img
                               src={displayThumb}
                               alt={r.produto}
-                              className="w-10 h-10 rounded-xl object-cover border border-amber-200 shadow-2xs shrink-0"
+                              className="w-8 h-8 rounded-lg object-cover border border-amber-200 shadow-2xs shrink-0"
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-400 shrink-0">
-                              <ShoppingBag className="w-5 h-5 text-purple-400" />
+                            <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-400 shrink-0">
+                              <ShoppingBag className="w-4 h-4 text-purple-400" />
                             </div>
                           )}
                           <div className="space-y-0.5 min-w-0">
-                            <strong className="font-bold text-purple-950 text-xs sm:text-sm block truncate max-w-[210px]" title={r.produto}>
+                            <strong className="font-bold text-purple-950 text-xs block truncate max-w-[150px] lg:max-w-[200px]" title={r.produto}>
                               {r.produto}
                             </strong>
                             {r.descricao && (
-                              <span className="text-[10px] text-slate-400 truncate max-w-[180px] block" title={r.descricao}>
+                              <span className="text-[9px] text-slate-400 truncate max-w-[140px] block" title={r.descricao}>
                                 {r.descricao}
                               </span>
                             )}
@@ -1453,10 +1453,10 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                         </div>
                       </td>
 
-                      {/* 3ª COLUNA: TAM/COR (Coluna Adicional Separada Conforme Planilha) */}
-                      <td className="py-3 px-3.5 text-center whitespace-nowrap">
-                        <div className="flex flex-col items-center justify-center gap-1">
-                          <span className="inline-block px-2.5 py-1 rounded-lg bg-purple-100 border border-purple-200 text-purple-950 text-xs font-black shadow-2xs">
+                      {/* 3ª COLUNA: TAM/COR */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center justify-center gap-0.5">
+                          <span className="inline-block px-2 py-0.5 rounded-md bg-purple-100 border border-purple-200 text-purple-950 text-[11px] font-bold shadow-2xs">
                             {r.tamCor || 'Único'}
                           </span>
                           {(() => {
@@ -1464,7 +1464,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                             if (siblings.length > 1) {
                               return (
                                 <span 
-                                  className="px-1.5 py-0.5 rounded-md bg-pink-50 border border-pink-200 text-pink-700 text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs"
+                                  className="px-1.5 py-0.2 rounded bg-pink-50 border border-pink-200 text-pink-700 text-[8px] font-bold flex items-center gap-0.5"
                                   title={`Item vinculado à família com ${siblings.length} variações (${siblings.map(s => s.tamCor).join(', ')}). Exibido em card unificado na vitrine.`}
                                 >
                                   <Sparkles className="w-2.5 h-2.5 text-pink-500" />
@@ -1477,32 +1477,36 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                         </div>
                       </td>
 
-                      {/* 3ª COLUNA: Período */}
-                      <td className="py-3 px-3.5 whitespace-nowrap">
-                        <span className="font-bold text-purple-950 block">{r.mes}</span>
-                        <span className="text-[10px] text-slate-500 font-medium">{r.ano}</span>
+                      {/* 4ª COLUNA: PERÍODO */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap leading-tight">
+                        <span className="font-bold text-purple-950 text-xs block">{r.mes}</span>
+                        <span className="text-[10px] text-slate-500 font-medium block">{r.ano}</span>
                       </td>
 
-                      {/* Quantidade Comprada */}
-                      <td className="py-3 px-3.5 text-center font-bold text-slate-700">
-                        {r.quantidadeComprada} un.
-                        <span className="block text-[10px] text-slate-400 font-normal">
-                          Total: R$ {r.custoTotal.toFixed(2)}
+                      {/* 5ª COLUNA: COMPRAS (QTD) */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                        <span className="font-bold text-slate-800 text-xs tabular-nums block">
+                          {r.quantidadeComprada} un.
+                        </span>
+                        <span className="block text-[9px] text-slate-400 font-normal whitespace-nowrap">
+                          R$ {r.custoTotal.toFixed(2)}
                         </span>
                       </td>
 
-                      {/* Quantidade Vendida */}
-                      <td className="py-3 px-3.5 text-center font-bold text-emerald-800">
-                        {r.quantidadeVendida} un.
-                        <span className="block text-[10px] text-emerald-600 font-normal">
+                      {/* 6ª COLUNA: VENDAS (QTD) */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                        <span className="font-bold text-emerald-800 text-xs tabular-nums block">
+                          {r.quantidadeVendida} un.
+                        </span>
+                        <span className="block text-[9px] text-emerald-600 font-normal whitespace-nowrap">
                           Meta: {r.atingimentoMeta}%
                         </span>
                       </td>
 
-                      {/* Saldo em Estoque */}
-                      <td className="py-3 px-3.5 text-center">
+                      {/* 7ª COLUNA: SALDO ESTOQUE */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
                             r.statusEstoque === 'ok'
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                               : r.statusEstoque === 'baixo'
@@ -1520,35 +1524,35 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                         )}
                       </td>
 
-                      {/* Custo Unitário */}
-                      <td className="py-3 px-3.5 text-right font-medium text-slate-700">
+                      {/* 8ª COLUNA: CUSTO UNITÁRIO */}
+                      <td className="py-2.5 px-2 text-right whitespace-nowrap font-medium text-xs text-slate-700 tabular-nums">
                         R$ {r.custoUnitario.toFixed(2)}
                       </td>
 
-                      {/* Preço de Venda */}
-                      <td className="py-3 px-3.5 text-right font-bold text-purple-950">
+                      {/* 9ª COLUNA: PREÇO DE VENDA */}
+                      <td className="py-2.5 px-2 text-right whitespace-nowrap font-bold text-xs text-purple-950 tabular-nums">
                         R$ {r.precoVenda.toFixed(2)}
                       </td>
 
-                      {/* Faturamento (Venda Total) */}
-                      <td className="py-3 px-3.5 text-right font-bold text-emerald-700">
+                      {/* 10ª COLUNA: FATURAMENTO */}
+                      <td className="py-2.5 px-2 text-right whitespace-nowrap font-bold text-xs text-emerald-700 tabular-nums">
                         R$ {r.vendaTotal.toFixed(2)}
                       </td>
 
-                      {/* CPV */}
-                      <td className="py-3 px-3.5 text-right font-medium text-slate-600">
+                      {/* 11ª COLUNA: CPV */}
+                      <td className="py-2.5 px-2 text-right whitespace-nowrap font-medium text-xs text-slate-600 tabular-nums">
                         R$ {r.custoVenda.toFixed(2)}
                       </td>
 
-                      {/* Lucro Bruto */}
-                      <td className="py-3 px-3.5 text-right font-bold text-rose-600">
+                      {/* 12ª COLUNA: LUCRO BRUTO */}
+                      <td className="py-2.5 px-2 text-right whitespace-nowrap font-bold text-xs text-rose-600 tabular-nums">
                         R$ {r.lucroBruto.toFixed(2)}
                       </td>
 
-                      {/* Margem de Lucro (%) */}
-                      <td className="py-3 px-3.5 text-center">
+                      {/* 13ª COLUNA: MARGEM */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                          className={`inline-block px-1.5 py-0.5 rounded font-bold text-[10px] tabular-nums ${
                             r.margemLucro >= 50
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                               : r.margemLucro >= 25
@@ -1558,22 +1562,22 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                         >
                           {r.margemLucro}%
                         </span>
-                        <span className="block text-[9px] text-slate-400">Mk: {r.markupReal}%</span>
+                        <span className="block text-[9px] text-slate-400 whitespace-nowrap">Mk: {r.markupReal}%</span>
                       </td>
 
-                      {/* Custo em Estoque (Capital Imobilizado) */}
-                      <td className="py-3 px-3.5 text-right font-bold text-purple-950">
+                      {/* 14ª COLUNA: CUSTO ESTOQUE */}
+                      <td className="py-2.5 px-2 text-right whitespace-nowrap font-bold text-xs text-purple-950 tabular-nums">
                         R$ {r.custoEstoque.toFixed(2)}
                       </td>
 
-                      {/* Ações da Planilha do BI (Editar / Excluir) */}
-                      <td className="py-3 px-3.5 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      {/* 15ª COLUNA: AÇÕES BI */}
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(r)}
                             title="Editar compras, vendas e custos deste registro"
-                            className="p-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer"
+                            className="p-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
@@ -1581,7 +1585,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                             type="button"
                             onClick={() => setRecordToDelete(r)}
                             title="Excluir linha da apuração"
-                            className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
+                            className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1591,6 +1595,62 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                   );
                 })}
               </tbody>
+              <tfoot className="bg-amber-100/80 border-t-2 border-amber-300 text-purple-950 font-bold text-xs">
+                <tr>
+                  <td className="py-2.5 px-2 text-center text-[10px] uppercase tracking-wider text-pink-950 bg-pink-100/90 border-r border-amber-200 whitespace-nowrap">
+                    Totais ({filteredRecords.length})
+                  </td>
+                  <td className="py-2.5 px-2.5 font-bold text-xs text-purple-950 whitespace-nowrap" colSpan={2}>
+                    Consolidado Geral
+                  </td>
+                  <td className="py-2.5 px-2 text-center text-[10px] text-slate-600 whitespace-nowrap">
+                    {selectedMonth === 'all' ? 'Todos' : selectedMonth}/{selectedYear === 'all' ? 'Todos' : selectedYear}
+                  </td>
+                  <td className="py-2.5 px-2 text-center text-xs text-slate-900 whitespace-nowrap tabular-nums">
+                    {kpis.totalCompradoQtd} un.
+                    <span className="block text-[9px] text-slate-500 font-normal">
+                      R$ {kpis.custoTotalCompras.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-2 text-center text-xs text-emerald-900 whitespace-nowrap tabular-nums">
+                    {kpis.totalVendidoQtd} un.
+                    <span className="block text-[9px] text-emerald-700 font-normal">
+                      Meta: {kpis.atingimentoGlobal}%
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-2 text-center text-xs whitespace-nowrap tabular-nums">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-950 border border-purple-200">
+                      {kpis.saldoTotalEstoqueQtd} un.
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-2 text-right text-xs text-slate-400 whitespace-nowrap">
+                    -
+                  </td>
+                  <td className="py-2.5 px-2 text-right text-xs text-slate-400 whitespace-nowrap">
+                    -
+                  </td>
+                  <td className="py-2.5 px-2 text-right text-xs text-emerald-800 whitespace-nowrap tabular-nums font-extrabold">
+                    R$ {kpis.faturamentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-2 text-right text-xs text-slate-700 whitespace-nowrap tabular-nums font-semibold">
+                    R$ {kpis.cpvTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-2 text-right text-xs text-rose-700 whitespace-nowrap tabular-nums font-extrabold">
+                    R$ {kpis.lucroBrutoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-2 text-center text-xs whitespace-nowrap">
+                    <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-200 text-emerald-950 font-extrabold text-[10px]">
+                      ~{kpis.margemLucroMedia}%
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-2 text-right text-xs text-purple-950 whitespace-nowrap tabular-nums font-extrabold">
+                    R$ {kpis.valorTotalEstoque.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2.5 px-2 text-center text-[10px] text-slate-400 whitespace-nowrap">
+                    -
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
