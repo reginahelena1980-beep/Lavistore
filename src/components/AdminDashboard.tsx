@@ -1144,6 +1144,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             biRecords={biRecords}
             onAddProduct={onAddProduct}
             onEditProduct={onEditProduct}
+            onSaveProduct={onSaveProduct}
             onDuplicateProduct={onDuplicateProduct}
             onDeleteProduct={setProductToDelete}
             onViewProductLive={onViewProductLive}

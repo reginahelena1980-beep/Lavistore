@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Download, Upload, RotateCcw, Sparkles, Plus, Eye, Copy, Edit3, Trash2, ChevronDown, Database, X, BarChart3 } from 'lucide-react';
+import { Search, Download, Upload, RotateCcw, Sparkles, Plus, Eye, Copy, Edit3, Trash2, ChevronDown, Database, X, BarChart3, Store } from 'lucide-react';
 import { Product, Category, BiProductCalculatedRecord } from '../types';
 import { getEffectiveProductBiData } from '../utils/productGroupingEngine';
 
@@ -22,6 +22,7 @@ interface AdminProductCatalogViewProps {
   biRecords?: BiProductCalculatedRecord[];
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
+  onSaveProduct?: (product: Product) => void;
   onDuplicateProduct: (product: Product) => void;
   onDeleteProduct: (product: Product) => void;
   onViewProductLive: (product: Product) => void;
@@ -46,6 +47,7 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
   biRecords = [],
   onAddProduct,
   onEditProduct,
+  onSaveProduct,
   onDuplicateProduct,
   onDeleteProduct,
   onViewProductLive
@@ -403,6 +405,22 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
                       <td className="py-2.5 px-3 max-w-xs">
                         <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                           <p className="font-bold text-purple-950 text-xs">{p.name}</p>
+                          {/* Badge de status de publicação na Vitrine */}
+                          {p.isPublished === false ? (
+                            <span 
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-300"
+                              title="Este produto está despublicado/oculto da vitrine dos clientes"
+                            >
+                              ⚪ Não Publicado
+                            </span>
+                          ) : (
+                            <span 
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"
+                              title="Este produto está publicado e ativo na vitrine da loja"
+                            >
+                              🛍️ Vitrine
+                            </span>
+                          )}
                           {eff.hasBiData ? (
                             <span 
                               className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-purple-100 text-purple-800 border border-purple-200"
@@ -509,6 +527,25 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
                       {/* Action buttons - Delicate, Smaller & Unified */}
                       <td className="py-2.5 px-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {/* Toggle Publish / Unpublish Button */}
+                          {onSaveProduct && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const targetPublished = p.isPublished === false ? true : false;
+                                onSaveProduct({ ...p, isPublished: targetPublished });
+                              }}
+                              title={p.isPublished === false ? "Publicar este mimo na vitrine" : "Despublicar este mimo da vitrine (ocultar)"}
+                              className={`p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 ${
+                                p.isPublished === false
+                                  ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300'
+                                  : 'bg-amber-100/70 hover:bg-amber-200 text-amber-900 border-amber-300'
+                              }`}
+                            >
+                              <Store className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
                           {/* Live Preview Button */}
                           <button
                             onClick={() => onViewProductLive(p)}

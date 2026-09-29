@@ -65,7 +65,8 @@ import { OrderData } from '../types';
 import { 
   subscribeToBiRecords, 
   fetchBiRecordsFromFirestore, 
-  saveBiRecordsToFirestore 
+  saveBiRecordsToFirestore,
+  updateProductPublicationStatusInFirestore 
 } from '../services/firestoreConfigService';
 
 interface BiFinancialManagerProps {
@@ -573,25 +574,107 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     }
   };
 
-  // Identifica se o produto do BI já está na Vitrine
-  const isRecordPublished = (r: BiProductCalculatedRecord) => {
-    if (r.publishedToVitrine) return true;
-    if (products && products.some(p => {
-      if (p.biRecordId === r.id || (r.vitrineProductId && p.id === r.vitrineProductId)) return true;
-      return getGroupingKey(p.name) === getGroupingKey(r.produto);
-    })) {
-      return true;
-    }
-    return false;
-  };
-
-  // Localiza o produto correspondente da Vitrine
+  // Localiza o produto correspondente da Vitrine com matching robusto
   const getMatchingProduct = (r: BiProductCalculatedRecord): Product | null => {
     if (!products || products.length === 0) return null;
-    const direct = products.find(p => p.biRecordId === r.id || (r.vitrineProductId && p.id === r.vitrineProductId));
+    const direct = products.find(p => 
+      (p.biRecordId && p.biRecordId === r.id) || 
+      (r.vitrineProductId && p.id === r.vitrineProductId) ||
+      (p.sizes && p.sizes.some(s => s.biRecordId === r.id))
+    );
     if (direct) return direct;
     const rKey = getGroupingKey(r.produto);
     return products.find(p => getGroupingKey(p.name) === rKey) || null;
+  };
+
+  // Identifica se o produto do BI está publicado na Vitrine de forma estrita e unificada
+  const isRecordPublished = (r: BiProductCalculatedRecord): boolean => {
+    const matching = getMatchingProduct(r);
+    if (matching) {
+      // Se há produto correspondente na vitrine, verifica seu status unificado de publicação:
+      // O item só é considerado publicado se isPublished !== false no produto E publishedToVitrine !== false no BI
+      return matching.isPublished !== false && r.publishedToVitrine !== false;
+    }
+    // Sem produto correspondente cadastrado, respeita a flag do registro
+    return Boolean(r.publishedToVitrine);
+  };
+
+  // Alternância direta (toggle) do estado de publicação entre Vitrine / Não Publicado
+  const handleTogglePublish = async (record: BiProductCalculatedRecord, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    const currentlyPublished = isRecordPublished(record);
+    const targetPublished = !currentlyPublished;
+    const matchingProd = getMatchingProduct(record);
+    const siblings = findSiblingBiRecords(record, records);
+    const effectiveSiblings = siblings.length > 0 ? siblings : [record];
+    const siblingIds = new Set(effectiveSiblings.map(s => s.id));
+
+    // 1. Atualiza ou cria o objeto do produto com a propriedade de status/visibilidade unificada
+    let productToSave: Product;
+    if (matchingProd) {
+      productToSave = {
+        ...matchingProd,
+        isPublished: targetPublished
+      };
+    } else {
+      productToSave = createParentProductFromBiRecords(
+        record,
+        effectiveSiblings,
+        null,
+        { isPublished: targetPublished }
+      );
+    }
+
+    // 2. Notifica o componente pai para atualizar a lista soberana de produtos
+    if (onSaveProduct) {
+      onSaveProduct(productToSave);
+    }
+
+    // 3. Atualiza os registros do BI da família do produto sincronizando publishedToVitrine
+    const updatedRecords = records.map(item => {
+      if (siblingIds.has(item.id) || item.id === record.id) {
+        return {
+          ...item,
+          publishedToVitrine: targetPublished,
+          vitrineProductId: productToSave.id,
+          vitrineImageUrl: productToSave.images[0] || item.vitrineImageUrl,
+          vitrineCategory: productToSave.category || item.vitrineCategory,
+          vitrineTag: productToSave.tag || item.vitrineTag
+        };
+      }
+      return item;
+    });
+
+    // 4. Atualiza o estado local imediatamente
+    setRecords(updatedRecords);
+    if (onRecordsChange) {
+      onRecordsChange(updatedRecords);
+    }
+
+    // 5. Persiste imediatamente no Firebase Firestore (settings/bi_data) e cache/API
+    await persistRecords(updatedRecords);
+
+    // 6. Persiste também a atualização atômica de publicação no Firestore (settings/store_config)
+    const updatedProductsList = products.map(p => p.id === productToSave.id ? productToSave : p);
+    if (!updatedProductsList.some(p => p.id === productToSave.id)) {
+      updatedProductsList.unshift(productToSave);
+    }
+    await updateProductPublicationStatusInFirestore(
+      productToSave.id,
+      targetPublished,
+      updatedProductsList,
+      updatedRecords
+    );
+
+    // 7. Feedback amigável para o lojista
+    if (onNotify) {
+      if (targetPublished) {
+        onNotify(`✨ Mimo "${productToSave.name}" publicado na vitrine da loja com sucesso!`);
+      } else {
+        onNotify(`Mimo "${productToSave.name}" e suas variações foram despublicados da vitrine dos clientes.`);
+      }
+    }
   };
 
   // Publica ou atualiza o produto na Vitrine do E-commerce com inteligência de agrupamento Pai/Filho
@@ -602,39 +685,61 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     const siblings = findSiblingBiRecords(updatedRecord, records);
     const effectiveSiblings = siblings.length > 0 ? siblings : [updatedRecord];
 
+    const targetPublished = productData.isPublished !== false;
+
     // Cria ou atualiza o produto Pai unificado com todas as variações (tamanhos/cores)
     const productToSave = createParentProductFromBiRecords(
       updatedRecord,
       effectiveSiblings,
       existing,
-      productData
+      {
+        ...productData,
+        isPublished: targetPublished
+      }
     );
 
     if (onSaveProduct) {
       onSaveProduct(productToSave);
     }
 
-    // Marca todas as linhas irmãs da planilha como publicadas e vinculadas ao mesmo produto da vitrine
+    // Marca todas as linhas irmãs da planilha como publicadas ou despublicadas sincronizadas
     const siblingIds = new Set(effectiveSiblings.map(s => s.id));
     const newRecords = records.map(item => {
       if (siblingIds.has(item.id)) {
         return {
           ...item,
-          publishedToVitrine: true,
+          publishedToVitrine: targetPublished,
           vitrineProductId: productToSave.id,
-          vitrineImageUrl: productToSave.images[0],
-          vitrineCategory: productToSave.category,
-          vitrineTag: productToSave.tag
+          vitrineImageUrl: productToSave.images[0] || item.vitrineImageUrl,
+          vitrineCategory: productToSave.category || item.vitrineCategory,
+          vitrineTag: productToSave.tag || item.vitrineTag
         };
       }
       return item;
     });
 
+    setRecords(newRecords);
+    if (onRecordsChange) onRecordsChange(newRecords);
     await persistRecords(newRecords);
+
+    // Persiste também a atualização atômica no Firestore
+    const updatedProductsList = products.map(p => p.id === productToSave.id ? productToSave : p);
+    if (!updatedProductsList.some(p => p.id === productToSave.id)) {
+      updatedProductsList.unshift(productToSave);
+    }
+    await updateProductPublicationStatusInFirestore(
+      productToSave.id,
+      targetPublished,
+      updatedProductsList,
+      newRecords
+    );
+
     setRecordToPublish(null);
 
     if (onNotify) {
-      if (effectiveSiblings.length > 1) {
+      if (!targetPublished) {
+        onNotify(`Mimo "${productToSave.name}" despublicado da vitrine com sucesso.`);
+      } else if (effectiveSiblings.length > 1) {
         onNotify(`✨ Mimo "${productToSave.name}" unificado com sucesso! ${effectiveSiblings.length} variações vinculadas (${effectiveSiblings.map(s => s.tamCor).join(', ')}). Estoque total: ${productToSave.stock} un.`);
       } else {
         onNotify(`✨ Mimo "${productToSave.name}" publicado na vitrine com sucesso! Estoque: ${productToSave.stock} un.`);
@@ -650,15 +755,32 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     const siblings = findSiblingBiRecords(rec, records);
     const siblingIds = new Set((siblings.length > 0 ? siblings : [rec]).map(s => s.id));
 
-    if (productId && products) {
-      const prod = products.find(p => p.id === productId || p.biRecordId === recordId || getGroupingKey(p.name) === getGroupingKey(rec.produto));
-      if (prod && onSaveProduct) {
-        onSaveProduct({ ...prod, isPublished: false });
-      }
+    // Localiza o produto na lista com precisão
+    const targetProd = (productId && products) 
+      ? products.find(p => p.id === productId || p.biRecordId === recordId)
+      : getMatchingProduct(rec);
+
+    let updatedProduct: Product | null = null;
+    if (targetProd && onSaveProduct) {
+      updatedProduct = { ...targetProd, isPublished: false };
+      onSaveProduct(updatedProduct);
     }
 
     const updated = records.map(r => (siblingIds.has(r.id) || r.id === recordId) ? { ...r, publishedToVitrine: false } : r);
+    setRecords(updated);
+    if (onRecordsChange) onRecordsChange(updated);
     await persistRecords(updated);
+
+    if (targetProd) {
+      const updatedProductsList = products.map(p => p.id === targetProd.id ? { ...p, isPublished: false } : p);
+      await updateProductPublicationStatusInFirestore(
+        targetProd.id,
+        false,
+        updatedProductsList,
+        updated
+      );
+    }
+
     setRecordToPublish(null);
 
     if (onNotify) {
@@ -1359,17 +1481,27 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                     <tr key={r.id} className="hover:bg-amber-50/50 transition-colors">
                       {/* 1ª COLUNA: BOTÃO DE PUBLICAÇÃO & STATUS DA VITRINE */}
                       <td className="py-2.5 px-2 text-center bg-pink-50/40 border-r border-amber-200 whitespace-nowrap">
-                        <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex flex-col items-center justify-center gap-1.5">
                           {isPublished ? (
                             <div className="flex items-center justify-center gap-1">
+                              {/* Botão de Despublicar direto com 1 clique */}
+                              <button
+                                type="button"
+                                onClick={(e) => handleTogglePublish(r, e)}
+                                title={`Despublicar "${r.produto}" da vitrine dos clientes`}
+                                className="px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 text-[10px] font-bold flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                              >
+                                <Store className="w-3 h-3 text-amber-700" />
+                                <span>Despublicar</span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => setRecordToPublish(r)}
                                 title={`Editar foto, preço e detalhes de "${r.produto}" na vitrine`}
-                                className="px-2 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 text-[10px] font-bold flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                                className="p-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 text-[10px] font-bold transition-all cursor-pointer active:scale-95"
                               >
-                                <Store className="w-3 h-3 text-purple-700" />
-                                <span>Editar</span>
+                                <Edit3 className="w-3 h-3 text-purple-700" />
                               </button>
 
                               {matchingProduct && onViewProductLive && (
@@ -1384,23 +1516,35 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                               )}
                             </div>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => setRecordToPublish(r)}
-                              title={`Publicar "${r.produto} (${r.tamCor})" diretamente na vitrine da loja`}
-                              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95 border border-pink-400 whitespace-nowrap"
-                            >
-                              <Store className="w-3 h-3 text-amber-200" />
-                              <span>Publicar 🌸</span>
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              {/* Botão de Publicar direto com 1 clique */}
+                              <button
+                                type="button"
+                                onClick={(e) => handleTogglePublish(r, e)}
+                                title={`Publicar "${r.produto} (${r.tamCor})" diretamente na vitrine da loja`}
+                                className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95 border border-pink-400 whitespace-nowrap"
+                              >
+                                <Store className="w-3 h-3 text-amber-200" />
+                                <span>Publicar 🌸</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setRecordToPublish(r)}
+                                title={`Personalizar foto, preço e variações antes de publicar`}
+                                className="p-1 rounded-lg bg-white hover:bg-pink-50 text-purple-900 border border-purple-200 text-[10px] font-medium transition-all cursor-pointer"
+                              >
+                                <Edit3 className="w-3 h-3 text-purple-600" />
+                              </button>
+                            </div>
                           )}
 
                           {/* Status badge sob o botão */}
                           <div className="flex items-center gap-1 justify-center whitespace-nowrap">
                             {isPublished ? (
                               <>
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-pink-100 text-pink-900 border border-pink-200">
-                                  🛍️ Vitrine
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                  🛍️ Ativo / Vitrine
                                 </span>
                                 {r.saldoEstoqueQtd <= 0 ? (
                                   <span className="text-[9px] text-rose-700 font-bold">
@@ -1412,13 +1556,13 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
                                   </span>
                                 ) : (
                                   <span className="text-[9px] text-emerald-700 font-bold">
-                                    ✅ Ativo
+                                    ✅ {r.saldoEstoqueQtd} un.
                                   </span>
                                 )}
                               </>
                             ) : (
-                              <span className="text-[9px] text-slate-400 font-medium">
-                                Não Publicado
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-300">
+                                ⚪ Não Publicado
                               </span>
                             )}
                           </div>

@@ -34,7 +34,7 @@ import { CategoryEditorModal } from './components/CategoryEditorModal';
 import { DEFAULT_HOME_PAGE_CONFIG, getFontSizeClass, getFontWeightClass } from './utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from './data/filterConfig';
 import { safeSetItem, serializeCart, deserializeCart, serializeFavorites, deserializeFavorites } from './utils/storage';
-import { aggregateProductsForVitrine, findExactBiRecordForOrderItem, groupBiRecordsByBaseProduct, createParentProductFromBiRecords } from './utils/productGroupingEngine';
+import { aggregateProductsForVitrine, findExactBiRecordForOrderItem, groupBiRecordsByBaseProduct, createParentProductFromBiRecords, getGroupingKey } from './utils/productGroupingEngine';
 import { DEFAULT_BI_SAMPLE_RECORDS } from './utils/biFinanceEngine';
 import { 
   mergeProductsSafely, 
@@ -62,7 +62,9 @@ import {
 } from './services/storeApiService';
 import { 
   subscribeToStoreConfig, 
-  saveStoreConfigToFirestore 
+  saveStoreConfigToFirestore,
+  saveBiRecordsToFirestore,
+  updateProductPublicationStatusInFirestore 
 } from './services/firestoreConfigService';
 import { isFirebaseReady } from './services/firebase';
 import { appendOrderToSpreadsheet, getStoredSheetsConfig, updateUserInitialSpreadsheet } from './services/googleSheetsService';
@@ -847,10 +849,48 @@ export default function App() {
       setSelectedProduct(productData);
     }
 
+    // Sincroniza o status de publicação unificado nos registros de BI correspondentes
+    let syncedBiRecords: BiProductCalculatedRecord[] | undefined;
+    try {
+      const localBi = localStorage.getItem('lavistore_bi_records');
+      if (localBi) {
+        const biList: BiProductCalculatedRecord[] = JSON.parse(localBi);
+        const pKey = getGroupingKey(productData.name);
+        const hasMatch = biList.some(r =>
+          (productData.biRecordId && r.id === productData.biRecordId) ||
+          (r.vitrineProductId && r.vitrineProductId === productData.id) ||
+          getGroupingKey(r.produto) === pKey
+        );
+        if (hasMatch) {
+          syncedBiRecords = biList.map(r => {
+            if (
+              (productData.biRecordId && r.id === productData.biRecordId) ||
+              (r.vitrineProductId && r.vitrineProductId === productData.id) ||
+              getGroupingKey(r.produto) === pKey
+            ) {
+              return {
+                ...r,
+                publishedToVitrine: productData.isPublished !== false,
+                vitrineProductId: productData.id,
+                vitrineImageUrl: productData.images[0] || r.vitrineImageUrl,
+                vitrineCategory: productData.category || r.vitrineCategory,
+                vitrineTag: productData.tag || r.vitrineTag
+              };
+            }
+            return r;
+          });
+          localStorage.setItem('lavistore_bi_records', JSON.stringify(syncedBiRecords));
+          saveBiRecordsToFirestore(syncedBiRecords);
+        }
+      }
+    } catch (biErr) {
+      console.warn('Aviso ao sincronizar registros do BI em handleSaveProduct:', biErr);
+    }
+
     setIsCreatingProduct(false);
     setEditingProduct(null);
     showToast(`🌸 Mimo "${productData.name}" salvo com sucesso!`);
-    handlePublishToServer({ products: nextProducts }, false);
+    handlePublishToServer({ products: nextProducts, biRecords: syncedBiRecords }, false);
   };
 
   // Quick stock update handler for Administrator

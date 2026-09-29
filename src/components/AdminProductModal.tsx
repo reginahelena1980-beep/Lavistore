@@ -36,6 +36,7 @@ import {
   normalizeBaseProductName, 
   findSiblingBiRecords 
 } from '../utils/productGroupingEngine';
+import { saveBiRecordsToFirestore } from '../services/firestoreConfigService';
 
 export const SUGGESTED_PRODUCT_PHOTOS: Record<string, string[]> = {
   caneta: [
@@ -821,25 +822,33 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     if (currentBiRecord && onPublishBiRecord) {
       onPublishBiRecord(currentBiRecord, finalProduct);
     } else {
-      if (currentBiRecord) {
+      if (currentBiRecord || productToEdit) {
         try {
           const raw = localStorage.getItem('lavistore_bi_records');
           if (raw) {
             const list: BiProductCalculatedRecord[] = JSON.parse(raw);
+            const targetId = currentBiRecord?.id || productToEdit?.biRecordId;
+            const targetName = currentBiRecord?.produto || productToEdit?.name || finalProduct.name;
+            const pKey = getGroupingKey(targetName);
             const updatedList = list.map(item => {
-              if (item.id === currentBiRecord.id) {
+              if (
+                (targetId && item.id === targetId) ||
+                (finalProduct.id && item.vitrineProductId === finalProduct.id) ||
+                getGroupingKey(item.produto) === pKey
+              ) {
                 return {
                   ...item,
                   publishedToVitrine: finalProduct.isPublished !== false,
                   vitrineProductId: finalProduct.id,
-                  vitrineImageUrl: finalProduct.images[0],
-                  vitrineCategory: finalProduct.category,
-                  vitrineTag: finalProduct.tag
+                  vitrineImageUrl: finalProduct.images[0] || item.vitrineImageUrl,
+                  vitrineCategory: finalProduct.category || item.vitrineCategory,
+                  vitrineTag: finalProduct.tag || item.vitrineTag
                 };
               }
               return item;
             });
             localStorage.setItem('lavistore_bi_records', JSON.stringify(updatedList));
+            saveBiRecordsToFirestore(updatedList);
             fetch('/api/bi/records', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -856,11 +865,40 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
   };
 
   const handleUnpublish = () => {
+    const targetId = formData.id || productToEdit?.id;
     if (currentBiRecord && onUnpublishBiRecord) {
-      onUnpublishBiRecord(currentBiRecord.id, formData.id);
+      onUnpublishBiRecord(currentBiRecord.id, targetId);
       onClose();
     } else if (productToEdit) {
-      onSaveProduct({ ...productToEdit, isPublished: false });
+      const unpublishedProduct: Product = { ...productToEdit, isPublished: false };
+      onSaveProduct(unpublishedProduct);
+
+      // Sincroniza também no armazenamento do BI para manter coerência total
+      try {
+        const raw = localStorage.getItem('lavistore_bi_records');
+        if (raw) {
+          const list: BiProductCalculatedRecord[] = JSON.parse(raw);
+          const pKey = getGroupingKey(productToEdit.name);
+          const updatedList = list.map(item => {
+            if (
+              (productToEdit.biRecordId && item.id === productToEdit.biRecordId) ||
+              item.vitrineProductId === productToEdit.id ||
+              getGroupingKey(item.produto) === pKey
+            ) {
+              return { ...item, publishedToVitrine: false };
+            }
+            return item;
+          });
+          localStorage.setItem('lavistore_bi_records', JSON.stringify(updatedList));
+          saveBiRecordsToFirestore(updatedList);
+          fetch('/api/bi/records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ records: updatedList })
+          }).catch(() => {});
+        }
+      } catch {}
+
       onClose();
     }
   };
@@ -874,11 +912,12 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Status de publicação atual na vitrine
+  // Status de publicação atual na vitrine avaliado de forma unificada
   const isPublishedOnVitrine = Boolean(
-    (currentBiRecord && currentBiRecord.publishedToVitrine) ||
-    (productToEdit && productToEdit.isPublished !== false) ||
-    formData.isPublished
+    (formData.isPublished !== undefined
+      ? formData.isPublished
+      : (productToEdit ? productToEdit.isPublished !== false : true)) &&
+    (currentBiRecord ? currentBiRecord.publishedToVitrine !== false : true)
   );
 
   // Calculate discount percentage if original price is set

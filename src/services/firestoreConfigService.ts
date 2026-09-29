@@ -147,6 +147,50 @@ export async function saveStoreConfigToFirestore(payload: Partial<AdminCustomVau
   }
 }
 
+/**
+ * Atualiza o status de publicação unificado de um produto e dos seus registros de BI no Firestore.
+ * Garante sincronização imediata no documento store_config e bi_data da coleção settings.
+ */
+export async function updateProductPublicationStatusInFirestore(
+  productId: string,
+  isPublished: boolean,
+  updatedProducts: Product[],
+  updatedBiRecords?: BiProductCalculatedRecord[]
+): Promise<boolean> {
+  const db = getFirestoreDb();
+  if (!db || !isFirebaseReady()) {
+    console.warn('[Firestore] Banco não inicializado para persistência de publicação.');
+    return false;
+  }
+
+  try {
+    // 1. Grava no documento store_config com merge
+    const storeDocRef = doc(db, FIRESTORE_SETTINGS_COLLECTION, FIRESTORE_STORE_CONFIG_DOC);
+    const sanitizedStoreData = removeUndefinedFields({
+      products: updatedProducts,
+      isLockedByAdmin: true,
+      updatedAt: new Date().toISOString()
+    });
+    await setDoc(storeDocRef, sanitizedStoreData, { merge: true });
+
+    // 2. Se houver registros de BI, grava no documento bi_data
+    if (updatedBiRecords && updatedBiRecords.length > 0) {
+      const biDocRef = doc(db, FIRESTORE_SETTINGS_COLLECTION, 'bi_data');
+      const sanitizedBiData = removeUndefinedFields({
+        records: updatedBiRecords,
+        updatedAt: new Date().toISOString()
+      });
+      await setDoc(biDocRef, sanitizedBiData, { merge: true });
+    }
+
+    console.info(`[Firestore] 🚀 Status de publicação de "${productId}" sincronizado no Firestore (isPublished=${isPublished})`);
+    return true;
+  } catch (error: any) {
+    console.error('[Firestore updateProductPublicationStatus]:', error);
+    handleFirestoreError(error, OperationType.WRITE, `${FIRESTORE_SETTINGS_COLLECTION}/${FIRESTORE_STORE_CONFIG_DOC}`);
+  }
+}
+
 /* =========================================================================
  * PEDIDOS (ORDERS) - Real-Time & Operações Firestore
  * ========================================================================= */
