@@ -68,6 +68,10 @@
       "schema": "StoreConfig",
       "description": "Armazena as configurações globais e catálogo da loja"
     },
+    "/lavistorekides/{docId}": {
+      "schema": "StoreConfig",
+      "description": "Configurações da loja e tokens de integração (Melhor Envio)"
+    },
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Pedidos dos clientes da loja"

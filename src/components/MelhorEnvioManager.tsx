@@ -586,7 +586,7 @@ export const MelhorEnvioManager: React.FC = () => {
           </div>
 
           <p className="text-xs text-gray-600 leading-relaxed">
-            Se você já gerou um Token de Acesso permanente no painel oficial do Melhor Envio para o ambiente de produção, basta colá-lo abaixo. Ele será salvo de forma atômica no cofre seguro do servidor.
+            Se você já gerou um Token de Acesso permanente no painel oficial do Melhor Envio para o ambiente de produção, basta colá-lo abaixo. Ele será salvo de forma atômica no servidor e sincronizado no Firebase Firestore (coleção lavistorekides), funcionando com máxima segurança tanto em servidores dedicados quanto em deploys SPA (Vercel).
           </p>
 
           <div className="space-y-1.5">

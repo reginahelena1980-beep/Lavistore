@@ -1406,9 +1406,41 @@ app.delete('/api/bi/records', (_req, res) => {
 /**
  * GET /api/shipping/config - Status das credenciais e ambiente oficial de Produção do Melhor Envio
  */
-app.get('/api/shipping/config', (_req, res) => {
-  const tokenData = getStoredTokenData();
-  const token = tokenData?.access_token || process.env.MELHOR_ENVIO_TOKEN;
+app.get('/api/shipping/config', async (_req, res) => {
+  let tokenData = getStoredTokenData();
+  let token = tokenData?.access_token || process.env.MELHOR_ENVIO_TOKEN;
+
+  // Consulta Firestore caso o token não esteja presente nos arquivos locais
+  if ((!token || token.trim().length <= 10) && serverDb) {
+    try {
+      // 1. Consulta lavistorekides/melhor_envio_token
+      const lavSnap = await getFsDocSnap(getFsDoc(serverDb, 'lavistorekides', 'melhor_envio_token'));
+      if (lavSnap.exists() && (lavSnap.data()?.token || lavSnap.data()?.access_token)) {
+        token = (lavSnap.data().token || lavSnap.data().access_token).trim();
+        tokenData = {
+          access_token: token,
+          token_type: 'Bearer',
+          updated_at: lavSnap.data().updated_at || lavSnap.data().updatedAt || new Date().toISOString(),
+          source: 'firestore' as any
+        };
+      } else {
+        // 2. Consulta settings/melhor_envio_token
+        const setSnap = await getFsDocSnap(getFsDoc(serverDb, 'settings', 'melhor_envio_token'));
+        if (setSnap.exists() && (setSnap.data()?.token || setSnap.data()?.access_token)) {
+          token = (setSnap.data().token || setSnap.data().access_token).trim();
+          tokenData = {
+            access_token: token,
+            token_type: 'Bearer',
+            updated_at: setSnap.data().updated_at || setSnap.data().updatedAt || new Date().toISOString(),
+            source: 'firestore' as any
+          };
+        }
+      }
+    } catch (fsErr: any) {
+      console.warn('[Melhor Envio Config] Aviso ao consultar Firestore:', fsErr?.message);
+    }
+  }
+
   const env = 'production';
   const fromCep = process.env.MELHOR_ENVIO_FROM_CEP || DEFAULT_FROM_CEP;
 
@@ -1817,9 +1849,10 @@ app.post('/api/shipping/oauth/refresh', async (_req, res) => {
 
 /**
  * POST /api/shipping/token/manual & /api/shipping/token
- * Permite salvar diretamente o Bearer Token de Produção no cofre persistente com validação e sanitização estrita
+ * Permite salvar diretamente o Bearer Token de Produção no cofre persistente e no Firestore
+ * com validação e sanitização estrita, respondendo com { success: true }.
  */
-const handleSaveManualTokenEndpoint = (req: express.Request, res: express.Response) => {
+const handleSaveManualTokenEndpoint = async (req: express.Request, res: express.Response) => {
   res.setHeader('Content-Type', 'application/json');
   try {
     const rawToken = req.body?.token ?? req.body?.access_token ?? req.body?.accessToken;
@@ -1840,17 +1873,60 @@ const handleSaveManualTokenEndpoint = (req: express.Request, res: express.Respon
       });
     }
 
+    // 1. Grava no cofre local do backend
     const saved = saveTokenData({
       access_token: cleanToken,
       token_type: 'Bearer',
       source: 'manual'
     });
 
+    // 2. Grava de forma soberana no Firebase Firestore na coleção lavistorekides (e settings)
+    if (serverDb) {
+      try {
+        const tokenPayload = {
+          token: cleanToken,
+          access_token: cleanToken,
+          token_type: 'Bearer',
+          source: 'manual',
+          updatedAt: saved.updated_at,
+          updated_at: saved.updated_at,
+          env: 'production',
+          configured: true
+        };
+
+        // Salvar na coleção lavistorekides
+        const lavTokenRef = getFsDoc(serverDb, 'lavistorekides', 'melhor_envio_token');
+        await setFsDocSnap(lavTokenRef, tokenPayload, { merge: true });
+
+        const lavStoreRef = getFsDoc(serverDb, 'lavistorekides', 'store_config');
+        await setFsDocSnap(lavStoreRef, {
+          melhorEnvioToken: cleanToken,
+          melhorEnvioConfig: tokenPayload,
+          updatedAt: saved.updated_at
+        }, { merge: true });
+
+        // Salvar na coleção settings
+        const setTokenRef = getFsDoc(serverDb, 'settings', 'melhor_envio_token');
+        await setFsDocSnap(setTokenRef, tokenPayload, { merge: true });
+
+        const setStoreRef = getFsDoc(serverDb, 'settings', 'store_config');
+        await setFsDocSnap(setStoreRef, {
+          melhorEnvioToken: cleanToken,
+          melhorEnvioConfig: tokenPayload,
+          updatedAt: saved.updated_at
+        }, { merge: true });
+
+        console.log(`[Melhor Envio] Token sincronizado com sucesso no Firestore (coleções lavistorekides e settings)`);
+      } catch (fsErr: any) {
+        console.warn('[Melhor Envio] Aviso ao sincronizar token no Firestore:', fsErr?.message);
+      }
+    }
+
     console.log(`[Melhor Envio] Token de produção gravado com sucesso no servidor via endpoint manual (${saved.updated_at})`);
 
     return res.status(200).json({
       success: true,
-      message: 'Token de produção salvo com sucesso no cofre seguro do servidor!',
+      message: 'Token de produção salvo com sucesso no cofre seguro do servidor e sincronizado no Firestore!',
       updatedAt: saved.updated_at,
       source: saved.source
     });
@@ -1867,6 +1943,8 @@ const handleSaveManualTokenEndpoint = (req: express.Request, res: express.Respon
 app.post('/api/shipping/token/manual', handleSaveManualTokenEndpoint);
 app.post('/api/shipping/token', handleSaveManualTokenEndpoint);
 app.post('/api/shipping/manual-token', handleSaveManualTokenEndpoint);
+app.post('/api/shipping/save-token', handleSaveManualTokenEndpoint);
+app.post('/api/shipping/token/save', handleSaveManualTokenEndpoint);
 
 /**
  * GET /api/shipping/account

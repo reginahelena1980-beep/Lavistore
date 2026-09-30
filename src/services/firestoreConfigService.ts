@@ -32,7 +32,9 @@ import { AdminCustomVault } from '../utils/adminDataProtection';
 import { OrderData, NewsletterLead, BiProductCalculatedRecord, Product } from '../types';
 
 export const FIRESTORE_SETTINGS_COLLECTION = 'settings';
+export const FIRESTORE_LAVISTOREKIDES_COLLECTION = 'lavistorekides';
 export const FIRESTORE_STORE_CONFIG_DOC = 'store_config';
+export const FIRESTORE_MELHOR_ENVIO_DOC = 'melhor_envio_token';
 export const FIRESTORE_ORDERS_COLLECTION = 'orders';
 export const FIRESTORE_LEADS_COLLECTION = 'newsletter_leads';
 export const FIRESTORE_BI_COLLECTION = 'bi_records';
@@ -506,3 +508,169 @@ export async function saveBiRecordsToFirestore(records: BiProductCalculatedRecor
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
+
+/* =========================================================================
+ * INTEGRAÇÃO MELHOR ENVIO - TOKENS & CONFIGURAÇÃO NA COLEÇÃO LAVISTOREKIDES
+ * ========================================================================= */
+
+export interface FirestoreMelhorEnvioTokenData {
+  token: string;
+  access_token: string;
+  token_type: string;
+  source: 'manual' | 'oauth' | 'firestore';
+  updatedAt: string;
+  updated_at: string;
+  env: string;
+  configured: boolean;
+}
+
+/**
+ * Salva o Bearer Token do Melhor Envio diretamente no Firebase Firestore
+ * na coleção solicitada "lavistorekides" (e espelho em "settings"),
+ * garantindo persistência sem depender exclusivamente de rotas de API no servidor.
+ */
+export async function saveMelhorEnvioTokenToFirestore(token: string): Promise<boolean> {
+  const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
+  if (!cleanToken || cleanToken.length < 10) {
+    console.warn('[Firestore] Token inválido ou muito curto ao salvar no Firestore.');
+    return false;
+  }
+
+  const db = getFirestoreDb();
+  if (!db || !isFirebaseReady()) {
+    console.warn('[Firestore] Banco não inicializado para gravação do token do Melhor Envio.');
+    return false;
+  }
+
+  const now = new Date().toISOString();
+  const tokenPayload: FirestoreMelhorEnvioTokenData = {
+    token: cleanToken,
+    access_token: cleanToken,
+    token_type: 'Bearer',
+    source: 'manual',
+    updatedAt: now,
+    updated_at: now,
+    env: 'production',
+    configured: true
+  };
+
+  try {
+    // 1. Salvar na coleção lavistorekides (documento melhor_envio_token)
+    const lavRef = doc(db, FIRESTORE_LAVISTOREKIDES_COLLECTION, FIRESTORE_MELHOR_ENVIO_DOC);
+    await setDoc(lavRef, tokenPayload, { merge: true });
+
+    // 2. Salvar também em lavistorekides/store_config para sincronização unificada da loja
+    const lavStoreRef = doc(db, FIRESTORE_LAVISTOREKIDES_COLLECTION, FIRESTORE_STORE_CONFIG_DOC);
+    await setDoc(lavStoreRef, {
+      melhorEnvioToken: cleanToken,
+      melhorEnvioConfig: tokenPayload,
+      updatedAt: now
+    }, { merge: true });
+
+    // 3. Salvar também na coleção padrão settings (store_config e melhor_envio_token)
+    const settingsTokenRef = doc(db, FIRESTORE_SETTINGS_COLLECTION, FIRESTORE_MELHOR_ENVIO_DOC);
+    await setDoc(settingsTokenRef, tokenPayload, { merge: true });
+
+    const settingsStoreRef = doc(db, FIRESTORE_SETTINGS_COLLECTION, FIRESTORE_STORE_CONFIG_DOC);
+    await setDoc(settingsStoreRef, {
+      melhorEnvioToken: cleanToken,
+      melhorEnvioConfig: tokenPayload,
+      updatedAt: now
+    }, { merge: true });
+
+    console.info(`[Firestore] 🛡️ Token do Melhor Envio gravado com sucesso nas coleções "${FIRESTORE_LAVISTOREKIDES_COLLECTION}" e "${FIRESTORE_SETTINGS_COLLECTION}".`);
+    return true;
+  } catch (error: any) {
+    console.error('[Firestore saveMelhorEnvioTokenToFirestore] Erro:', error?.message || error);
+    try {
+      handleFirestoreError(error, OperationType.WRITE, `${FIRESTORE_LAVISTOREKIDES_COLLECTION}/${FIRESTORE_MELHOR_ENVIO_DOC}`);
+    } catch {
+      // Ignora para permitir fallback de contingência
+    }
+    return false;
+  }
+}
+
+/**
+ * Carrega o token do Melhor Envio diretamente do Firebase Firestore,
+ * consultando primeiro a coleção lavistorekides e depois settings.
+ */
+export async function loadMelhorEnvioTokenFromFirestore(): Promise<string | null> {
+  const db = getFirestoreDb();
+  if (!db || !isFirebaseReady()) return null;
+
+  try {
+    // 1. Tenta ler de lavistorekides/melhor_envio_token
+    const lavDoc = await getDoc(doc(db, FIRESTORE_LAVISTOREKIDES_COLLECTION, FIRESTORE_MELHOR_ENVIO_DOC));
+    if (lavDoc.exists()) {
+      const data = lavDoc.data();
+      const token = data?.token || data?.access_token;
+      if (token && typeof token === 'string' && token.trim().length > 10) {
+        return token.trim();
+      }
+    }
+
+    // 2. Tenta ler de lavistorekides/store_config
+    const lavStoreDoc = await getDoc(doc(db, FIRESTORE_LAVISTOREKIDES_COLLECTION, FIRESTORE_STORE_CONFIG_DOC));
+    if (lavStoreDoc.exists()) {
+      const data = lavStoreDoc.data();
+      const token = data?.melhorEnvioToken || data?.melhorEnvioConfig?.access_token || data?.melhorEnvioConfig?.token;
+      if (token && typeof token === 'string' && token.trim().length > 10) {
+        return token.trim();
+      }
+    }
+
+    // 3. Tenta ler de settings/melhor_envio_token
+    const setDocRef = await getDoc(doc(db, FIRESTORE_SETTINGS_COLLECTION, FIRESTORE_MELHOR_ENVIO_DOC));
+    if (setDocRef.exists()) {
+      const data = setDocRef.data();
+      const token = data?.token || data?.access_token;
+      if (token && typeof token === 'string' && token.trim().length > 10) {
+        return token.trim();
+      }
+    }
+
+    // 4. Tenta ler de settings/store_config
+    const storeDocRef = await getDoc(doc(db, FIRESTORE_SETTINGS_COLLECTION, FIRESTORE_STORE_CONFIG_DOC));
+    if (storeDocRef.exists()) {
+      const data = storeDocRef.data();
+      const token = data?.melhorEnvioToken || data?.melhorEnvioConfig?.access_token || data?.melhorEnvioConfig?.token;
+      if (token && typeof token === 'string' && token.trim().length > 10) {
+        return token.trim();
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Firestore loadMelhorEnvioTokenFromFirestore] Erro ao recuperar token:', err?.message || err);
+  }
+  return null;
+}
+
+/**
+ * Registra um ouvinte em tempo real para atualizações do token do Melhor Envio
+ */
+export function subscribeToMelhorEnvioToken(
+  callback: (token: string | null) => void,
+  onError?: (error: unknown) => void
+): Unsubscribe {
+  const db = getFirestoreDb();
+  if (!db || !isFirebaseReady()) return () => {};
+
+  const lavRef = doc(db, FIRESTORE_LAVISTOREKIDES_COLLECTION, FIRESTORE_MELHOR_ENVIO_DOC);
+  return onSnapshot(
+    lavRef,
+    (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const token = data?.token || data?.access_token || null;
+        callback(token);
+      } else {
+        callback(null);
+      }
+    },
+    (error) => {
+      console.warn('[Firestore subscribeToMelhorEnvioToken] Erro no listener:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
