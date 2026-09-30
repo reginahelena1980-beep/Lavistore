@@ -62,19 +62,27 @@ export function getMercadoPagoCredentials(): StoredMercadoPagoConfig {
     console.warn('[Mercado Pago] Aviso ao ler mercadopago_config.json:', err);
   }
 
-  const publicKey = (
-    fileConfig.publicKey?.trim() ||
-    process.env.MERCADO_PAGO_PUBLIC_KEY?.trim() ||
-    process.env.VITE_MP_PUBLIC_KEY?.trim() ||
-    process.env.VITE_MERCADO_PAGO_PUBLIC_KEY?.trim() ||
-    DEFAULT_MP_PUBLIC_KEY
-  );
+  const isRealKey = (k?: string | null): boolean => {
+    if (!k || typeof k !== 'string') return false;
+    const t = k.trim();
+    return t.length >= 15 && !t.includes('00000000') && t !== 'TEST-00000000-0000-0000-0000-000000000000';
+  };
 
-  const accessToken = (
-    fileConfig.accessToken?.trim() ||
-    process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() ||
+  const rawPkCandidates = [
+    fileConfig.publicKey,
+    process.env.MERCADO_PAGO_PUBLIC_KEY,
+    process.env.VITE_MP_PUBLIC_KEY,
+    process.env.VITE_MERCADO_PAGO_PUBLIC_KEY,
+    DEFAULT_MP_PUBLIC_KEY
+  ];
+  const publicKey = rawPkCandidates.map(c => c?.trim()).find(isRealKey) || DEFAULT_MP_PUBLIC_KEY;
+
+  const rawAtCandidates = [
+    fileConfig.accessToken,
+    process.env.MERCADO_PAGO_ACCESS_TOKEN,
     DEFAULT_MP_ACCESS_TOKEN
-  );
+  ];
+  const accessToken = rawAtCandidates.map(c => c?.trim()).find(isRealKey) || DEFAULT_MP_ACCESS_TOKEN;
 
   const clientId = (
     fileConfig.clientId?.trim() ||

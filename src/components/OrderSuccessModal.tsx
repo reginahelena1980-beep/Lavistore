@@ -31,7 +31,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
   homePageConfig
 }) => {
   const [copiedPix, setCopiedPix] = useState(false);
-  const [copiedPagSeguro, setCopiedPagSeguro] = useState(false);
   const [copiedAmount, setCopiedAmount] = useState(false);
   const [pixPaymentStatus, setPixPaymentStatus] = useState<'pending' | 'approved'>(
     orderData?.mercadoPagoStatus === 'approved' ? 'approved' : 'pending'
@@ -108,15 +107,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     setTimeout(() => setCopiedPix(false), 2500);
   };
 
-  const pagSeguroUrl = orderData.pagSeguroUrl || homePageConfig?.pagSeguroPaymentUrl || '';
-
-  const handleCopyPagSeguro = () => {
-    if (!pagSeguroUrl) return;
-    navigator.clipboard.writeText(pagSeguroUrl);
-    setCopiedPagSeguro(true);
-    setTimeout(() => setCopiedPagSeguro(false), 2500);
-  };
-
   const formattedAmount = Number(orderData.total || 0).toFixed(2);
 
   const handleCopyAmount = () => {
@@ -124,8 +114,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     setCopiedAmount(true);
     setTimeout(() => setCopiedAmount(false), 2500);
   };
-
-  const isPagSeguroPayment = (orderData.paymentMethod.includes('PagSeguro') || Boolean(orderData.pagSeguroUrl)) && Boolean(pagSeguroUrl);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-purple-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in font-['Comfortaa']">
@@ -212,91 +200,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
           </div>
         )}
 
-        {/* CARTÃO DE CRÉDITO - PAGSEGURO (LINK DE PAGAMENTO - SE NÃO FOR MERCADO PAGO) */}
-        {isPagSeguroPayment && !isMercadoPagoPayment && !isGiftOrder && (
-          <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-amber-50 p-5 rounded-2xl border-2 border-purple-300 text-center space-y-3 shadow-xs">
-            <div className="flex items-center justify-center gap-2 text-purple-950 font-bold text-sm">
-              <CreditCard className="w-5 h-5 text-purple-700" />
-              <span>Conclua seu Pagamento no PagSeguro (PagBank)</span>
-            </div>
-
-            <p className="text-xs text-slate-700 max-w-lg mx-auto">
-              Para sua comodidade e segurança, o pagamento com <strong>Cartão de Crédito em até 12x</strong> é processado no ambiente oficial do <strong>PagSeguro (PagBank)</strong>.
-            </p>
-
-            {/* Destaque do Valor da Compra e Botão Copiar Valor */}
-            <div className="p-3.5 bg-white rounded-2xl border-2 border-purple-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-purple-600 block tracking-wider">
-                  Valor Total desta Compra:
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-rose-600 font-['Mali']">
-                  R$ {formattedAmount}
-                </span>
-                <span className="text-[10px] text-slate-500 block">
-                  (Já inclui produtos com cupom e o frete escolhido)
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCopyAmount}
-                className="w-full sm:w-auto px-3.5 py-2 bg-pink-100 hover:bg-pink-200 text-pink-950 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                {copiedAmount ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-pink-600" />}
-                <span>{copiedAmount ? 'Valor Copiado!' : `Copiar R$ ${formattedAmount}`}</span>
-              </button>
-            </div>
-
-            {/* Big Action Button for PagSeguro */}
-            <div className="pt-1">
-              <a
-                href={pagSeguroUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-purple-700 via-purple-800 to-pink-700 hover:from-purple-800 hover:to-pink-800 text-white rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-md shadow-purple-200"
-              >
-                <CreditCard className="w-4 h-4" />
-                <span>Pagar Agora no PagBank (Abrir Link)</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </div>
-
-            {/* Copy Link Option */}
-            <div className="flex items-center gap-2 max-w-md mx-auto pt-1">
-              <input
-                type="text"
-                readOnly
-                value={pagSeguroUrl}
-                className="flex-1 px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs text-purple-950 font-mono"
-              />
-              <button
-                type="button"
-                onClick={handleCopyPagSeguro}
-                className="px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-950 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
-              >
-                {copiedPagSeguro ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedPagSeguro ? 'Copiado!' : 'Copiar Link'}</span>
-              </button>
-            </div>
-
-            <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200 text-[11px] text-amber-950 text-left space-y-1">
-              <span className="font-bold flex items-center gap-1 text-amber-900">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                <span>Instruções do PagBank:</span>
-              </span>
-              <p className="text-[10px] sm:text-[11px] text-slate-600">
-                Se o seu link do PagBank for do tipo <em>"Cliente digita o valor"</em>, informe exatamente <strong>R$ {formattedAmount}</strong> na tela do PagBank para que o pagamento coincida com seu pedido.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-2 text-[10px] text-purple-900 font-medium pt-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Transação 100% protegida e criptografada pelo PagSeguro UOL</span>
-            </div>
-          </div>
-        )}
-
         {/* PIX QR CODE & COPIA E COLA */}
         {orderData.paymentMethod.includes('PIX') && !isGiftOrder && (
           <div className={`p-5 rounded-2xl border-2 text-center space-y-3 transition-colors shadow-xs ${
@@ -333,49 +236,71 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                   </span>
                 </div>
 
-                {/* QR Code Real ou Canvas Estilizado */}
-                {orderData.pixQrCodeBase64 ? (
-                  <div className="w-44 h-44 bg-white p-2 rounded-2xl mx-auto border-2 border-amber-300 flex items-center justify-center shadow-inner">
-                    <img 
-                      src={`data:image/png;base64,${orderData.pixQrCodeBase64}`}
-                      alt="QR Code PIX Mercado Pago"
-                      className="w-full h-full object-contain rounded-lg"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-40 h-40 bg-white p-2 rounded-2xl mx-auto border-2 border-amber-300 flex items-center justify-center shadow-inner">
-                    <div className="grid grid-cols-5 gap-1.5 w-full h-full p-2 bg-purple-950 rounded-lg">
-                      {[...Array(25)].map((_, i) => (
-                        <div 
-                          key={i} 
-                          className={`rounded-xs ${i % 2 === 0 || i % 5 === 0 ? 'bg-amber-300' : 'bg-amber-100'}`} 
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* QR Code Real de Alta Resolução (Escaneável em qualquer aplicativo bancário) */}
+                <div className="w-52 h-52 bg-white p-3 rounded-2xl mx-auto border-2 border-amber-300 flex items-center justify-center shadow-md">
+                  <img 
+                    src={orderData.pixQrCodeBase64 ? `data:image/png;base64,${orderData.pixQrCodeBase64}` : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(pixKey)}`}
+                    alt="QR Code PIX Mercado Pago"
+                    className="w-full h-full object-contain rounded-lg"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (!target.src.includes('quickchart.io')) {
+                        target.src = `https://quickchart.io/qr?size=300&text=${encodeURIComponent(pixKey)}`;
+                      }
+                    }}
+                  />
+                </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs text-slate-700 max-w-md mx-auto px-1">
-                    <span className="font-bold">Valor exato a transferir:</span>
-                    <span className="text-emerald-700 font-extrabold text-sm font-['Mali']">R$ {formattedAmount}</span>
-                  </div>
-                  <p className="text-xs text-slate-600 font-medium">Chave Pix Copia e Cola:</p>
-                  <div className="flex items-center gap-2 max-w-md mx-auto">
-                    <input
-                      type="text"
-                      readOnly
-                      value={pixKey}
-                      className="flex-1 px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs text-slate-700 font-mono truncate"
-                    />
+                <div className="space-y-2">
+                  <div className="p-3 bg-white/95 rounded-xl border border-amber-200 flex items-center justify-between text-xs max-w-md mx-auto">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-500 block">Valor exato a pagar:</span>
+                      <strong className="text-emerald-700 text-base font-extrabold font-['Mali']">R$ {formattedAmount}</strong>
+                    </div>
                     <button
-                      onClick={handleCopyPix}
-                      className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-purple-950 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-transform active:scale-95 shadow-xs shrink-0 cursor-pointer"
+                      type="button"
+                      onClick={handleCopyAmount}
+                      className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-purple-950 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
                     >
-                      {copiedPix ? <Check className="w-3.5 h-3.5 text-emerald-800" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedPix ? 'Copiado!' : 'Copiar PIX'}</span>
+                      {copiedAmount ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Copy className="w-3.5 h-3.5 text-amber-700" />}
+                      <span>{copiedAmount ? 'Copiado!' : 'Copiar Valor'}</span>
                     </button>
                   </div>
+
+                  <div className="space-y-1 text-left max-w-md mx-auto">
+                    <label className="text-xs text-slate-700 font-bold block">Chave Pix Copia e Cola:</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={pixKey}
+                        className="flex-1 px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs text-slate-700 font-mono truncate"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCopyPix}
+                        className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-purple-950 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-transform active:scale-95 shadow-xs shrink-0 cursor-pointer"
+                      >
+                        {copiedPix ? <Check className="w-3.5 h-3.5 text-emerald-800" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedPix ? 'Copiado!' : 'Copiar PIX'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {orderData.pixTicketUrl && (
+                    <div className="pt-1">
+                      <a
+                        href={orderData.pixTicketUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-purple-700 hover:text-purple-950 font-bold underline cursor-pointer"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Abrir comprovante / página do PIX no Mercado Pago</span>
+                      </a>
+                    </div>
+                  )}
+
                   <span className="text-[10px] text-slate-500 block pt-1">
                     ⚡ Esta tela detecta e confirma seu PIX automaticamente em poucos segundos após a transferência no seu banco.
                   </span>

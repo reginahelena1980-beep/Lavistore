@@ -1317,38 +1317,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="bg-purple-50/40 p-4 sm:p-5 rounded-2xl border border-purple-100 space-y-4">
                 <div className="flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">3</span>
-                  <h4 className="font-bold text-sm text-purple-950">Forma de Pagamento</h4>
+                  <h4 className="font-bold text-sm text-purple-950">Forma de Pagamento (Mercado Pago Oficial)</h4>
                 </div>
 
                 {paymentErrorMessage && (
-                  <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl text-rose-950 flex flex-col gap-3 animate-in fade-in shadow-xs">
-                    <div className="flex items-start gap-2.5">
-                      <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <p className="font-bold text-xs text-rose-900">Pagamento recusado pelo Mercado Pago:</p>
-                        <p className="text-xs text-rose-800 leading-relaxed font-medium">{paymentErrorMessage}</p>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-rose-200/80 flex flex-col gap-2">
-                      <p className="text-[11px] text-rose-700 bg-rose-100/60 p-2 rounded-xl">
-                        💡 Dica: Se preferir, selecione a opção <strong>PIX Instantâneo</strong> para aprovação imediata com desconto automático.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaymentMethod('pix');
-                          setPaymentErrorMessage(null);
-                          setIsSelfPaymentError(false);
-                          setTimeout(() => {
-                            executeMercadoPagoPayment({ selectedPaymentMethod: 'bank_transfer', payment_method_id: 'pix' });
-                          }, 50);
-                        }}
-                        className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-98"
-                      >
-                        <QrCode className="w-4 h-4" />
-                        <span>Pagar via PIX Instantâneo (Aprovação Imediata)</span>
-                      </button>
+                  <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-2xl text-rose-950 flex items-start gap-2.5 animate-in fade-in shadow-xs">
+                    <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-xs text-rose-900">Atenção ao processar o pagamento:</p>
+                      <p className="text-xs text-rose-800 leading-relaxed font-medium">{paymentErrorMessage}</p>
                     </div>
                   </div>
                 )}
@@ -1411,9 +1388,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </button>
                     </div>
 
-                    {/* Container Oficial Mercado Pago Payment Brick (quando ativado) */}
-                    <div id="paymentBrick_container" className="empty:hidden my-2"></div>
-
                     {paymentMethod === 'pix' && (
                       <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-2.5">
                         <div className="flex items-center justify-between">
@@ -1434,17 +1408,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           <span>Total cobrado via PIX:</span>
                           <strong className="text-emerald-700 text-sm font-bold">R$ {finalOrderTotal.toFixed(2)}</strong>
                         </div>
-
-                        {!brickActive && (
-                          <button
-                            type="button"
-                            onClick={() => setBrickActive(true)}
-                            className="text-[10px] text-emerald-700 hover:text-emerald-900 underline font-medium flex items-center gap-1 cursor-pointer"
-                          >
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Ativar componente visual Mercado Pago Payment Brick</span>
-                          </button>
-                        )}
                       </div>
                     )}
 
@@ -1576,19 +1539,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             </select>
                           </div>
                         </div>
-
-                        {!brickActive && (
-                          <div className="pt-1">
-                            <button
-                              type="button"
-                              onClick={() => setBrickActive(true)}
-                              className="text-[10px] text-purple-700 hover:text-purple-900 underline font-medium flex items-center gap-1 cursor-pointer"
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                              <span>Carregar componente visual nativo Mercado Pago Payment Brick</span>
-                            </button>
-                          </div>
-                        )}
 
                         <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-purple-200/60">
                           <span>Processador oficial: Mercado Pago</span>
@@ -1852,31 +1802,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {/* Alerta de erro de pagamento na coluna de finalização */}
               {paymentErrorMessage && (
-                <div className="p-3.5 bg-rose-950/95 border border-rose-400/80 rounded-2xl text-rose-200 text-xs flex flex-col gap-2.5 animate-in fade-in shadow-xl shadow-rose-950/50">
-                  <div className="flex items-start gap-2.5">
-                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <span className="font-bold text-rose-300 block">Pagamento recusado pelo Mercado Pago:</span>
-                      <span className="text-[11px] text-rose-100 leading-relaxed block">{paymentErrorMessage}</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-rose-800/80 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPaymentMethod('pix');
-                        setPaymentErrorMessage(null);
-                        setIsSelfPaymentError(false);
-                        setTimeout(() => {
-                          executeMercadoPagoPayment({ selectedPaymentMethod: 'bank_transfer', payment_method_id: 'pix' });
-                        }, 50);
-                      }}
-                      className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/40 active:scale-98"
-                    >
-                      <QrCode className="w-3.5 h-3.5" />
-                      <span>Pagar via PIX Instantâneo (Aprovação Imediata)</span>
-                    </button>
+                <div className="p-3.5 bg-rose-950/95 border border-rose-400/80 rounded-2xl text-rose-200 text-xs flex items-start gap-2.5 animate-in fade-in shadow-xl shadow-rose-950/50">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-rose-300 block text-xs">Atenção ao pagamento:</span>
+                    <span className="text-[11px] text-rose-100 leading-relaxed block">{paymentErrorMessage}</span>
                   </div>
                 </div>
               )}
