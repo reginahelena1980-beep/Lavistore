@@ -159,21 +159,42 @@ export const MelhorEnvioManager: React.FC = () => {
     }
   };
 
-  // Salvar token de acesso manualmente
+  // Salvar token de acesso manualmente com validação estrita e feedback visual
   const handleSaveManualToken = async () => {
-    if (!manualToken.trim()) {
-      setFeedback({ type: 'error', message: 'Digite ou cole o Bearer Token de Produção.' });
+    const clean = manualToken.replace(/^Bearer\s+/i, '').trim();
+
+    if (!clean) {
+      setFeedback({
+        type: 'error',
+        message: 'Por favor, cole ou digite o Bearer Token de Produção antes de salvar.'
+      });
+      return;
+    }
+
+    if (clean.length < 10) {
+      setFeedback({
+        type: 'error',
+        message: 'Token muito curto ou incompleto. Verifique se copiou o token Bearer inteiro gerado no painel do Melhor Envio.'
+      });
       return;
     }
 
     try {
       setSavingToken(true);
-      const res = await saveManualTokenApi(manualToken.trim());
-      setFeedback({ type: 'success', message: res.message });
+      setFeedback(null);
+      const res = await saveManualTokenApi(clean);
+      setFeedback({
+        type: 'success',
+        message: res.message || '🎉 Token de produção salvo com sucesso no cofre seguro do servidor!'
+      });
       setManualToken('');
       await loadConfig();
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message });
+      console.error('Erro ao salvar token manual no servidor:', err);
+      setFeedback({
+        type: 'error',
+        message: err?.message || 'Falha ao salvar o token no servidor. Verifique se o servidor está ativo.'
+      });
     } finally {
       setSavingToken(false);
     }
@@ -186,9 +207,26 @@ export const MelhorEnvioManager: React.FC = () => {
       setCredentialsTestResult(null);
       const res = await fetch('/api/shipping/oauth/client-credentials', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
-      const json = await res.json();
+
+      const contentType = (res.headers.get('content-type') || '').toLowerCase();
+      let json: any = {};
+
+      if (contentType.includes('application/json')) {
+        try {
+          json = await res.json();
+        } catch {
+          json = { raw: await res.text().catch(() => '') };
+        }
+      } else {
+        const rawText = await res.text().catch(() => '');
+        json = { error: `Servidor retornou resposta inesperada (${res.status}): ${rawText.slice(0, 150)}` };
+      }
+
       const status = json.status || res.status;
       const data = json.data || json;
       const token = data?.access_token;
@@ -251,7 +289,10 @@ export const MelhorEnvioManager: React.FC = () => {
       setTestResults(null);
       const res = await fetch('/api/shipping/calculate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           toPostalCode: clean,
           products: [
@@ -268,7 +309,15 @@ export const MelhorEnvioManager: React.FC = () => {
         })
       });
 
-      const data = await res.json();
+      const contentType = (res.headers.get('content-type') || '').toLowerCase();
+      let data: any = {};
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const raw = await res.text().catch(() => '');
+        throw new Error(`O servidor retornou formato inesperado (${res.status}): ${raw.slice(0, 100)}`);
+      }
+
       if (res.ok && data.options) {
         setTestResults(data.options);
         setFeedback({
@@ -540,10 +589,17 @@ export const MelhorEnvioManager: React.FC = () => {
             Se você já gerou um Token de Acesso permanente no painel oficial do Melhor Envio para o ambiente de produção, basta colá-lo abaixo. Ele será salvo de forma atômica no cofre seguro do servidor.
           </p>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-700 block">
-              Token de Acesso (Bearer Token de Produção)
-            </label>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-gray-700 block">
+                Token de Acesso (Bearer Token de Produção)
+              </label>
+              {manualToken.trim().length > 0 && (
+                <span className="text-[11px] text-gray-400 font-mono">
+                  {manualToken.replace(/^Bearer\s+/i, '').trim().length} caracteres
+                </span>
+              )}
+            </div>
             <textarea
               rows={3}
               value={manualToken}
@@ -551,18 +607,34 @@ export const MelhorEnvioManager: React.FC = () => {
               placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIs..."
               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-950/20 resize-none"
             />
+            <p className="text-[11px] text-gray-500">
+              💡 Dica: Se o token contiver o prefixo <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">Bearer</code>, ele será removido e sanitizado automaticamente ao salvar.
+            </p>
           </div>
 
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-xs text-gray-400">
-              {config?.configured ? '✅ Token configurado no servidor' : '⚠️ Nenhum token ativo'}
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${config?.configured ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span className="text-xs text-gray-600 font-medium">
+                {config?.configured ? `Token ativo no cofre (${config.tokenSource})` : 'Nenhum token ativo no momento'}
+              </span>
+            </div>
             <button
               onClick={handleSaveManualToken}
               disabled={savingToken || !manualToken.trim()}
-              className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-all shadow-sm cursor-pointer"
+              className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2"
             >
-              {savingToken ? 'Salvando...' : 'Salvar Token no Servidor'}
+              {savingToken ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  Salvando no Servidor...
+                </>
+              ) : (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  Salvar Token no Servidor
+                </>
+              )}
             </button>
           </div>
 

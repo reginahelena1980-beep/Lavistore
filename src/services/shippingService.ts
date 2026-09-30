@@ -99,6 +99,7 @@ export async function calculateMelhorEnvioShipping(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
         toPostalCode: cleanToCep,
@@ -106,13 +107,7 @@ export async function calculateMelhorEnvioShipping(
       }),
     });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || `Erro ${response.status} ao consultar frete no Melhor Envio.`);
-    }
-
-    const data = await response.json();
-    return data;
+    return await parseSafeJsonResponse<CalculateShippingResponse>(response, 'calcular opções de frete');
   } catch (err: any) {
     console.error('Erro na cotação de frete:', err);
     throw err;
@@ -135,13 +130,107 @@ export interface ShippingConfigResponse {
 }
 
 /**
+ * Resposta padrão de salvamento de token manual
+ */
+export interface SaveManualTokenResponse {
+  success: boolean;
+  message: string;
+  updatedAt?: string;
+  source?: string;
+}
+
+export interface OAuthExchangeResponse {
+  success: boolean;
+  message: string;
+  expiresAt?: number;
+  scope?: string;
+}
+
+export interface OAuthRefreshResponse {
+  success: boolean;
+  message: string;
+  expiresAt?: number;
+}
+
+/**
+ * Utilitário seguro para consumir respostas HTTP verificando status e Content-Type
+ * antes de decodificar como JSON. Evita SyntaxError ("Unexpected token <" ou "The page c...")
+ * caso a rota retorne HTML de erro (ex: 404, 500 ou página de contingência).
+ */
+async function parseSafeJsonResponse<T>(
+  response: Response,
+  actionDescription: string
+): Promise<T> {
+  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+  const isJson = contentType.includes('application/json');
+
+  if (!response.ok) {
+    let errorMessage = '';
+
+    if (isJson) {
+      try {
+        const errorJson = await response.json();
+        errorMessage = errorJson.error || errorJson.message || errorJson.details || '';
+      } catch {
+        // Fallback se decodificação do corpo de erro falhar
+      }
+    } else {
+      try {
+        const rawText = await response.text();
+        if (rawText) {
+          // Remove tags HTML se a resposta for uma página de erro do servidor
+          const stripped = rawText.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+          errorMessage = stripped.length > 150 ? `${stripped.slice(0, 150)}...` : stripped;
+        }
+      } catch {
+        // Falha silenciosa ao ler corpo bruto
+      }
+    }
+
+    const statusInfo = `(HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''})`;
+    throw new Error(
+      errorMessage
+        ? `${errorMessage} ${statusInfo}`
+        : `Falha ao ${actionDescription} ${statusInfo}. Verifique se o servidor está ativo.`
+    );
+  }
+
+  if (!isJson) {
+    let rawText = '';
+    try {
+      rawText = await response.text();
+    } catch {
+      // Ignora falha de leitura
+    }
+    const stripped = rawText.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+    const preview = stripped.length > 100 ? `${stripped.slice(0, 100)}...` : stripped;
+    throw new Error(
+      `O servidor retornou uma resposta em formato não-JSON (${response.status}): ${preview || 'Página HTML recebida em vez de dados'}`
+    );
+  }
+
+  try {
+    return (await response.json()) as T;
+  } catch (err: any) {
+    throw new Error(
+      `Resposta da API não pôde ser decodificada como JSON: ${err?.message || 'Erro de sintaxe no conteúdo retornado'}`
+    );
+  }
+}
+
+/**
  * Obtém o status de configuração da integração oficial do Melhor Envio em Produção
  */
 export async function getShippingConfig(): Promise<ShippingConfigResponse> {
   try {
-    const response = await fetch('/api/shipping/config');
+    const response = await fetch('/api/shipping/config', {
+      headers: { 'Accept': 'application/json' }
+    });
     if (response.ok) {
-      return await response.json();
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      if (contentType.includes('application/json')) {
+        return await response.json();
+      }
     }
   } catch {
     // Silencioso se dev server estiver reiniciando
@@ -164,103 +253,115 @@ export async function getShippingConfig(): Promise<ShippingConfigResponse> {
 /**
  * Obtém a URL oficial para autorizar o aplicativo Lavistore no painel de Produção do Melhor Envio
  */
-export async function getOAuthAuthorizeUrl(redirectUri?: string): Promise<{ authUrl: string; redirectUri: string; clientId: string }> {
+export async function getOAuthAuthorizeUrl(
+  redirectUri?: string
+): Promise<{ authUrl: string; redirectUri: string; clientId: string }> {
   const query = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : '';
-  const response = await fetch(`/api/shipping/oauth/authorize-url${query}`);
-  if (!response.ok) {
-    throw new Error('Não foi possível gerar a URL de autorização do Melhor Envio.');
-  }
-  return response.json();
+  const response = await fetch(`/api/shipping/oauth/authorize-url${query}`, {
+    headers: { 'Accept': 'application/json' }
+  });
+  return parseSafeJsonResponse(response, 'gerar a URL de autorização do Melhor Envio');
 }
 
 /**
  * Troca o código retornado na autorização pelo token oficial de produção
  */
-export async function exchangeOAuthCodeApi(code: string, redirectUri?: string): Promise<{ success: boolean; message: string }> {
+export async function exchangeOAuthCodeApi(
+  code: string,
+  redirectUri?: string
+): Promise<OAuthExchangeResponse> {
   const response = await fetch('/api/shipping/oauth/token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
     body: JSON.stringify({ code, redirectUri })
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Falha ao trocar código de autorização.');
-  }
-  return data;
+  return parseSafeJsonResponse<OAuthExchangeResponse>(response, 'trocar código de autorização');
 }
 
 /**
  * Renova o token de produção via refresh token
  */
-export async function refreshMelhorEnvioTokenApi(): Promise<{ success: boolean; message: string }> {
+export async function refreshMelhorEnvioTokenApi(): Promise<OAuthRefreshResponse> {
   const response = await fetch('/api/shipping/oauth/refresh', {
-    method: 'POST'
+    method: 'POST',
+    headers: { 'Accept': 'application/json' }
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Falha ao renovar token do Melhor Envio.');
-  }
-  return data;
+  return parseSafeJsonResponse<OAuthRefreshResponse>(response, 'renovar o token de acesso');
 }
 
 /**
- * Salva diretamente o Bearer Token de Produção no servidor
+ * Salva diretamente o Bearer Token de Produção no servidor com validação e tipagem estrita
  */
-export async function saveManualTokenApi(token: string): Promise<{ success: boolean; message: string }> {
+export async function saveManualTokenApi(token: string): Promise<SaveManualTokenResponse> {
+  const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
+
+  if (!cleanToken) {
+    throw new Error('Informe o Bearer Token de Produção no campo.');
+  }
+
+  if (cleanToken.length < 10) {
+    throw new Error('Token muito curto. Certifique-se de copiar todo o Bearer Token de Produção do Melhor Envio.');
+  }
+
   const response = await fetch('/api/shipping/token/manual', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token })
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ token: cleanToken })
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Falha ao salvar token de produção.');
-  }
-  return data;
+
+  return parseSafeJsonResponse<SaveManualTokenResponse>(response, 'salvar o token de produção no servidor');
 }
 
 /**
  * Consulta a conta oficial conectada no Melhor Envio (Produção)
  */
 export async function getAccountInfoApi(): Promise<any> {
-  const response = await fetch('/api/shipping/account');
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Falha ao consultar perfil no Melhor Envio.');
-  }
-  return data;
+  const response = await fetch('/api/shipping/account', {
+    headers: { 'Accept': 'application/json' }
+  });
+  return parseSafeJsonResponse(response, 'consultar dados da conta no Melhor Envio');
 }
 
 /**
  * Gera etiquetas de envio no Melhor Envio Produção
  */
-export async function generateShippingLabelsApi(orderIds: string[], shipmentPayload?: any): Promise<any> {
+export async function generateShippingLabelsApi(
+  orderIds: string[],
+  shipmentPayload?: any
+): Promise<any> {
   const response = await fetch('/api/shipping/labels/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
     body: JSON.stringify({ orderIds, shipmentPayload })
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Falha ao gerar etiquetas no Melhor Envio.');
-  }
-  return data;
+  return parseSafeJsonResponse(response, 'gerar etiquetas de envio');
 }
 
 /**
  * Obtém o link para impressão das etiquetas em PDF no Melhor Envio Produção
  */
-export async function printShippingLabelsApi(orderIds: string[], mode: 'public' | 'private' = 'public'): Promise<any> {
+export async function printShippingLabelsApi(
+  orderIds: string[],
+  mode: 'public' | 'private' = 'public'
+): Promise<any> {
   const response = await fetch('/api/shipping/labels/print', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
     body: JSON.stringify({ orderIds, mode })
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Falha ao obter impressão das etiquetas.');
-  }
-  return data;
+  return parseSafeJsonResponse(response, 'obter impressão das etiquetas');
 }
 
 /**
@@ -269,12 +370,11 @@ export async function printShippingLabelsApi(orderIds: string[], mode: 'public' 
 export async function trackShippingApi(trackingCodes: string[]): Promise<any> {
   const response = await fetch('/api/shipping/tracking', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
     body: JSON.stringify({ trackingCodes })
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Falha ao rastrear encomendas.');
-  }
-  return data;
+  return parseSafeJsonResponse(response, 'rastrear encomendas');
 }

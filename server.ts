@@ -1816,31 +1816,57 @@ app.post('/api/shipping/oauth/refresh', async (_req, res) => {
 });
 
 /**
- * POST /api/shipping/token/manual
- * Permite salvar diretamente o Bearer Token de Produção no cofre persistente
+ * POST /api/shipping/token/manual & /api/shipping/token
+ * Permite salvar diretamente o Bearer Token de Produção no cofre persistente com validação e sanitização estrita
  */
-app.post('/api/shipping/token/manual', (req, res) => {
+const handleSaveManualTokenEndpoint = (req: express.Request, res: express.Response) => {
+  res.setHeader('Content-Type', 'application/json');
   try {
-    const { token } = req.body;
-    if (!token || typeof token !== 'string' || token.trim().length < 10) {
-      return res.status(400).json({ error: 'Informe um token de produção válido.' });
+    const rawToken = req.body?.token ?? req.body?.access_token ?? req.body?.accessToken;
+
+    if (!rawToken || typeof rawToken !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Informe o Bearer Token de Produção no corpo da requisição.'
+      });
+    }
+
+    const cleanToken = rawToken.replace(/^Bearer\s+/i, '').trim();
+
+    if (cleanToken.length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'O token fornecido é muito curto ou inválido. Cole o token Bearer completo de Produção.'
+      });
     }
 
     const saved = saveTokenData({
-      access_token: token.trim(),
+      access_token: cleanToken,
       token_type: 'Bearer',
       source: 'manual'
     });
 
-    return res.json({
+    console.log(`[Melhor Envio] Token de produção gravado com sucesso no servidor via endpoint manual (${saved.updated_at})`);
+
+    return res.status(200).json({
       success: true,
-      message: 'Token de produção salvo com sucesso no cofre do servidor!',
-      updatedAt: saved.updated_at
+      message: 'Token de produção salvo com sucesso no cofre seguro do servidor!',
+      updatedAt: saved.updated_at,
+      source: saved.source
     });
   } catch (err: any) {
-    return res.status(500).json({ error: 'Falha ao salvar token manual', details: err.message });
+    console.error('[Melhor Envio] Falha ao gravar token manual no servidor:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Falha interna ao salvar token no cofre do servidor.',
+      details: err?.message || 'Erro interno'
+    });
   }
-});
+};
+
+app.post('/api/shipping/token/manual', handleSaveManualTokenEndpoint);
+app.post('/api/shipping/token', handleSaveManualTokenEndpoint);
+app.post('/api/shipping/manual-token', handleSaveManualTokenEndpoint);
 
 /**
  * GET /api/shipping/account
@@ -3669,6 +3695,14 @@ app.post('/api/mercadopago/webhook', async (req, res) => {
  * Inicialização do Vite middleware (Dev) ou arquivos estáticos (Prod)
  */
 async function startServer() {
+  // Previne que rotas inexistentes sob /api/* caiam no index.html do Vite SPA retornando HTML
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({
+      success: false,
+      error: `Rota de API não encontrada: ${req.method} ${req.originalUrl || req.path}`
+    });
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
