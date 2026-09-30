@@ -26,6 +26,7 @@ import {
   getMercadoPagoCredentials,
   saveMercadoPagoCredentials,
   testMercadoPagoConnection,
+  createMercadoPagoPreference,
   DEFAULT_MP_PUBLIC_KEY,
   DEFAULT_MP_ACCESS_TOKEN
 } from './mercadoPagoServer';
@@ -3217,12 +3218,87 @@ app.post('/api/mercadopago/tokenize_card', async (req, res) => {
 });
 
 /**
+ * POST /api/mercadopago/create_preference
+ * Criação oficial de Preferência de Pagamento para Checkout Pro ou Payment Brick
+ */
+app.post([
+  '/api/mercadopago/create_preference',
+  '/api/mercadopago/preference',
+  '/api/mercadopago/preferences'
+], async (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  try {
+    const { items, payer, orderData, back_urls } = req.body;
+    
+    // Converte items do pedido para items do Mercado Pago
+    let prefItems: any[] = [];
+    if (Array.isArray(items) && items.length > 0) {
+      prefItems = items.map((it: any, idx: number) => ({
+        id: String(it.id || it.productId || `item-${idx + 1}`),
+        title: String(it.name || it.title || 'Produto Lavistore').slice(0, 127),
+        description: it.selectedVariant ? `Variação: ${it.selectedVariant}` : undefined,
+        quantity: Math.max(1, Number(it.quantity) || 1),
+        unit_price: Number((Number(it.unitPrice || it.price || 0)).toFixed(2)),
+        currency_id: 'BRL'
+      }));
+    } else if (orderData?.items && Array.isArray(orderData.items)) {
+      prefItems = orderData.items.map((it: any, idx: number) => ({
+        id: String(it.id || it.product?.id || `item-${idx + 1}`),
+        title: String(it.name || it.product?.name || 'Produto Lavistore').slice(0, 127),
+        description: it.selectedColor ? `Cor: ${it.selectedColor}` : undefined,
+        quantity: Math.max(1, Number(it.quantity) || 1),
+        unit_price: Number((Number(it.unitPrice || it.product?.price || orderData.total || 0)).toFixed(2)),
+        currency_id: 'BRL'
+      }));
+    } else {
+      prefItems = [{
+        id: `order-${orderData?.orderId || Date.now()}`,
+        title: `Pedido Lavistore #${orderData?.orderId || 'Compra'}`,
+        quantity: 1,
+        unit_price: Number((Number(orderData?.total || 1)).toFixed(2)),
+        currency_id: 'BRL'
+      }];
+    }
+
+    const result = await createMercadoPagoPreference({
+      items: prefItems,
+      payer,
+      external_reference: orderData?.orderId ? String(orderData.orderId) : undefined,
+      back_urls
+    });
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(200).json(result);
+  } catch (err: any) {
+    console.error('[Mercado Pago Preference] Erro:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Falha ao gerar preferência no Mercado Pago.',
+      details: err?.message || 'Erro desconhecido'
+    });
+  }
+});
+
+/**
  * POST /api/mercadopago/process_payment
  * Endpoint que recebe os dados do Payment Brick ou Token de Cartão/Pix
  * e processa o pagamento diretamente na API de Produção do Mercado Pago.
- * Se o cartão for recusado ou inativo, reporta a recusa real sem simular aprovação.
+ * Aliases suportados para total compatibilidade:
+ * - /api/mercadopago/process_payment
+ * - /api/mercadopago/create_payment
+ * - /api/mercadopago/payment
+ * - /api/mercadopago/payments
  */
-app.post('/api/mercadopago/process_payment', async (req, res) => {
+app.post([
+  '/api/mercadopago/process_payment',
+  '/api/mercadopago/create_payment',
+  '/api/mercadopago/payment',
+  '/api/mercadopago/payments'
+], async (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
     const {
       token,
@@ -3313,6 +3389,9 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
       if (streetNumberMatch) {
         parsedStreet = streetNumberMatch[1].trim();
         parsedNumber = parseInt(streetNumberMatch[2].trim(), 10) || 215;
+      }
+      if (!parsedNumber || isNaN(parsedNumber) || parsedNumber <= 0) {
+        parsedNumber = 1;
       }
 
       // IP do cliente
@@ -3410,19 +3489,31 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
           mpHeaders['X-Meli-Session-Id'] = deviceId;
         }
 
+        const abortController = new AbortController();
+        const timeoutTimer = setTimeout(() => abortController.abort(), 14000);
+
         const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
           method: 'POST',
           headers: mpHeaders,
-          body: JSON.stringify(mpPayload)
+          body: JSON.stringify(mpPayload),
+          signal: abortController.signal
         });
 
-        const mpData: any = await mpResponse.json();
+        clearTimeout(timeoutTimer);
+
+        const rawMpText = await mpResponse.text();
+        let mpData: any = null;
+        try {
+          mpData = JSON.parse(rawMpText);
+        } catch {
+          mpData = null;
+        }
 
         // Se a API retornou erro HTTP (ex: 400 Bad Request, token inválido, dados incorretos)
         if (!mpResponse.ok) {
-          console.warn('[Mercado Pago] Resposta de erro da API oficial:', mpData);
-          const rawError = mpData.message || (mpData.cause && mpData.cause[0] ? mpData.cause[0].description : '');
-          const causeCode = mpData.cause?.[0]?.code;
+          console.warn('[Mercado Pago] Resposta de erro da API oficial:', mpData || rawMpText);
+          const rawError = mpData?.message || (mpData?.cause && mpData.cause[0] ? mpData.cause[0].description : '');
+          const causeCode = mpData?.cause?.[0]?.code;
           const lowerRaw = String(rawError).toLowerCase();
 
           let errorMsg = 'O Mercado Pago não pôde processar a transação com os dados informados.';
@@ -3446,7 +3537,7 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
             success: false,
             error: errorMsg,
             rawError,
-            details: mpData
+            details: mpData || rawMpText
           });
         }
 
@@ -3517,7 +3608,9 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
         console.error('[Mercado Pago] Erro na requisição HTTP para a API:', mpError);
         return res.status(502).json({
           success: false,
-          error: 'Falha de comunicação com o Mercado Pago. Por favor, tente novamente em instantes.'
+          error: mpError?.name === 'AbortError'
+            ? 'Tempo limite de resposta do Mercado Pago excedido. Por favor, tente novamente.'
+            : 'Falha de comunicação com o Mercado Pago. Por favor, tente novamente em instantes.'
         });
       }
     } else {
@@ -3601,7 +3694,7 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
     if (storeOrders.length > 200) storeOrders.pop();
     saveStoredOrders(storeOrders);
 
-    // Disparo automático do e-mail para a loja via Nodemailer / SMTP
+    // Disparo automático do e-mail para a loja via Nodemailer / SMTP em background não-bloqueante
     const { transporter, isConfigured: isSmtpConfigured } = createMailTransporter();
     const htmlContent = generateOrderEmailHtml(finalizedOrder, storeEmail);
     const textContent = generateOrderEmailText(finalizedOrder);
@@ -3618,22 +3711,28 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
       try {
         const rawFrom = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || 'loja@lavistore.com.br';
         const fromAddress = rawFrom.includes('<') ? rawFrom : `"Lavistore Presentes" <${rawFrom}>`;
-        const info = await transporter.sendMail({
+        
+        // Disparo assíncrono em background sem atrasar a resposta HTTP para o cliente
+        transporter.sendMail({
           from: fromAddress,
           to: storeEmail,
           replyTo: finalizedOrder.customerEmail,
           subject: `🌸 [Venda Concluída #${finalizedOrder.orderId}] ${finalizedOrder.customerName} - R$ ${Number(finalizedOrder.total || 0).toFixed(2)} (Mercado Pago #${paymentResult.id})`,
           text: textContent,
           html: htmlContent,
+        }).then(info => {
+          finalizedOrder.emailStatus = 'sent';
+          console.log(`[Mercado Pago + Nodemailer] E-mail de venda #${finalizedOrder.orderId} transmitido com sucesso (MessageId: ${info.messageId})`);
+        }).catch(mailErr => {
+          finalizedOrder.emailStatus = 'failed';
+          console.error('[Mercado Pago + Nodemailer] Aviso ao disparar e-mail via SMTP:', mailErr.message);
         });
 
         emailNotificationResult.sent = true;
-        emailNotificationResult.messageId = info.messageId;
-        emailNotificationResult.message = `E-mail de confirmação enviado via SMTP para ${storeEmail}`;
-        finalizedOrder.emailStatus = 'sent';
-        console.log(`[Mercado Pago + Nodemailer] E-mail de venda #${finalizedOrder.orderId} transmitido com sucesso para ${storeEmail}`);
+        emailNotificationResult.message = `Disparo do e-mail de confirmação iniciado para ${storeEmail}`;
+        finalizedOrder.emailStatus = 'pending';
       } catch (mailError: any) {
-        console.error('[Mercado Pago + Nodemailer] Falha ao enviar e-mail via SMTP:', mailError);
+        console.error('[Mercado Pago + Nodemailer] Falha ao agendar envio de e-mail:', mailError);
         emailNotificationResult.sent = false;
         emailNotificationResult.message = `Erro ao disparar SMTP: ${mailError.message}`;
         finalizedOrder.emailStatus = 'failed';
@@ -3664,6 +3763,7 @@ app.post('/api/mercadopago/process_payment', async (req, res) => {
   } catch (error: any) {
     console.error('[Mercado Pago] Erro crítico ao processar pagamento:', error);
     return res.status(500).json({
+      success: false,
       error: 'Falha ao processar pagamento no Mercado Pago.',
       details: error?.message || 'Erro interno desconhecido'
     });

@@ -55,8 +55,8 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
       try {
         const resp = await fetch(`/api/mercadopago/payment_status/${orderData.mercadoPagoPaymentId}`);
         if (resp.ok) {
-          const data = await resp.json();
-          if (data.status === 'approved' && isSubscribed) {
+          const data = await resp.json().catch(() => null);
+          if (data && data.status === 'approved' && isSubscribed) {
             setPixPaymentStatus('approved');
             confetti({
               particleCount: 100,

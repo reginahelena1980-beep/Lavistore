@@ -30,6 +30,143 @@ import { calculateMelhorEnvioShipping, formatCep, isValidCep, getShippingConfig 
 import { fetchAddressByCep } from '../services/cepService';
 import { isValidCpf, isValidDocument, formatCpf, repairOrGenerateValidCpf } from '../utils/documentUtils';
 
+/**
+ * Interfaces com tipagem estrita para resposta do Mercado Pago
+ */
+export interface MercadoPagoPaymentResult {
+  success: boolean;
+  error?: string;
+  rawError?: string;
+  status?: string;
+  status_detail?: string;
+  isSelfPayment?: boolean;
+  paymentId?: string | number;
+  payment?: {
+    id: string;
+    status: string;
+    status_detail: string;
+    payment_method_id: string;
+    payment_type_id: string;
+    transaction_amount: number;
+    installments: number;
+    pix?: {
+      qr_code?: string;
+      qr_code_base64?: string | null;
+      ticket_url?: string;
+    } | null;
+    card?: {
+      first_six_digits?: string;
+      last_four_digits?: string;
+      expiration_month?: number;
+      expiration_year?: number;
+    } | null;
+    isSimulated?: boolean;
+  };
+  order?: OrderData;
+  notification?: {
+    sent: boolean;
+    mode?: string;
+    recipient?: string;
+    messageId?: string | null;
+    message: string;
+  };
+}
+
+export interface MercadoPagoTokenResult {
+  token?: string;
+  id?: string;
+  payment_method_id?: string;
+  error?: string;
+  message?: string;
+}
+
+export interface SafeFetchResult<T> {
+  ok: boolean;
+  status: number;
+  data: T | null;
+  errorText: string;
+}
+
+/**
+ * Helper resiliente para fetch:
+ * Previne falhas de JSON inválido quando o backend ou proxy retorna HTML (404/500/502).
+ */
+export async function safeFetchJson<T = any>(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<SafeFetchResult<T>> {
+  try {
+    const response = await fetch(input, init);
+    const contentType = response.headers.get('content-type') || '';
+    const rawText = await response.text();
+
+    let parsedData: T | null = null;
+    let isJson = false;
+
+    if (
+      contentType.toLowerCase().includes('application/json') ||
+      rawText.trim().startsWith('{') ||
+      rawText.trim().startsWith('[')
+    ) {
+      try {
+        parsedData = JSON.parse(rawText) as T;
+        isJson = true;
+      } catch {
+        isJson = false;
+      }
+    }
+
+    if (!response.ok) {
+      let friendlyError = '';
+      if (isJson && parsedData && typeof parsedData === 'object') {
+        const obj = parsedData as Record<string, any>;
+        friendlyError = obj.error || obj.message || obj.detail || '';
+      }
+      if (!friendlyError) {
+        if (response.status === 404) {
+          friendlyError = 'A rota de processamento do Mercado Pago não foi encontrada (HTTP 404). Verifique se o servidor está ativo.';
+        } else if (response.status >= 500) {
+          friendlyError = `O servidor encontrou uma instabilidade temporária ao se comunicar com o Mercado Pago (HTTP ${response.status}). Por favor, tente novamente em instantes.`;
+        } else {
+          friendlyError = `Falha na requisição de pagamento (HTTP ${response.status}).`;
+        }
+      }
+      return {
+        ok: false,
+        status: response.status,
+        data: parsedData,
+        errorText: friendlyError
+      };
+    }
+
+    if (!isJson || !parsedData) {
+      return {
+        ok: false,
+        status: response.status,
+        data: null,
+        errorText: 'A resposta do servidor de pagamento veio em formato inválido. Por favor, tente novamente.'
+      };
+    }
+
+    return {
+      ok: true,
+      status: response.status,
+      data: parsedData,
+      errorText: ''
+    };
+  } catch (err: any) {
+    console.error('[Checkout SafeFetch] Erro de rede ou comunicação:', err);
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      errorText: err?.message?.includes('Failed to fetch')
+        ? 'Não foi possível conectar ao servidor da loja. Verifique sua conexão com a internet.'
+        : (err?.message || 'Falha na conexão de rede com o serviço de pagamento.')
+    };
+  }
+}
+
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -212,12 +349,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   };
 
-  // Carrega status das credenciais do Mercado Pago
+  // Carrega status das credenciais do Mercado Pago de forma segura
   useEffect(() => {
-    fetch('/api/mercadopago/config')
-      .then(r => r.json())
-      .then(data => setMpConfig(data))
-      .catch(err => console.warn('Aviso: endpoint Mercado Pago config:', err));
+    safeFetchJson('/api/mercadopago/config')
+      .then(res => {
+        if (res.ok && res.data) {
+          setMpConfig(res.data);
+        }
+      })
+      .catch(err => console.warn('Aviso ao consultar status do Mercado Pago:', err));
   }, []);
 
   // Sincroniza cupom externo
@@ -489,12 +629,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       };
 
       try {
-        const response = await fetch('/api/orders', {
+        const orderRes = await safeFetchJson<{ order?: OrderData; success?: boolean }>('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(freeGiftOrder)
         });
-        const result = await response.json();
         setIsProcessing(false);
         confetti({
           particleCount: 100,
@@ -502,7 +641,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           origin: { y: 0.6 },
           colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
         });
-        onOrderSuccess(result.order || freeGiftOrder);
+        onOrderSuccess(orderRes.data?.order || freeGiftOrder);
         return;
       } catch (err) {
         console.warn('Erro ao registrar pedido de brinde no backend:', err);
@@ -633,7 +772,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }
 
         // Tokenização real na API oficial do Mercado Pago via endpoint seguro
-        const tokenResp = await fetch('/api/mercadopago/tokenize_card', {
+        const tokenResp = await safeFetchJson<MercadoPagoTokenResult>('/api/mercadopago/tokenize_card', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -647,10 +786,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           })
         });
 
-        const tokenData = await tokenResp.json();
+        const tokenData = tokenResp.data;
 
-        if (!tokenResp.ok || !tokenData.token) {
-          let errText = tokenData.error || 'Dados do cartão incorretos ou não autorizados pelo Mercado Pago.';
+        if (!tokenResp.ok || !tokenData?.token) {
+          let errText = tokenData?.error || tokenResp.errorText || 'Dados do cartão incorretos ou não autorizados pelo Mercado Pago.';
           if (String(errText).toLowerCase().includes('identification') || String(errText).toLowerCase().includes('invalid user identification number')) {
             errText = 'CPF do titular/comprador inválido. Por favor, confira os números do seu CPF.';
           }
@@ -696,7 +835,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         isOwnerTestSimulation: Boolean(isOwnerTestSimulation)
       };
 
-      const response = await fetch('/api/mercadopago/process_payment', {
+      const paymentResp = await safeFetchJson<MercadoPagoPaymentResult>('/api/mercadopago/process_payment', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -705,14 +844,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
+      const result = paymentResp.data;
 
-      if (!response.ok || !result.success) {
-        let errorMsg = result.error || 'O pagamento não foi autorizado pelo banco emissor do cartão.';
+      if (!paymentResp.ok || !result || !result.success) {
+        let errorMsg = result?.error || paymentResp.errorText || 'O pagamento não pôde ser autorizado pelo Mercado Pago.';
         if (String(errorMsg).toLowerCase().includes('identification') || String(errorMsg).toLowerCase().includes('invalid user identification number')) {
           errorMsg = 'CPF do titular ou comprador inválido. Por favor, confira os números do seu CPF para aprovação da compra.';
         }
-        if (result.isSelfPayment || result.status_detail === 'cc_rejected_high_risk' || String(errorMsg).includes('auto-compra')) {
+        if (result?.isSelfPayment || result?.status_detail === 'cc_rejected_high_risk' || String(errorMsg).includes('auto-compra')) {
           setIsSelfPaymentError(true);
         }
         setPaymentErrorMessage(errorMsg);
@@ -728,10 +867,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
       });
 
-      onOrderSuccess(result.order || baseOrderData);
+      // Garante que o pedido finalizado contém as informações completas do Mercado Pago (incluindo QR Code PIX)
+      const finalizedOrder: OrderData = result.order || {
+        ...baseOrderData,
+        mercadoPagoPaymentId: result.payment?.id ? String(result.payment.id) : undefined,
+        mercadoPagoStatus: result.payment?.status,
+        mercadoPagoStatusDetail: result.payment?.status_detail,
+        pixQrCode: result.payment?.pix?.qr_code,
+        pixQrCodeBase64: result.payment?.pix?.qr_code_base64,
+        pixTicketUrl: result.payment?.pix?.ticket_url,
+      };
+
+      onOrderSuccess(finalizedOrder);
     } catch (err: any) {
       console.error('[Checkout] Erro ao processar no Mercado Pago:', err);
-      setPaymentErrorMessage(err.message || 'Falha ao processar pagamento com o Mercado Pago. Por favor, verifique os dados ou tente com outro cartão/PIX.');
+      const friendlyMsg = (typeof err?.message === 'string' && !err.message.includes('Unexpected token') && !err.message.includes('is not valid JSON'))
+        ? err.message
+        : 'Falha de comunicação com o Mercado Pago. Por favor, verifique seus dados ou tente via PIX Instantâneo.';
+      setPaymentErrorMessage(friendlyMsg);
     } finally {
       setIsProcessing(false);
     }

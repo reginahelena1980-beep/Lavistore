@@ -232,3 +232,146 @@ export async function testMercadoPagoConnection(): Promise<{
     };
   }
 }
+
+/**
+ * Interfaces com tipagem estrita para o Mercado Pago
+ */
+export interface MercadoPagoPreferenceItem {
+  id: string;
+  title: string;
+  description?: string;
+  quantity: number;
+  unit_price: number;
+  currency_id?: string;
+  picture_url?: string;
+}
+
+export interface MercadoPagoPreferencePayer {
+  name?: string;
+  surname?: string;
+  email: string;
+  phone?: {
+    area_code?: string;
+    number?: string;
+  };
+  identification?: {
+    type?: string;
+    number?: string;
+  };
+  address?: {
+    zip_code?: string;
+    street_name?: string;
+    street_number?: number;
+  };
+}
+
+export interface CreatePreferenceOptions {
+  items: MercadoPagoPreferenceItem[];
+  payer?: MercadoPagoPreferencePayer;
+  external_reference?: string;
+  back_urls?: {
+    success?: string;
+    pending?: string;
+    failure?: string;
+  };
+  notification_url?: string;
+  auto_return?: 'approved' | 'all';
+  statement_descriptor?: string;
+}
+
+export interface CreatePreferenceResult {
+  success: boolean;
+  preferenceId?: string;
+  initPoint?: string;
+  sandboxInitPoint?: string;
+  error?: string;
+  details?: any;
+}
+
+/**
+ * Cria uma Preferência oficial de pagamento no Mercado Pago (Checkout Pro / Bricks)
+ */
+export async function createMercadoPagoPreference(options: CreatePreferenceOptions): Promise<CreatePreferenceResult> {
+  const creds = getMercadoPagoCredentials();
+  const token = creds.accessToken;
+
+  if (!token || token.length < 10) {
+    return {
+      success: false,
+      error: 'Access Token do Mercado Pago não configurado. Por favor, configure as credenciais no painel administrativo.'
+    };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const payload = {
+      items: options.items.map(it => ({
+        id: String(it.id || 'item-1'),
+        title: String(it.title || 'Produto Lavistore').slice(0, 127),
+        description: it.description ? String(it.description).slice(0, 255) : undefined,
+        quantity: Math.max(1, Number(it.quantity) || 1),
+        unit_price: Number(Number(it.unit_price || 0).toFixed(2)),
+        currency_id: it.currency_id || 'BRL',
+        picture_url: it.picture_url
+      })),
+      payer: options.payer,
+      external_reference: options.external_reference,
+      back_urls: options.back_urls || {
+        success: 'https://lavistore.com.br/checkout/success',
+        pending: 'https://lavistore.com.br/checkout/pending',
+        failure: 'https://lavistore.com.br/checkout/failure'
+      },
+      auto_return: options.auto_return || 'approved',
+      statement_descriptor: options.statement_descriptor || 'LAVISTORE',
+      binary_mode: true
+    };
+
+    const response = await fetch(`${MERCADO_PAGO_API_BASE_URL}/checkout/preferences`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Lavistore Kids (estilobeeadm@gmail.com)'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    const rawText = await response.text();
+    let data: any = null;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok || !data || !data.id) {
+      const errMsg = data?.message || (data?.cause?.[0]?.description) || `Erro ao gerar preferência no Mercado Pago (HTTP ${response.status})`;
+      return {
+        success: false,
+        error: errMsg,
+        details: data || rawText
+      };
+    }
+
+    return {
+      success: true,
+      preferenceId: data.id,
+      initPoint: data.init_point,
+      sandboxInitPoint: data.sandbox_init_point
+    };
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    return {
+      success: false,
+      error: err?.name === 'AbortError'
+        ? 'Tempo limite de conexão excedido ao comunicar com o Mercado Pago.'
+        : (err?.message || 'Falha na comunicação com o Mercado Pago.')
+    };
+  }
+}
