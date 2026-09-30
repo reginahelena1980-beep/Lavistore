@@ -21,7 +21,7 @@ import {
   printShipmentLabels,
   trackShipments,
   getConnectedAccountInfo
-} from './melhorEnvioServer';
+} from './melhorEnvioServer.ts';
 import {
   getMercadoPagoCredentials,
   saveMercadoPagoCredentials,
@@ -29,7 +29,7 @@ import {
   createMercadoPagoPreference,
   DEFAULT_MP_PUBLIC_KEY,
   DEFAULT_MP_ACCESS_TOKEN
-} from './mercadoPagoServer';
+} from './mercadoPagoServer.ts';
 import { initializeApp as initFirebaseApp, getApps as getFirebaseApps, getApp as getFirebaseApp } from 'firebase/app';
 import { 
   getFirestore as getServerFirestore, 
@@ -51,7 +51,7 @@ import {
  */
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Suporte a payloads com fotos comprimidas em base64 (até 50MB)
 app.use(express.json({ limit: '50mb' }));
@@ -3889,10 +3889,20 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    const indexPath = path.join(distPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (_req, res) => {
+        res.sendFile(indexPath);
+      });
+    } else {
+      console.warn('[Lavistore Server] Diretório dist não encontrado em produção. Ativando Vite middleware de emergência.');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    }
   }
 
   app.listen(PORT, '0.0.0.0', () => {
