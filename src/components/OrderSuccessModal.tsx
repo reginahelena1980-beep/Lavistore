@@ -78,26 +78,32 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     };
   }, [orderData?.mercadoPagoPaymentId, pixPaymentStatus]);
 
+  const paymentMethod = String(orderData?.paymentMethod || '');
+  const isCartao = paymentMethod.toLowerCase().includes('cartão') || paymentMethod.toLowerCase().includes('cartao');
+  const isPix = paymentMethod.toLowerCase().includes('pix') || Boolean(orderData?.pixQrCode);
+
   const isGiftOrder = Number(orderData?.total || 0) === 0 || 
-                      orderData?.couponApplied?.toUpperCase() === 'BRINDE' || 
-                      orderData?.paymentMethod?.toLowerCase().includes('brinde') || 
-                      orderData?.paymentMethod?.toLowerCase().includes('cortesia');
+                      String(orderData?.couponApplied || '').toUpperCase() === 'BRINDE' || 
+                      paymentMethod.toLowerCase().includes('brinde') || 
+                      paymentMethod.toLowerCase().includes('cortesia');
 
   useEffect(() => {
     if (isGiftOrder) {
-      confetti({
-        particleCount: 90,
-        spread: 75,
-        origin: { y: 0.6 },
-        colors: ['#EC4899', '#A855F7', '#F59E0B', '#10B981']
-      });
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 75,
+          origin: { y: 0.6 },
+          colors: ['#EC4899', '#A855F7', '#F59E0B', '#10B981']
+        });
+      } catch {}
     }
   }, [isGiftOrder]);
 
   if (!orderData) return null;
 
   const isMercadoPagoPayment = Boolean(orderData.mercadoPagoPaymentId) || 
-                               orderData.paymentMethod?.includes('Mercado Pago') ||
+                               paymentMethod.includes('Mercado Pago') ||
                                Boolean(orderData.pixQrCode);
 
   const pixKey = orderData.pixQrCode || '';
@@ -168,7 +174,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
         )}
 
         {/* MERCADO PAGO - CARTÃO DE CRÉDITO APROVADO */}
-        {orderData.paymentMethod.includes('Cartão') && isMercadoPagoPayment && !isGiftOrder && (
+        {isCartao && isMercadoPagoPayment && !isGiftOrder && (
           <div className="bg-gradient-to-br from-emerald-50 via-purple-50 to-pink-50 p-5 rounded-2xl border-2 border-emerald-300 text-center space-y-3 shadow-xs">
             <div className="flex items-center justify-center gap-2 text-emerald-950 font-bold text-sm">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -182,13 +188,13 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             <div className="p-3 bg-white rounded-xl border border-emerald-200 text-left text-xs space-y-1">
               <div className="flex justify-between text-slate-600">
                 <span>Transação Mercado Pago:</span>
-                <span className="font-mono font-bold text-purple-900">#{orderData.mercadoPagoPaymentId || 'MP-' + Math.floor(10000000 + Math.random() * 90000000)}</span>
+                <span className="font-mono font-bold text-purple-900">#{orderData?.mercadoPagoPaymentId || 'MP-' + Math.floor(10000000 + Math.random() * 90000000)}</span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>Total Cobrado:</span>
                 <span className="font-bold text-emerald-700">R$ {formattedAmount}</span>
               </div>
-              {orderData.cardInstallments && (
+              {orderData?.cardInstallments && (
                 <div className="flex justify-between text-slate-600">
                   <span>Parcelamento:</span>
                   <span className="font-medium text-slate-800">{orderData.cardInstallments}x no Cartão</span>
@@ -204,7 +210,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
         )}
 
         {/* PIX QR CODE & COPIA E COLA */}
-        {orderData.paymentMethod.includes('PIX') && !isGiftOrder && (
+        {isPix && !isGiftOrder && (
           <div className={`p-5 rounded-2xl border-2 text-center space-y-3 transition-colors shadow-xs ${
             pixPaymentStatus === 'approved' 
               ? 'bg-emerald-50/90 border-emerald-300' 
@@ -369,23 +375,23 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
         <div className="p-4 bg-amber-50/40 rounded-2xl border border-amber-200 text-left text-xs space-y-2">
           <div className="flex justify-between font-bold text-purple-950">
             <span>Destinatário:</span>
-            <span>{orderData.customerName}</span>
+            <span>{orderData?.customerName || 'Cliente'}</span>
           </div>
           <div className="flex justify-between text-slate-700">
             <span>Endereço de Entrega:</span>
-            <span className="text-right truncate max-w-[280px]">{orderData.address}</span>
+            <span className="text-right truncate max-w-[280px]">{orderData?.address || '-'}</span>
           </div>
           <div className="flex justify-between text-slate-700">
             <span>Forma de Envio:</span>
-            <span>{orderData.shippingMethod}</span>
+            <span>{orderData?.shippingMethod || 'Envio Padrão'}</span>
           </div>
           <div className="flex justify-between text-slate-700">
             <span>Forma de Pagamento:</span>
-            <span className="font-bold text-purple-900">{orderData.paymentMethod}</span>
+            <span className="font-bold text-purple-900">{orderData?.paymentMethod || 'PIX Instantâneo'}</span>
           </div>
           <div className="flex justify-between font-bold text-sm text-rose-600 pt-2 border-t border-amber-200">
             <span>Valor Total:</span>
-            <span>R$ {Number(orderData.total).toFixed(2)}</span>
+            <span>R$ {Number(orderData?.total || 0).toFixed(2)}</span>
           </div>
         </div>
 

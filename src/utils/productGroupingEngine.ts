@@ -202,21 +202,25 @@ export function createParentProductFromBiRecords(
  */
 export function findExactBiRecordForOrderItem(
   item: {
-    product: Product;
+    product?: Product;
+    name?: string;
     selectedSize?: string;
     selectedSizeId?: string;
     biRecordId?: string;
-  },
+  } | any,
   biRecords: BiProductCalculatedRecord[]
 ): BiProductCalculatedRecord | null {
+  if (!item || !Array.isArray(biRecords) || biRecords.length === 0) return null;
+
   // 1. Tenta correspondência direta pelo biRecordId no item ou na variação
-  if (item.biRecordId) {
-    const found = biRecords.find(r => r.id === item.biRecordId);
+  const itemBiId = item.biRecordId || item.product?.biRecordId;
+  if (itemBiId) {
+    const found = biRecords.find(r => r.id === itemBiId);
     if (found) return found;
   }
 
   // 2. Tenta através do ID da variação registrada no produto
-  if (item.selectedSizeId && item.product.sizes) {
+  if (item.selectedSizeId && item.product?.sizes) {
     const matchedSize = item.product.sizes.find(s => s.id === item.selectedSizeId);
     if (matchedSize?.biRecordId) {
       const found = biRecords.find(r => r.id === matchedSize.biRecordId);
@@ -224,7 +228,10 @@ export function findExactBiRecordForOrderItem(
     }
   }
 
-  const pKey = getGroupingKey(item.product.name);
+  const productName = item.product?.name || item.name || '';
+  if (!productName) return null;
+
+  const pKey = getGroupingKey(productName);
   const targetLabel = (item.selectedSize || '').trim().toLowerCase();
 
   // 3. Tenta encontrar pelo produto agrupado + Tam/Cor exato
@@ -237,16 +244,19 @@ export function findExactBiRecordForOrderItem(
   if (matchingByGroupAndSize) return matchingByGroupAndSize;
 
   // 4. Tenta por vínculo do vitrineProductId + Tam/Cor
-  const matchingByVitrineIdAndSize = biRecords.find(r => {
-    if (r.vitrineProductId !== item.product.id) return false;
-    if (!targetLabel) return true;
-    return r.tamCor.trim().toLowerCase() === targetLabel;
-  });
-  if (matchingByVitrineIdAndSize) return matchingByVitrineIdAndSize;
+  const prodId = item.product?.id || item.id || item.productId;
+  if (prodId) {
+    const matchingByVitrineIdAndSize = biRecords.find(r => {
+      if (r.vitrineProductId !== prodId) return false;
+      if (!targetLabel) return true;
+      return r.tamCor.trim().toLowerCase() === targetLabel;
+    });
+    if (matchingByVitrineIdAndSize) return matchingByVitrineIdAndSize;
+  }
 
   // 5. Fallback por biRecordId do produto pai
-  if (item.product.biRecordId) {
-    const found = biRecords.find(r => r.id === item.product.biRecordId);
+  if (item.product?.biRecordId) {
+    const found = biRecords.find(r => r.id === item.product!.biRecordId);
     if (found) return found;
   }
 
