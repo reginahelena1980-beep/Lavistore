@@ -28,7 +28,10 @@ import { evaluateCoupon } from '../utils/couponUtils';
 import { DEFAULT_COUPONS } from '../data/coupons';
 import { calculateMelhorEnvioShipping, formatCep, isValidCep, getShippingConfig } from '../services/shippingService';
 import { fetchAddressByCep } from '../services/cepService';
-import { isValidCpf, isValidDocument, formatCpf, formatDocument, repairOrGenerateValidCpf } from '../utils/documentUtils';
+import { isValidCpf, isValidDocument, formatCpf, formatDocument, repairOrGenerateValidCpf, cleanCustomerCpf } from '../utils/documentUtils';
+
+// Re-exporta e garante que cleanCustomerCpf esteja acessível em todo o escopo do componente
+export { cleanCustomerCpf };
 
 /**
  * Interfaces com tipagem estrita para resposta do Mercado Pago
@@ -522,7 +525,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     lastName: customerName.split(' ').slice(1).join(' ') || 'Lavistore',
                     identification: {
                       type: 'CPF',
-                      number: isValidDocument(customerCpf) ? customerCpf.replace(/\D/g, '') : repairOrGenerateValidCpf(customerCpf || '123456789')
+                      number: isValidDocument(customerCpf) ? cleanCustomerCpf(customerCpf) : repairOrGenerateValidCpf(customerCpf || '123456789')
                     }
                   }
                 },
@@ -580,165 +583,166 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setIsSelfPaymentError(false);
     }
 
-    // Resolve a dedicatória do pedido (seja digitada no checkout, vinda de kit da sacolinha amarela ou das observações)
-    const kitWithDed = items.find(i => i.dedication || i.customKitData);
-    const resolvedDedication = (giftMessage.trim() || giftRecipient.trim())
-      ? {
-          recipient: giftRecipient.trim() || 'Alguém Muito Especial',
-          sender: giftSender.trim() || customerName.trim() || 'Quem te ama',
-          message: giftMessage.trim(),
-          theme: 'Sakura Rosé'
-        }
-      : (kitWithDed?.dedication || (kitWithDed?.customKitData ? {
-          recipient: kitWithDed.customKitData.recipient,
-          sender: kitWithDed.customKitData.sender,
-          message: kitWithDed.customKitData.message,
-          ribbon: kitWithDed.customKitData.selectedRibbon?.name,
-          bag: kitWithDed.customKitData.bagType?.name,
-          theme: 'Sakura Rosé'
-        } : (orderNotes.trim().length > 3 ? {
-          recipient: 'Alguém Muito Especial',
-          sender: customerName.trim() || 'Quem te ama',
-          message: orderNotes.trim(),
-          theme: 'Sakura Rosé'
-        } : undefined)));
+    try {
+      // Resolve a dedicatória do pedido (seja digitada no checkout, vinda de kit da sacolinha amarela ou das observações)
+      const kitWithDed = items.find(i => i.dedication || i.customKitData);
+      const resolvedDedication = (giftMessage.trim() || giftRecipient.trim())
+        ? {
+            recipient: giftRecipient.trim() || 'Alguém Muito Especial',
+            sender: giftSender.trim() || customerName.trim() || 'Quem te ama',
+            message: giftMessage.trim(),
+            theme: 'Sakura Rosé'
+          }
+        : (kitWithDed?.dedication || (kitWithDed?.customKitData ? {
+            recipient: kitWithDed.customKitData.recipient,
+            sender: kitWithDed.customKitData.sender,
+            message: kitWithDed.customKitData.message,
+            ribbon: kitWithDed.customKitData.selectedRibbon?.name,
+            bag: kitWithDed.customKitData.bagType?.name,
+            theme: 'Sakura Rosé'
+          } : (orderNotes.trim().length > 3 ? {
+            recipient: 'Alguém Muito Especial',
+            sender: customerName.trim() || 'Quem te ama',
+            message: orderNotes.trim(),
+            theme: 'Sakura Rosé'
+          } : undefined)));
 
-    // Se o cupom for BRINDE ou o total for zero, finaliza o pedido grátis diretamente sem chamar gateway de pagamento!
-    if (isGiftCoupon || finalOrderTotal === 0) {
-      const freeGiftOrder: OrderData = {
+      // Higienização estrita do CPF via função utilitária cleanCustomerCpf
+      const cleanedCpf = cleanCustomerCpf(customerCpf);
+
+      // Se o cupom for BRINDE ou o total for zero, finaliza o pedido grátis diretamente sem chamar gateway de pagamento!
+      if (isGiftCoupon || finalOrderTotal === 0) {
+        const freeGiftOrder: OrderData = {
+          orderId: `LAVI-${Math.floor(100000 + Math.random() * 900000)}`,
+          date: new Date().toLocaleDateString('pt-BR'),
+          customerName: customerName.trim() || 'Cliente Lavistore',
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone.trim(),
+          customerCpf: cleanedCpf ? formatDocument(cleanedCpf) : customerCpf.trim(),
+          address: `${street || 'Endereço'}, ${number || 'S/N'} ${complement ? complement + ' ' : ''}- ${district || 'Bairro'}, ${city || 'Cidade'}/${state || 'UF'} - CEP: ${cep || '00000-000'}`,
+          paymentMethod: 'Cortesia Especial / Cupom BRINDE (R$ 0,00)',
+          shippingMethod: selectedOption ? `${selectedOption.carrier} (${selectedOption.name})` : 'Frete Cortesia Especial',
+          shippingDeadline: selectedOption?.deadline || '3 a 6 dias úteis',
+          items,
+          subtotal,
+          discountAmount: subtotal,
+          couponApplied: checkoutCoupon || 'BRINDE',
+          isFreeShippingApplied: true,
+          shippingCost: 0,
+          total: 0,
+          hidePrices,
+          notes: orderNotes,
+          dedication: resolvedDedication
+        };
+
+        try {
+          const orderRes = await safeFetchJson<{ order?: OrderData; success?: boolean }>('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(freeGiftOrder)
+          });
+          setIsProcessing(false);
+          confetti({
+            particleCount: 100,
+            spread: 75,
+            origin: { y: 0.6 },
+            colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
+          });
+          onOrderSuccess(orderRes.data?.order || freeGiftOrder);
+          return;
+        } catch (err) {
+          console.warn('Erro ao registrar pedido de brinde no backend:', err);
+          setIsProcessing(false);
+          confetti({
+            particleCount: 100,
+            spread: 75,
+            origin: { y: 0.6 },
+            colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
+          });
+          onOrderSuccess(freeGiftOrder);
+          return;
+        }
+      }
+
+      // Validações essenciais antes de submeter ao Mercado Pago
+      if (!customerName.trim()) {
+        setPaymentErrorMessage('Por favor, informe seu nome completo.');
+        setIsProcessing(false);
+        document.getElementById('checkout_customer_name')?.focus();
+        return;
+      }
+
+      if (!customerEmail.trim() || !customerEmail.includes('@')) {
+        setPaymentErrorMessage('Por favor, informe um endereço de e-mail válido para confirmação e rastreio.');
+        setIsProcessing(false);
+        document.getElementById('checkout_customer_email')?.focus();
+        return;
+      }
+
+      if (!customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 10) {
+        setPaymentErrorMessage('Por favor, informe um telefone/WhatsApp válido com DDD.');
+        setIsProcessing(false);
+        document.getElementById('checkout_customer_phone')?.focus();
+        return;
+      }
+
+      if (!cleanedCpf) {
+        setPaymentErrorMessage('Por favor, informe seu CPF. O CPF é obrigatório para emissão da nota fiscal e aprovação do pagamento no Mercado Pago.');
+        setIsProcessing(false);
+        document.getElementById('checkout_customer_cpf')?.focus();
+        return;
+      }
+
+      if (!isValidDocument(cleanedCpf)) {
+        setPaymentErrorMessage('O CPF informado parece estar incorreto. Por favor, confira os 11 dígitos do seu CPF.');
+        setIsProcessing(false);
+        document.getElementById('checkout_customer_cpf')?.focus();
+        return;
+      }
+
+      const isPix = paymentMethod === 'pix' || customFormData?.selectedPaymentMethod === 'bank_transfer';
+      const chosenInstallments = Number(customFormData?.installments || installments || 1);
+
+      // CPF que será enviado para o Mercado Pago (do titular do cartão ou da compradora)
+      const rawTargetCpf = (!isPix && !sameAsCustomerCpf && cardHolderCpf.trim())
+        ? cleanCustomerCpf(cardHolderCpf)
+        : cleanedCpf;
+
+      if (!isPix && !sameAsCustomerCpf && cardHolderCpf.trim() && !isValidDocument(rawTargetCpf)) {
+        setPaymentErrorMessage('O CPF do titular do cartão informado é inválido. Por favor, confira os dígitos.');
+        setIsProcessing(false);
+        return;
+      }
+
+      const cleanCpf = isValidDocument(rawTargetCpf)
+        ? rawTargetCpf
+        : repairOrGenerateValidCpf(rawTargetCpf || '123456789');
+
+      const sanitizedTotal = Math.round(finalOrderTotal * 100) / 100;
+
+      const baseOrderData: OrderData = {
         orderId: `LAVI-${Math.floor(100000 + Math.random() * 900000)}`,
         date: new Date().toLocaleDateString('pt-BR'),
-        customerName: customerName.trim() || 'Cliente Lavistore',
-        customerEmail: customerEmail.trim(),
-        customerPhone: customerPhone.trim(),
-        customerCpf: customerCpf.trim(),
-        address: `${street || 'Endereço'}, ${number || 'S/N'} ${complement ? complement + ' ' : ''}- ${district || 'Bairro'}, ${city || 'Cidade'}/${state || 'UF'} - CEP: ${cep || '00000-000'}`,
-        paymentMethod: 'Cortesia Especial / Cupom BRINDE (R$ 0,00)',
-        shippingMethod: selectedOption ? `${selectedOption.carrier} (${selectedOption.name})` : 'Frete Cortesia Especial',
+        customerName,
+        customerEmail,
+        customerPhone,
+        customerCpf: formatDocument(cleanedCpf),
+        address: `${street}, ${number} ${complement ? complement + ' ' : ''}- ${district}, ${city}/${state} - CEP: ${cep}`,
+        paymentMethod: isPix ? 'PIX Instantâneo (Mercado Pago)' : `Cartão de Crédito (${chosenInstallments}x) - Mercado Pago`,
+        shippingMethod: selectedOption ? `${selectedOption.carrier} (${selectedOption.name})` : 'Correios PAC',
         shippingDeadline: selectedOption?.deadline || '3 a 6 dias úteis',
         items,
         subtotal,
-        discountAmount: subtotal,
-        couponApplied: checkoutCoupon || 'BRINDE',
-        isFreeShippingApplied: true,
-        shippingCost: 0,
-        total: 0,
+        discountAmount: currentDiscountAmount + pixDiscount,
+        couponApplied: checkoutCoupon || null,
+        isFreeShippingApplied: isFreeShippingCoupon,
+        shippingCost: finalShippingCost,
+        total: sanitizedTotal,
         hidePrices,
         notes: orderNotes,
         dedication: resolvedDedication
       };
 
-      try {
-        const orderRes = await safeFetchJson<{ order?: OrderData; success?: boolean }>('/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(freeGiftOrder)
-        });
-        setIsProcessing(false);
-        confetti({
-          particleCount: 100,
-          spread: 75,
-          origin: { y: 0.6 },
-          colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
-        });
-        onOrderSuccess(orderRes.data?.order || freeGiftOrder);
-        return;
-      } catch (err) {
-        console.warn('Erro ao registrar pedido de brinde no backend:', err);
-        setIsProcessing(false);
-        confetti({
-          particleCount: 100,
-          spread: 75,
-          origin: { y: 0.6 },
-          colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
-        });
-        onOrderSuccess(freeGiftOrder);
-        return;
-      }
-    }
-
-    // Validações essenciais antes de submeter ao Mercado Pago
-    const cleanCustomerCpf = customerCpf.replace(/\D/g, '');
-
-    if (!customerName.trim()) {
-      setPaymentErrorMessage('Por favor, informe seu nome completo.');
-      setIsProcessing(false);
-      document.getElementById('checkout_customer_name')?.focus();
-      return;
-    }
-
-    if (!customerEmail.trim() || !customerEmail.includes('@')) {
-      setPaymentErrorMessage('Por favor, informe um endereço de e-mail válido para confirmação e rastreio.');
-      setIsProcessing(false);
-      document.getElementById('checkout_customer_email')?.focus();
-      return;
-    }
-
-    if (!customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 10) {
-      setPaymentErrorMessage('Por favor, informe um telefone/WhatsApp válido com DDD.');
-      setIsProcessing(false);
-      document.getElementById('checkout_customer_phone')?.focus();
-      return;
-    }
-
-    if (!cleanCustomerCpf) {
-      setPaymentErrorMessage('Por favor, informe seu CPF. O CPF é obrigatório para emissão da nota fiscal e aprovação do pagamento no Mercado Pago.');
-      setIsProcessing(false);
-      document.getElementById('checkout_customer_cpf')?.focus();
-      return;
-    }
-
-    if (!isValidDocument(cleanCustomerCpf)) {
-      setPaymentErrorMessage('O CPF informado parece estar incorreto. Por favor, confira os 11 dígitos do seu CPF.');
-      setIsProcessing(false);
-      document.getElementById('checkout_customer_cpf')?.focus();
-      return;
-    }
-
-    const isPix = paymentMethod === 'pix' || customFormData?.selectedPaymentMethod === 'bank_transfer';
-    const chosenInstallments = Number(customFormData?.installments || installments || 1);
-
-    // CPF que será enviado para o Mercado Pago (do titular do cartão ou da compradora)
-    const rawTargetCpf = (!isPix && !sameAsCustomerCpf && cardHolderCpf.trim())
-      ? cardHolderCpf.replace(/\D/g, '')
-      : cleanCustomerCpf;
-
-    if (!isPix && !sameAsCustomerCpf && cardHolderCpf.trim() && !isValidDocument(rawTargetCpf)) {
-      setPaymentErrorMessage('O CPF do titular do cartão informado é inválido. Por favor, confira os dígitos.');
-      setIsProcessing(false);
-      return;
-    }
-
-    const cleanCpf = isValidDocument(rawTargetCpf)
-      ? rawTargetCpf
-      : repairOrGenerateValidCpf(rawTargetCpf || '123456789');
-
-    const sanitizedTotal = Math.round(finalOrderTotal * 100) / 100;
-
-    const baseOrderData: OrderData = {
-      orderId: `LAVI-${Math.floor(100000 + Math.random() * 900000)}`,
-      date: new Date().toLocaleDateString('pt-BR'),
-      customerName,
-      customerEmail,
-      customerPhone,
-      customerCpf: formatDocument(cleanCustomerCpf),
-      address: `${street}, ${number} ${complement ? complement + ' ' : ''}- ${district}, ${city}/${state} - CEP: ${cep}`,
-      paymentMethod: isPix ? 'PIX Instantâneo (Mercado Pago)' : `Cartão de Crédito (${chosenInstallments}x) - Mercado Pago`,
-      shippingMethod: selectedOption ? `${selectedOption.carrier} (${selectedOption.name})` : 'Correios PAC',
-      shippingDeadline: selectedOption?.deadline || '3 a 6 dias úteis',
-      items,
-      subtotal,
-      discountAmount: currentDiscountAmount + pixDiscount,
-      couponApplied: checkoutCoupon || null,
-      isFreeShippingApplied: isFreeShippingCoupon,
-      shippingCost: finalShippingCost,
-      total: sanitizedTotal,
-      hidePrices,
-      notes: orderNotes,
-      dedication: resolvedDedication
-    };
-
-    try {
       let finalToken = isPix ? undefined : customFormData?.token;
       let finalPaymentMethodId = isPix ? 'pix' : (customFormData?.payment_method_id || 'visa');
       let finalIssuerId = isPix ? undefined : customFormData?.issuer_id;
@@ -920,10 +924,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   };
 
-  // Finalizar Pedido
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  // Finalizar Pedido com tratamento de erros robusto
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    executeMercadoPagoPayment();
+    try {
+      await executeMercadoPagoPayment();
+    } catch (err: any) {
+      console.error('[CheckoutModal] Falha inesperada ao fechar pedido:', err);
+      setIsProcessing(false);
+      setPaymentErrorMessage(err?.message || 'Erro inesperado ao fechar pedido. Por favor, confira os dados e tente novamente.');
+    }
   };
 
   if (!isOpen) return null;
@@ -998,7 +1008,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <label className="text-[11px] font-bold text-purple-900 block">
                         CPF da Compradora / Titular *
                       </label>
-                      {customerCpf.replace(/\D/g, '').length === 11 && (
+                      {cleanCustomerCpf(customerCpf).length === 11 && (
                         <span className={`text-[10px] font-bold flex items-center gap-0.5 ${isValidCpf(customerCpf) ? 'text-emerald-600' : 'text-rose-500'}`}>
                           {isValidCpf(customerCpf) ? '✓ CPF Válido' : '⚠️ CPF Inválido'}
                         </span>
@@ -1017,7 +1027,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       }}
                       placeholder="000.000.000-00"
                       className={`w-full px-3 py-2 bg-white border rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:ring-2 focus:ring-pink-400 ${
-                        customerCpf.replace(/\D/g, '').length === 11 && !isValidCpf(customerCpf)
+                        cleanCustomerCpf(customerCpf).length === 11 && !isValidCpf(customerCpf)
                           ? 'border-rose-300 bg-rose-50/40 text-rose-900'
                           : 'border-purple-200'
                       }`}
@@ -1393,7 +1403,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           <strong className="text-emerald-700 text-sm font-bold">R$ {finalOrderTotal.toFixed(2)}</strong>
                         </div>
 
-                        {(cleanCustomerCpf === '29051956819' || customerEmail.toLowerCase().trim() === 'reginahelena1980@gmail.com') && (
+                        {(cleanCustomerCpf(customerCpf) === '29051956819' || customerEmail.toLowerCase().trim() === 'reginahelena1980@gmail.com') && (
                           <div className="p-2.5 bg-amber-100/90 rounded-xl border border-amber-300 text-[11px] text-amber-950 space-y-1">
                             <span className="font-bold flex items-center gap-1 text-amber-900">
                               <Info className="w-3.5 h-3.5 text-amber-700" />

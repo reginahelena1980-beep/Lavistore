@@ -19,6 +19,7 @@ import {
 import confetti from 'canvas-confetti';
 import { TrioFlowersIcon } from './LavistoreLogo';
 import { HomePageConfig, OrderData } from '../types';
+import { cleanCustomerCpf } from '../utils/documentUtils';
 
 interface OrderSuccessModalProps {
   orderData: OrderData | any;
@@ -108,7 +109,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
   const pixKey = orderData.pixQrCode || '';
   const isStoreOwner = (orderData?.customerEmail?.toLowerCase().trim() === 'reginahelena1980@gmail.com') || 
-                       (String(orderData?.customerCpf || '').replace(/\D/g, '') === '29051956819');
+                       (cleanCustomerCpf(orderData?.customerCpf) === '29051956819');
 
   const handleCopyPix = () => {
     navigator.clipboard.writeText(pixKey);

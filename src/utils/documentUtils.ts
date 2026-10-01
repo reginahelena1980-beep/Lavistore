@@ -4,11 +4,28 @@
  */
 
 /**
+ * Remove qualquer caractere não numérico de uma string de CPF, CNPJ ou documento (pontos, traços, barras e espaços).
+ * Função utilitária com tipagem estrita para sanitização em formulários de checkout e pagamentos.
+ *
+ * @param value String contendo CPF/documento com ou sem formatação
+ * @returns String contendo exclusivamente dígitos numéricos [0-9]
+ */
+export function cleanCustomerCpf(value?: string | number | null): string {
+  if (value === null || value === undefined) return '';
+  const str = typeof value === 'string' ? value : String(value);
+  return str.replace(/\D/g, '').trim();
+}
+
+// Aliases para máxima flexibilidade e clareza de importação
+export const cleanCpf = cleanCustomerCpf;
+export const cleanDocument = cleanCustomerCpf;
+
+/**
  * Validação algorítmica de CPF (Módulo 11 da Receita Federal do Brasil)
  */
 export function isValidCpf(cpf?: string | null): boolean {
   if (!cpf || typeof cpf !== 'string') return false;
-  const clean = cpf.replace(/\D/g, '');
+  const clean = cleanCustomerCpf(cpf);
 
   if (clean.length !== 11) return false;
 

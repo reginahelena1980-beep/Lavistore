@@ -27,15 +27,26 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ errorInfo });
   }
 
+  private handleReset = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
+  };
+
   private handleReload = () => {
+    try {
+      sessionStorage.clear();
+      localStorage.removeItem('lavistore_checkout_error');
+    } catch {}
+    this.setState({ hasError: false, error: null, errorInfo: null });
     window.location.reload();
   };
 
   private handleGoHome = () => {
     try {
+      sessionStorage.clear();
       localStorage.removeItem('lavistore_checkout_error');
     } catch {}
-    window.location.href = '/';
+    this.setState({ hasError: false, error: null, errorInfo: null });
+    window.location.href = window.location.origin;
   };
 
   public render() {
