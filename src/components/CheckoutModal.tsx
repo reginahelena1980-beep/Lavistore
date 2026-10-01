@@ -28,7 +28,7 @@ import { evaluateCoupon } from '../utils/couponUtils';
 import { DEFAULT_COUPONS } from '../data/coupons';
 import { calculateMelhorEnvioShipping, formatCep, isValidCep, getShippingConfig } from '../services/shippingService';
 import { fetchAddressByCep } from '../services/cepService';
-import { isValidCpf, isValidDocument, formatCpf, repairOrGenerateValidCpf } from '../utils/documentUtils';
+import { isValidCpf, isValidDocument, formatCpf, formatDocument, repairOrGenerateValidCpf } from '../utils/documentUtils';
 
 /**
  * Interfaces com tipagem estrita para resposta do Mercado Pago
@@ -713,13 +713,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       ? rawTargetCpf
       : repairOrGenerateValidCpf(rawTargetCpf || '123456789');
 
+    const sanitizedTotal = Math.round(finalOrderTotal * 100) / 100;
+
     const baseOrderData: OrderData = {
       orderId: `LAVI-${Math.floor(100000 + Math.random() * 900000)}`,
       date: new Date().toLocaleDateString('pt-BR'),
       customerName,
       customerEmail,
       customerPhone,
-      customerCpf: formatCpf(cleanCustomerCpf),
+      customerCpf: formatDocument(cleanCustomerCpf),
       address: `${street}, ${number} ${complement ? complement + ' ' : ''}- ${district}, ${city}/${state} - CEP: ${cep}`,
       paymentMethod: isPix ? 'PIX Instantâneo (Mercado Pago)' : `Cartão de Crédito (${chosenInstallments}x) - Mercado Pago`,
       shippingMethod: selectedOption ? `${selectedOption.carrier} (${selectedOption.name})` : 'Correios PAC',
@@ -730,16 +732,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       couponApplied: checkoutCoupon || null,
       isFreeShippingApplied: isFreeShippingCoupon,
       shippingCost: finalShippingCost,
-      total: finalOrderTotal,
+      total: sanitizedTotal,
       hidePrices,
       notes: orderNotes,
       dedication: resolvedDedication
     };
 
     try {
-      let finalToken = customFormData?.token;
-      let finalPaymentMethodId = customFormData?.payment_method_id || (isPix ? 'pix' : 'visa');
-      let finalIssuerId = customFormData?.issuer_id;
+      let finalToken = isPix ? undefined : customFormData?.token;
+      let finalPaymentMethodId = isPix ? 'pix' : (customFormData?.payment_method_id || 'visa');
+      let finalIssuerId = isPix ? undefined : customFormData?.issuer_id;
 
       // Se for Cartão de Crédito e não veio com token do Payment Brick, tokeniza os dados do cartão de forma segura
       if (!isPix && !finalToken) {
@@ -815,23 +817,30 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }
       }
 
+      const nameParts = customerName.trim().split(/\s+/).filter(Boolean);
+      const firstName = nameParts[0] || 'Cliente';
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Lavistore';
+
       const payload = {
-        token: finalToken,
-        payment_method_id: finalPaymentMethodId,
-        issuer_id: finalIssuerId,
-        transaction_amount: Number(finalOrderTotal.toFixed(2)),
-        installments: chosenInstallments,
+        token: isPix ? undefined : finalToken,
+        payment_method_id: isPix ? 'pix' : finalPaymentMethodId,
+        issuer_id: isPix ? undefined : finalIssuerId,
+        transaction_amount: sanitizedTotal,
+        installments: isPix ? 1 : chosenInstallments,
         payer: {
-          email: customerEmail,
-          first_name: customerName.split(' ')[0] || 'Cliente',
-          last_name: customerName.split(' ').slice(1).join(' ') || 'Lavistore',
+          email: customerEmail.trim().toLowerCase(),
+          first_name: firstName,
+          last_name: lastName,
           identification: {
             type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
             number: cleanCpf
           }
         },
         deviceId,
-        orderData: baseOrderData,
+        orderData: {
+          ...baseOrderData,
+          total: sanitizedTotal
+        },
         isOwnerTestSimulation: Boolean(isOwnerTestSimulation)
       };
 
@@ -859,47 +868,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       const result = paymentResp.data;
 
-      // Se falhar e a forma escolhida for PIX, ativa o fallback inteligente para nunca perder a venda
+      // Se a API retornar erro, exibe a mensagem amigável sem criar chave PIX falsa
       if (!paymentResp.ok || !result || !result.success) {
-        if (isPix) {
-          console.warn('[Checkout PIX] Ativando contingência segura de PIX para garantir conclusão do pedido.');
-          const fallbackMockId = Math.floor(1000000000 + Math.random() * 9000000000);
-          const fallbackPixEmv = `00020126580014br.gov.bcb.pix0136lavistore-${baseOrderData.orderId}-pix520400005303986540${Number(finalOrderTotal.toFixed(2))}5802BR5915LAVISTORE MIMO6009SAO PAULO62070503***6304`;
-          const fallbackOrder: OrderData = {
-            ...baseOrderData,
-            paymentMethod: 'PIX Instantâneo (Mercado Pago)',
-            mercadoPagoPaymentId: `PIX-${fallbackMockId}`,
-            mercadoPagoStatus: 'pending',
-            mercadoPagoStatusDetail: 'pending_waiting_transfer',
-            pixQrCode: fallbackPixEmv,
-            pixTicketUrl: `https://www.mercadopago.com.br/payments/${fallbackMockId}/ticket`
-          };
-
-          // Tenta salvar o pedido no backend
-          safeFetchJson('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(fallbackOrder)
-          }).catch(() => {});
-
-          confetti({
-            particleCount: 90,
-            spread: 75,
-            origin: { y: 0.6 },
-            colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
-          });
-
-          onOrderSuccess(fallbackOrder);
-          return;
-        }
-
         let errorMsg = result?.error || paymentResp.errorText || 'O pagamento não pôde ser autorizado pelo Mercado Pago.';
-        if (String(errorMsg).toLowerCase().includes('identification') || String(errorMsg).toLowerCase().includes('invalid user identification number')) {
-          errorMsg = 'CPF do titular ou comprador inválido. Por favor, confira os números do seu CPF para aprovação da compra.';
+        const lowerErr = String(errorMsg).toLowerCase();
+
+        if (lowerErr.includes('identification') || lowerErr.includes('invalid user identification number')) {
+          errorMsg = 'CPF do titular ou comprador inválido. Por favor, confira os 11 dígitos do seu CPF.';
+        } else if (lowerErr.includes('transaction_amount') || lowerErr.includes('invalid transaction_amount')) {
+          errorMsg = 'Valor do pedido inválido para processamento pelo Mercado Pago.';
         }
-        if (result?.isSelfPayment || result?.status_detail === 'cc_rejected_high_risk' || String(errorMsg).includes('auto-compra')) {
+
+        if (result?.isSelfPayment || result?.status_detail === 'cc_rejected_high_risk' || lowerErr.includes('auto-compra') || lowerErr.includes('mesma titularidade')) {
           setIsSelfPaymentError(true);
+          errorMsg = 'Aviso: Pelas regras do Banco Central e Mercado Pago, pagamentos entre a mesma conta/titularidade (dono da loja) não são permitidos no mesmo app. Use a simulação de lojista ou outra conta bancária.';
         }
+
         setPaymentErrorMessage(errorMsg);
         setIsProcessing(false);
         return;
@@ -1408,6 +1392,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           <span>Total cobrado via PIX:</span>
                           <strong className="text-emerald-700 text-sm font-bold">R$ {finalOrderTotal.toFixed(2)}</strong>
                         </div>
+
+                        {(cleanCustomerCpf === '29051956819' || customerEmail.toLowerCase().trim() === 'reginahelena1980@gmail.com') && (
+                          <div className="p-2.5 bg-amber-100/90 rounded-xl border border-amber-300 text-[11px] text-amber-950 space-y-1">
+                            <span className="font-bold flex items-center gap-1 text-amber-900">
+                              <Info className="w-3.5 h-3.5 text-amber-700" />
+                              Nota de Teste do Titular (Mercado Pago):
+                            </span>
+                            <p className="text-[10px] leading-tight text-amber-900">
+                              O QR Code oficial será gerado em produção normalmente. Lembre-se que o Banco Central impede você de pagar uma cobrança emitida por você mesma usando sua própria conta do Mercado Pago (auto-pagamento). Para testar, pague por outro banco ou use a simulação de lojista.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
 

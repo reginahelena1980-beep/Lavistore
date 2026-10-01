@@ -3315,6 +3315,15 @@ app.post([
       return res.status(400).json({ success: false, error: 'Dados do pedido ausentes ou inválidos.' });
     }
 
+    const rawMethod = String(payment_method_id || '').toLowerCase();
+    const isPixPayment = rawMethod === 'pix' || rawMethod === 'bank_transfer' || (!token && rawMethod !== 'credit_card');
+    const resolvedMethodId = isPixPayment ? 'pix' : (payment_method_id || 'visa');
+
+    const amountNum = Math.round(Number(transaction_amount || orderData.total || 0) * 100) / 100;
+    if (amountNum <= 0) {
+      return res.status(400).json({ success: false, error: 'O valor do pedido deve ser maior que zero (R$ 0,00).' });
+    }
+
     const creds = getMercadoPagoCredentials();
     const accessToken = creds.accessToken?.trim();
     const rawCpf = String(payer?.identification?.number || orderData.customerCpf || '').replace(/\D/g, '');
@@ -3327,11 +3336,11 @@ app.post([
       cleanCpf = repairOrGenerateValidCpfServer('123456789');
     }
 
-    const amountNum = Number(transaction_amount || orderData.total || 0);
+    const cleanEmail = String(payer?.email || orderData.customerEmail || 'cliente@lavistore.com.br').trim().toLowerCase();
 
     // Detecta se é o próprio dono da loja/conta do Mercado Pago tentando fazer checkout
     const isSelfPayment = (
-      (orderData.customerEmail && orderData.customerEmail.toLowerCase().trim() === 'reginahelena1980@gmail.com') ||
+      (cleanEmail === 'reginahelena1980@gmail.com') ||
       (cleanCpf === '29051956819')
     );
 
@@ -3345,30 +3354,36 @@ app.post([
         id: `TEST-${mockTestId}`,
         status: 'approved',
         status_detail: 'accredited_owner_test',
-        payment_method_id: payment_method_id || 'visa',
-        payment_type_id: 'credit_card',
+        payment_method_id: resolvedMethodId,
+        payment_type_id: isPixPayment ? 'bank_transfer' : 'credit_card',
         transaction_amount: amountNum,
-        installments: Number(installments) || 1,
-        card: {
+        installments: isPixPayment ? 1 : (Number(installments) || 1),
+        card: isPixPayment ? null : {
           first_six_digits: '424242',
           last_four_digits: '4242'
         },
+        pix: isPixPayment ? {
+          qr_code: `00020126580014br.gov.bcb.pix0136test-simulado-${mockTestId}520400005303986540${amountNum.toFixed(2)}5802BR5911FERE52886916009Guarulhos62250521mpqrinter${mockTestId}6304TEST`,
+          qr_code_base64: null,
+          ticket_url: `https://www.mercadopago.com.br/payments/${mockTestId}/ticket`
+        } : null,
         isSimulated: true
       };
     } else if (accessToken && accessToken.length > 10) {
-      // Se o ACCESS_TOKEN do Mercado Pago estiver configurado no .env, realiza chamada REAL à API do Mercado Pago
-      console.log(`[Mercado Pago] Enviando pagamento para API oficial: Método=${payment_method_id}, Valor=R$ ${amountNum}`);
+      // Chamada REAL à API oficial de Produção do Mercado Pago
+      console.log(`[Mercado Pago] Enviando pagamento para API oficial: Método=${resolvedMethodId}, Valor=R$ ${amountNum.toFixed(2)}`);
       
-      const payerNameParts = (orderData.customerName || 'Cliente Lavistore').trim().split(' ');
-      const firstName = payer?.first_name || payerNameParts[0] || 'Cliente';
-      const lastName = payer?.last_name || payerNameParts.slice(1).join(' ') || 'Lavistore';
+      const rawFullName = String(orderData.customerName || payer?.first_name || 'Cliente Lavistore').trim();
+      const nameParts = rawFullName.split(/\s+/).filter(Boolean);
+      const firstName = payer?.first_name || nameParts[0] || 'Cliente';
+      const lastName = payer?.last_name || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Lavistore');
 
       // Dados de telefone
       const rawPhone = String(orderData.customerPhone || '').replace(/\D/g, '');
       const areaCode = rawPhone.length >= 10 ? rawPhone.slice(0, 2) : '11';
       const phoneNumber = rawPhone.length >= 10 ? rawPhone.slice(2) : (rawPhone || '986297916');
 
-      // Extração precisa do endereço para análise de risco antifraude
+      // Extração precisa do endereço
       const addr = String(orderData.address || '');
       let parsedStreet = 'Rua das Palmeiras';
       let parsedNumber = 215;
@@ -3409,7 +3424,7 @@ app.post([
             description: String(it.selectedVariant ? `Variação: ${it.selectedVariant}` : (it.name || 'Presente Lavistore')).slice(0, 255),
             category_id: 'baby_clothing',
             quantity: Math.max(1, Number(it.quantity || 1)),
-            unit_price: Number(Number(it.unitPrice || it.price || amountNum).toFixed(2))
+            unit_price: Math.round(Number(it.unitPrice || it.price || amountNum) * 100) / 100
           }))
         : [{
             id: `lavistore-${orderData.orderId}`,
@@ -3417,32 +3432,54 @@ app.post([
             description: 'Presentes Criativos & Mimos Fofos',
             category_id: 'baby_clothing',
             quantity: 1,
-            unit_price: Number(amountNum.toFixed(2))
+            unit_price: amountNum
           }];
 
       const mpPayload: any = {
         transaction_amount: amountNum,
-        description: `Lavistore • Pedido #${orderData.orderId}`,
-        payment_method_id: payment_method_id || 'pix',
+        description: `Lavistore • Pedido #${orderData.orderId}`.slice(0, 127),
+        payment_method_id: resolvedMethodId,
         payer: {
-          email: payer?.email || orderData.customerEmail,
+          email: cleanEmail,
           first_name: firstName,
           last_name: lastName,
           identification: {
             type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
             number: cleanCpf
-          },
-          phone: {
-            area_code: areaCode,
-            number: phoneNumber
-          },
-          address: {
-            zip_code: parsedZip,
-            street_name: parsedStreet,
-            street_number: parsedNumber
           }
         },
-        additional_info: {
+        external_reference: String(orderData.orderId)
+      };
+
+      if (isPixPayment) {
+        // Para PIX oficial: campos adicionais essenciais e estruturados
+        mpPayload.additional_info = {
+          ip_address: clientIp,
+          items: itemsForMp,
+          payer: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: {
+              area_code: areaCode,
+              number: phoneNumber
+            },
+            address: {
+              zip_code: parsedZip,
+              street_name: parsedStreet,
+              street_number: parsedNumber
+            }
+          }
+        };
+      } else {
+        // Cartão de Crédito
+        if (token) {
+          mpPayload.token = token;
+          mpPayload.installments = Number(installments) || 1;
+          if (issuer_id) {
+            mpPayload.issuer_id = String(issuer_id);
+          }
+        }
+        mpPayload.additional_info = {
           ip_address: clientIp,
           items: itemsForMp,
           payer: {
@@ -3467,16 +3504,7 @@ app.post([
               state_name: parsedState
             }
           }
-        },
-        external_reference: String(orderData.orderId)
-      };
-
-      if (token) {
-        mpPayload.token = token;
-        mpPayload.installments = Number(installments) || 1;
-        if (issuer_id) {
-          mpPayload.issuer_id = String(issuer_id);
-        }
+        };
       }
 
       try {
@@ -3492,7 +3520,7 @@ app.post([
         const abortController = new AbortController();
         const timeoutTimer = setTimeout(() => abortController.abort(), 14000);
 
-        const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+        let mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
           method: 'POST',
           headers: mpHeaders,
           body: JSON.stringify(mpPayload),
@@ -3501,7 +3529,7 @@ app.post([
 
         clearTimeout(timeoutTimer);
 
-        const rawMpText = await mpResponse.text();
+        let rawMpText = await mpResponse.text();
         let mpData: any = null;
         try {
           mpData = JSON.parse(rawMpText);
@@ -3509,7 +3537,55 @@ app.post([
           mpData = null;
         }
 
-        // Se a API retornou erro HTTP (ex: 400 Bad Request, token inválido, dados incorretos)
+        // Se a chamada PIX inicial falhou com 400, executa retry com payload essencial ultralídimo
+        if (!mpResponse.ok && isPixPayment && mpResponse.status === 400) {
+          console.warn('[Mercado Pago PIX] Falha no payload estendido. Tentando retry com payload PIX minimalista oficial...');
+          const retryController = new AbortController();
+          const retryTimer = setTimeout(() => retryController.abort(), 12000);
+          try {
+            const strippedPixPayload = {
+              transaction_amount: amountNum,
+              description: `Lavistore #${orderData.orderId}`.slice(0, 127),
+              payment_method_id: 'pix',
+              payer: {
+                email: cleanEmail,
+                first_name: firstName,
+                last_name: lastName,
+                identification: {
+                  type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
+                  number: cleanCpf
+                }
+              },
+              external_reference: String(orderData.orderId)
+            };
+            const retryHeaders = {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+              'X-Idempotency-Key': `lavistore-retry-${orderData.orderId}-${Date.now()}`
+            };
+            const retryResp = await fetch('https://api.mercadopago.com/v1/payments', {
+              method: 'POST',
+              headers: retryHeaders,
+              body: JSON.stringify(strippedPixPayload),
+              signal: retryController.signal
+            });
+            clearTimeout(retryTimer);
+            if (retryResp.ok) {
+              const retryData = await retryResp.json();
+              if (retryData && retryData.id) {
+                mpResponse = retryResp;
+                mpData = retryData;
+                rawMpText = JSON.stringify(retryData);
+                console.log('[Mercado Pago PIX] Retry minimalista APROVADO com sucesso! ID:', retryData.id);
+              }
+            }
+          } catch (retryErr: any) {
+            clearTimeout(retryTimer);
+            console.warn('[Mercado Pago PIX] Erro no retry minimalista:', retryErr?.message);
+          }
+        }
+
+        // Se a API retornou erro HTTP após todas as tentativas
         if (!mpResponse.ok) {
           console.warn('[Mercado Pago] Resposta de erro da API oficial:', mpData || rawMpText);
           const rawError = mpData?.message || (mpData?.cause && mpData.cause[0] ? mpData.cause[0].description : '');
@@ -3529,6 +3605,8 @@ app.post([
             errorMsg = 'Ano de vencimento do cartão incorreto.';
           } else if (lowerRaw.includes('cardholder.name') || causeCode === 221) {
             errorMsg = 'Por favor, informe o nome completo impresso no cartão.';
+          } else if (causeCode === 4037 || lowerRaw.includes('invalid transaction_amount')) {
+            errorMsg = 'Valor da transação inválido para o Mercado Pago.';
           } else if (rawError) {
             errorMsg = rawError;
           }

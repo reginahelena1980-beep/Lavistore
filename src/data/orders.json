@@ -1,5 +1,34 @@
 [
   {
+    "orderId": "LAVI-TEST-VERIFY",
+    "customerName": "Cliente Teste Producao",
+    "customerEmail": "cliente.teste.producao@gmail.com",
+    "customerPhone": "11988887777",
+    "customerCpf": "111.444.777-35",
+    "address": "Rua das Flores, 100 - Centro, São Paulo/SP - CEP: 01001-000",
+    "total": 5,
+    "items": [
+      {
+        "id": "prod-1",
+        "name": "Item Teste",
+        "quantity": 1,
+        "price": 5
+      }
+    ],
+    "paymentMethod": "PIX Instantâneo (Mercado Pago)",
+    "mercadoPagoPaymentId": "181757943880",
+    "mercadoPagoStatus": "pending",
+    "mercadoPagoStatusDetail": "pending_waiting_transfer",
+    "cardInstallments": 1,
+    "cardBrand": "pix",
+    "pixQrCode": "00020126580014br.gov.bcb.pix013649ab4562-07eb-4216-bd90-936f7ed1091a52040000530398654045.005802BR5911FERE52886916009Guarulhos62250521mpqrinter1817579438806304D197",
+    "pixQrCodeBase64": "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",
+    "pixTicketUrl": "https://www.mercadopago.com.br/payments/181757943880/ticket?caller_id=3730858616&hash=75c0a114-90bd-4fc1-ae5f-d5f84fab80c7",
+    "receivedAt": "2026-10-01T09:25:50.518Z",
+    "storeEmailTarget": "laviniatilapiafc@gmail.com",
+    "emailStatus": "pending"
+  },
+  {
     "orderId": "LAVI-TEST-PIX-99",
     "customerName": "Juliana Mendes",
     "customerEmail": "comprador.cliente@gmail.com",
