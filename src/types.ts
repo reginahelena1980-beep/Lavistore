@@ -211,6 +211,26 @@ export interface HomePageConfig {
   aboutCtaDesc?: string;
   aboutCtaBtn1?: string;
   aboutCtaBtn2?: string;
+  aboutHeroBadge?: string;
+  aboutHeroTitle?: string;
+  aboutQuote?: string;
+  aboutStoryText?: string;
+  aboutFlowersSectionTitle?: string;
+  aboutFlowersSectionSubtitle?: string;
+  aboutSolarBadge?: string;
+  aboutSolarBtn?: string;
+  aboutCtaBtnPrimary?: string;
+  aboutCtaBtnSecondary?: string;
+  whatsappButtonLabel?: string;
+  whatsappChatTitle?: string;
+  whatsappChatSubtitle?: string;
+  whatsappWelcomeGreeting?: string;
+  whatsappWelcomeMessage?: string;
+  reviewsAverageRatingText?: string;
+  reviewsInstagramTag?: string;
+  reviewsInstagramTitle?: string;
+  reviewsInstagramSubtitle?: string;
+  [key: string]: any;
 }
 
 export interface BagType {
@@ -366,6 +386,7 @@ export type ActiveTab =
   | 'kit-builder'
   | 'card-generator'
   | 'floral-collection'
+  | 'floral-special'
   | 'about'
   | 'admin';
 

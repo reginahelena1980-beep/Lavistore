@@ -20,6 +20,7 @@ import confetti from 'canvas-confetti';
 import { TrioFlowersIcon } from './LavistoreLogo';
 import { HomePageConfig, OrderData } from '../types';
 import { cleanCustomerCpf } from '../utils/documentUtils';
+import { updateOrderStatus } from '../services/storeApiService';
 
 interface OrderSuccessModalProps {
   orderData: OrderData | any;
@@ -67,9 +68,12 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             });
             clearInterval(interval);
           }
+        } else if (resp.status === 404) {
+          // Servidor estático sem rota de backend - interrompe o polling para evitar 404 contínuos
+          clearInterval(interval);
         }
       } catch (e) {
-        // Silêncio no polling para não interromper a tela
+        clearInterval(interval);
       }
     }, 4000);
 
@@ -249,7 +253,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                 {/* QR Code Real de Alta Resolução (Escaneável em qualquer aplicativo bancário) */}
                 <div className="w-52 h-52 bg-white p-3 rounded-2xl mx-auto border-2 border-amber-300 flex items-center justify-center shadow-md">
                   <img 
-                    src={orderData.pixQrCodeBase64 ? `data:image/png;base64,${orderData.pixQrCodeBase64}` : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(pixKey)}`}
+                    src={orderData.pixQrCodeBase64 ? (orderData.pixQrCodeBase64.startsWith('data:') ? orderData.pixQrCodeBase64 : `data:image/png;base64,${orderData.pixQrCodeBase64}`) : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(pixKey)}`}
                     alt="QR Code PIX Mercado Pago"
                     className="w-full h-full object-contain rounded-lg"
                     onError={(e) => {
@@ -325,11 +329,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                         onClick={async () => {
                           setPixPaymentStatus('approved');
                           try {
-                            await fetch(`/api/orders/${orderData.orderId}/status`, {
-                              method: 'PATCH',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ customStatus: 'pago', mercadoPagoStatus: 'approved' })
-                            });
+                            await updateOrderStatus(orderData.orderId, 'pago');
                           } catch {}
                         }}
                         className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
