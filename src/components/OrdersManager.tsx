@@ -894,7 +894,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
                             openDedicationPrintWindow(dedication);
                           }}
                           className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-pink-100 hover:bg-pink-200 text-pink-900 border border-pink-300 flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
-                          title="Imprimir cartão floral de dedicatória (10x15cm) em 1 clique"
+                          title="Imprimir cartão de dedicatória (10x15cm) em 1 clique"
                         >
                           <Printer className="w-3.5 h-3.5 text-pink-600" />
                           <span className="hidden sm:inline">Imprimir Cartão</span>

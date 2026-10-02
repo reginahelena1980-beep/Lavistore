@@ -259,7 +259,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     image: heroConfig?.image || defaultHeroImg,
     badge: heroConfig?.badge || "Presentes Criativos & Mimos com Amor 🌸",
     title: heroConfig?.title || "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-    subtitle: heroConfig?.subtitle || "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+    subtitle: heroConfig?.subtitle || "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido!",
     imageFit: heroConfig?.imageFit || 'cover',
     imageScale: heroConfig?.imageScale || 100,
     imagePosition: heroConfig?.imagePosition || 'center',
@@ -1262,7 +1262,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         />
       )}
 
-      {/* ABOUT PAGE & FLORAL STORY MANAGER VIEW */}
+      {/* ABOUT PAGE & STORY MANAGER VIEW */}
       {adminSection === 'about' && (
         <AboutPageManager
           config={homePageConfig}

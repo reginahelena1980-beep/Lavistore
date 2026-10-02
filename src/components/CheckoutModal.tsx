@@ -1718,7 +1718,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </div>
                       <div>
                         <h5 className="font-['Mali'] text-xs font-bold text-purple-950 flex items-center gap-1.5">
-                          <span>Cartão de Dedicatória Floral (Presente)</span>
+                          <span>Cartão de Dedicatória (Presente)</span>
                           <span className="text-[10px] bg-pink-100 text-pink-800 px-2 py-0.2 rounded-full border border-pink-300">
                             Grátis 💌
                           </span>

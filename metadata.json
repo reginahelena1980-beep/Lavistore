@@ -1,6 +1,6 @@
 {
-  "name": "Lavistore Kids - Presentes Criativos & Mimos Fofos",
-  "description": "Loja virtual encantadora de presentes criativos, papelaria fofa e mimos delicados Lavistore Kids com integração em tempo real entre Estoque/BI Administrativo e Vitrine.",
+  "name": "Lavistore Kids - Mimos e Presentes Criativos",
+  "description": "Loja virtual de presentes criativos e mimos delicados Lavistore Kids com integração em tempo real entre Estoque/BI Administrativo e Vitrine.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

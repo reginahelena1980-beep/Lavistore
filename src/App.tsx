@@ -83,7 +83,7 @@ const DEFAULT_HERO_CONFIG: HeroConfig = {
   image: defaultHeroImg,
   badge: "Presentes Criativos & Mimos com Amor 🌸",
   title: "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-  subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+  subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido!",
   imageFit: 'cover',
   imageScale: 100,
   imagePosition: 'center',

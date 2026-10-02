@@ -20,7 +20,7 @@ export const CATEGORIES: Category[] = (storeState && Array.isArray(storeState.ca
     id: 'todos',
     name: 'Todos os Mimos',
     icon: '✨',
-    description: 'Catálogo completo de fofuras e mimos',
+    description: 'Catálogo completo de mimos',
     showInFooter: false,
     showInFilter: true,
   },

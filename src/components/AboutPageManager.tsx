@@ -287,7 +287,7 @@ export const AboutPageManager: React.FC<AboutPageManagerProps> = ({
             <div className="p-5 rounded-2xl bg-white/95 border-2 border-amber-200 shadow-2xs space-y-4">
               <h3 className="font-['Mali'] text-lg font-bold text-purple-950 flex items-center gap-2">
                 <Flower2 className="w-4 h-4 text-purple-600" />
-                <span>Cabeçalho da Seção Floral</span>
+                <span>Cabeçalho da Seção</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

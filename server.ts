@@ -3438,7 +3438,7 @@ app.post([
         : [{
             id: `lavistore-${orderData.orderId}`,
             title: `Pedido Lavistore #${orderData.orderId}`,
-            description: 'Presentes Criativos & Mimos Fofos',
+            description: 'Presentes Criativos & Mimos',
             category_id: 'baby_clothing',
             quantity: 1,
             unit_price: amountNum

@@ -556,7 +556,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <div className="flex items-center gap-2.5">
                   <Gift className="w-5 h-5 text-pink-500" />
                   <div>
-                    <p className="text-xs font-bold text-pink-950">Embalagem para Presente Floral?</p>
+                    <p className="text-xs font-bold text-pink-950">Embalagem para Presente?</p>
                     <p className="text-[11px] text-pink-700">Inclui laço de cetim, papel de seda e cartãozinho</p>
                   </div>
                 </div>

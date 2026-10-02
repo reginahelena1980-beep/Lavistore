@@ -211,7 +211,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               <div className="relative w-full h-full rounded-[28px] sm:rounded-[34px] overflow-hidden shadow-xl shadow-purple-950/10 border-4 border-white bg-white flex items-center justify-center">
                 <img
                   src={currentHeroImage}
-                  alt="Destaque Principal Lavistore - Presentes Criativos e Mimos Fofos"
+                  alt="Destaque Principal Lavistore - Mimos e Presentes Criativos"
                   referrerPolicy="no-referrer"
                   style={{
                     objectFit: imageFit,

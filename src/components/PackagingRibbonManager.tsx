@@ -29,20 +29,10 @@ interface PackagingRibbonManagerProps {
 
 const PRESET_BAG_IMAGES = [
   { label: 'Amarela Solar', url: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Floral Delicado', url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Kraft & Laço', url: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Caixa & Mimo', url: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=600&q=80' }
 ];
 
 const PRESET_RIBBON_COLORS = [
   { name: 'Lilás Violeta', hex: '#8B5CF6' },
-  { name: 'Turquesa Tiffany', hex: '#06B6D4' },
-  { name: 'Rosa Algodão Doce', hex: '#EC4899' },
-  { name: 'Dourado Solar', hex: '#FACC15' },
-  { name: 'Organza Pérola', hex: '#FBCFE8' },
-  { name: 'Vermelho Paixão', hex: '#EF4444' },
-  { name: 'Verde Alecrim', hex: '#10B981' },
-  { name: 'Azul Céu', hex: '#38BDF8' }
 ];
 
 export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({

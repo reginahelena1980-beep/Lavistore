@@ -136,9 +136,6 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
           <h3 className="font-['Playfair_Display'] text-xl sm:text-2xl font-bold text-purple-950">
             {config?.reviewsInstagramTitle || 'Compartilhe seu unboxing no Instagram com #LavistoreLove'}
           </h3>
-          <p className="font-['Quicksand'] text-xs sm:text-sm text-purple-900 font-medium max-w-lg">
-            {config?.reviewsInstagramSubtitle || 'Marque @lavistore.oficial em seus stories para aparecer no nosso feed e concorrer a um kit presente floral mensal!'}
-          </p>
         </div>
 
       </div>

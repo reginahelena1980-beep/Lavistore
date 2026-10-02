@@ -53,7 +53,7 @@ export const GiftCardGenerator: React.FC = () => {
   };
 
   const handleCopy = () => {
-    const fullText = `💌 Para: ${recipient}\n\n"${cardMessage}"\n\n🌸 De: ${sender} (Lavistore Presentes Fofos)`;
+    const fullText = `💌 Para: ${recipient}\n\n"${cardMessage}"\n\n🌸 De: ${sender} (Lavistore Kids)`;
     navigator.clipboard.writeText(fullText);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2500);
@@ -104,7 +104,7 @@ export const GiftCardGenerator: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-purple-900 block mb-1">Moldura Floral:</label>
+                <label className="text-xs font-bold text-purple-900 block mb-1">Moldura:</label>
                 <div className="flex gap-1.5">
                   {(['lavender', 'sakura', 'tulip', 'daisy'] as const).map(t => (
                     <button

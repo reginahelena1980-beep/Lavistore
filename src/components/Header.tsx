@@ -341,7 +341,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="w-full text-left px-3 py-2 rounded-xl text-xs sm:text-sm text-purple-950 hover:bg-amber-50 flex items-center gap-2"
             >
               <PenTool className="w-4 h-4 text-purple-500" />
-              <span>💌 Dedicatórias fofas</span>
+              <span>💌 Dedicatórias Exclusivas</span>
             </button>
             <button
               onClick={() => {

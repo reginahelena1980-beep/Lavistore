@@ -278,7 +278,7 @@ export const AdminGiftCardsManager: React.FC<AdminGiftCardsManagerProps> = ({ on
                     {/* The Styled Greeting Card Preview Box */}
                     <div className="bg-gradient-to-br from-rose-50/70 via-pink-50/40 to-purple-50/70 border-2 border-dashed border-pink-300 rounded-2xl p-4 relative shadow-2xs">
                       
-                      {/* Floral badges */}
+                      {/* badges */}
                       <span className="absolute top-2 left-2 text-xs">🌸</span>
                       <span className="absolute top-2 right-2 text-xs">🌸</span>
                       
