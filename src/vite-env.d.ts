@@ -19,5 +19,8 @@ interface Window {
   MercadoPago?: any;
   paymentBrickController?: any;
   __mercadoPagoInstance?: any;
+  MP_DEVICE_SESSION_ID?: string;
+  cleanCustomerCpf?: (value?: string | number | null) => string;
+  cleanCpf?: (value?: string | number | null) => string;
 }
 

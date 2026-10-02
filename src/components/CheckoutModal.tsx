@@ -31,10 +31,11 @@ import { fetchAddressByCep } from '../services/cepService';
 import { isValidCpf, isValidDocument, formatCpf, formatDocument, repairOrGenerateValidCpf, cleanCustomerCpf } from '../utils/documentUtils';
 import { processClientSidePixOrder, DEFAULT_PIX_KEY } from '../services/pixPaymentService';
 import { createOrder } from '../services/storeApiService';
-import { safeFetchJson, getMercadoPagoPublicKey, DEFAULT_PRODUCTION_PUBLIC_KEY } from '../services/mercadoPagoClientService';
+import { getMercadoPagoPublicKey, DEFAULT_PRODUCTION_PUBLIC_KEY, safeFetchJson, SafeFetchResult } from '../services/mercadoPagoClientService';
 
-// Re-exporta e garante que cleanCustomerCpf esteja acessível em todo o escopo do componente
+// Re-exporta e garante que cleanCustomerCpf e safeFetchJson estejam acessíveis
 export { cleanCustomerCpf, safeFetchJson };
+export type { SafeFetchResult };
 
 /**
  * Interfaces com tipagem estrita para resposta do Mercado Pago
@@ -84,93 +85,6 @@ export interface MercadoPagoTokenResult {
   payment_method_id?: string;
   error?: string;
   message?: string;
-}
-
-export interface SafeFetchResult<T> {
-  ok: boolean;
-  status: number;
-  data: T | null;
-  errorText: string;
-}
-
-/**
- * Helper resiliente para fetch:
- * Previne falhas de JSON inválido quando o backend ou proxy retorna HTML (404/500/502).
- */
-export async function safeFetchJson<T = any>(
-  input: RequestInfo | URL,
-  init?: RequestInit
-): Promise<SafeFetchResult<T>> {
-  try {
-    const response = await fetch(input, init);
-    const contentType = response.headers.get('content-type') || '';
-    const rawText = await response.text();
-
-    let parsedData: T | null = null;
-    let isJson = false;
-
-    if (
-      contentType.toLowerCase().includes('application/json') ||
-      rawText.trim().startsWith('{') ||
-      rawText.trim().startsWith('[')
-    ) {
-      try {
-        parsedData = JSON.parse(rawText) as T;
-        isJson = true;
-      } catch {
-        isJson = false;
-      }
-    }
-
-    if (!response.ok) {
-      let friendlyError = '';
-      if (isJson && parsedData && typeof parsedData === 'object') {
-        const obj = parsedData as Record<string, any>;
-        friendlyError = obj.error || obj.message || obj.detail || '';
-      }
-      if (!friendlyError) {
-        if (response.status === 404) {
-          friendlyError = 'O serviço de pagamento solicitado não pôde ser contatado diretamente.';
-        } else if (response.status >= 500) {
-          friendlyError = `O servidor encontrou uma instabilidade temporária ao se comunicar com o Mercado Pago (HTTP ${response.status}). Por favor, tente novamente em instantes.`;
-        } else {
-          friendlyError = `Falha na requisição de pagamento (HTTP ${response.status}).`;
-        }
-      }
-      return {
-        ok: false,
-        status: response.status,
-        data: parsedData,
-        errorText: friendlyError
-      };
-    }
-
-    if (!isJson || !parsedData) {
-      return {
-        ok: false,
-        status: response.status,
-        data: null,
-        errorText: 'A resposta do servidor de pagamento veio em formato inválido. Por favor, tente novamente.'
-      };
-    }
-
-    return {
-      ok: true,
-      status: response.status,
-      data: parsedData,
-      errorText: ''
-    };
-  } catch (err: any) {
-    console.error('[Checkout SafeFetch] Erro de rede ou comunicação:', err);
-    return {
-      ok: false,
-      status: 0,
-      data: null,
-      errorText: err?.message?.includes('Failed to fetch')
-        ? 'Não foi possível conectar ao servidor da loja. Verifique sua conexão com a internet.'
-        : (err?.message || 'Falha na conexão de rede com o serviço de pagamento.')
-    };
-  }
 }
 
 interface CheckoutModalProps {
@@ -532,7 +446,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               try {
                 await window.paymentBrickController.unmount();
               } catch (e) {}
+              window.paymentBrickController = null;
             }
+            container.innerHTML = '';
+
             const mp = window.__mercadoPagoInstance || new window.MercadoPago(activePublicKey, { locale: 'pt-BR' });
             window.__mercadoPagoInstance = mp;
             const bricksBuilder = mp.bricks();
@@ -541,56 +458,68 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               ? cleanCustomerCpf(customerCpf)
               : repairOrGenerateValidCpf(customerCpf || '123456789');
 
-            window.paymentBrickController = await bricksBuilder.create(
-              'payment',
-              'paymentBrick_container',
-              {
-                initialization: {
-                  amount: Number(finalOrderTotal.toFixed(2)),
-                  payer: {
-                    email: customerEmail || 'cliente@lavistore.com.br',
-                    firstName: customerName.trim().split(' ')[0] || 'Cliente',
-                    lastName: customerName.trim().split(' ').slice(1).join(' ') || 'Lavistore',
-                    identification: {
-                      type: 'CPF',
-                      number: sanitizedCpf
-                    }
-                  }
-                },
-                customization: {
-                  paymentMethods: {
-                    creditCard: 'all',
-                    maxInstallments: 12
-                  },
-                  visual: {
-                    style: {
-                      theme: 'default'
-                    }
-                  }
-                },
-                callbacks: {
-                  onReady: () => {
-                    setIsBrickReady(true);
-                    setIsBrickLoading(false);
-                  },
-                  onSubmit: ({ selectedPaymentMethod, formData }: any) => {
-                    return new Promise((resolve, reject) => {
-                      executeMercadoPagoPayment({
-                        ...formData,
-                        selectedPaymentMethod: selectedPaymentMethod || 'credit_card'
-                      })
-                        .then(() => resolve(undefined))
-                        .catch((err) => reject(err));
-                    });
-                  },
-                  onError: (error: any) => {
-                    console.warn('[Mercado Pago Brick] Evento de erro:', error);
-                    setBrickError(true);
-                    setIsBrickLoading(false);
+            const brickConfig = {
+              initialization: {
+                amount: Number(finalOrderTotal.toFixed(2)),
+                payer: {
+                  email: customerEmail || 'cliente@lavistore.com.br',
+                  firstName: customerName.trim().split(/\s+/)[0] || 'Cliente',
+                  lastName: customerName.trim().split(/\s+/).slice(1).join(' ') || 'Lavistore',
+                  identification: {
+                    type: 'CPF',
+                    number: sanitizedCpf
                   }
                 }
+              },
+              customization: {
+                paymentMethods: {
+                  creditCard: 'all',
+                  maxInstallments: 12
+                },
+                visual: {
+                  style: {
+                    theme: 'default'
+                  }
+                }
+              },
+              callbacks: {
+                onReady: () => {
+                  setIsBrickReady(true);
+                  setIsBrickLoading(false);
+                },
+                onSubmit: ({ selectedPaymentMethod, formData }: any) => {
+                  return new Promise((resolve, reject) => {
+                    executeMercadoPagoPayment({
+                      ...formData,
+                      selectedPaymentMethod: selectedPaymentMethod || 'credit_card'
+                    })
+                      .then(() => resolve(undefined))
+                      .catch((err) => reject(err));
+                  });
+                },
+                onError: (error: any) => {
+                  console.warn('[Mercado Pago Brick] Evento de erro:', error);
+                  setBrickError(true);
+                  setIsBrickLoading(false);
+                }
               }
-            );
+            };
+
+            // Tenta inicializar preferencialmente com cardPayment (específico para cartões com parcelas até 12x)
+            try {
+              window.paymentBrickController = await bricksBuilder.create(
+                'cardPayment',
+                'paymentBrick_container',
+                brickConfig
+              );
+            } catch (cardErr) {
+              console.info('[Mercado Pago Brick] Fallback para brick "payment":', cardErr);
+              window.paymentBrickController = await bricksBuilder.create(
+                'payment',
+                'paymentBrick_container',
+                brickConfig
+              );
+            }
           } catch (initErr) {
             console.warn('[Mercado Pago] Aviso na inicialização do Brick:', initErr);
             setBrickError(true);
@@ -765,11 +694,67 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         dedication: resolvedDedication
       };
 
-      // 1. PROCESSAMENTO PIX 100% CLIENT-SIDE (Zero dependência de rotas /api/...)
-      // Atende diretamente a hospedagens estáticas (ex: Vercel) gerando QR Code e Copia e Cola instantâneos
+      // 1. PROCESSAMENTO PIX RESILIENTE (Backend com fallback 100% Client-Side para Vercel)
       if (isPix) {
         try {
-          const pixResult = await processClientSidePixOrder(baseOrderData);
+          let pixResult: any = null;
+
+          // 1. Tenta processar no backend se disponível
+          try {
+            const backendResp = await safeFetchJson<any>('/api/mercadopago/process_payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                payment_method_id: 'pix',
+                transaction_amount: sanitizedTotal,
+                payer: {
+                  email: customerEmail.trim().toLowerCase(),
+                  first_name: customerName.trim().split(/\s+/)[0] || 'Cliente',
+                  last_name: customerName.trim().split(/\s+/).slice(1).join(' ') || 'Lavistore',
+                  identification: {
+                    type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
+                    number: cleanCpf
+                  }
+                },
+                orderData: {
+                  ...baseOrderData,
+                  total: sanitizedTotal
+                }
+              })
+            });
+
+            if (backendResp.ok && backendResp.data?.success && backendResp.data?.payment?.pix?.qr_code) {
+              const mpPix = backendResp.data.payment.pix;
+              const finalizedOrder: OrderData = {
+                ...baseOrderData,
+                mercadoPagoPaymentId: String(backendResp.data.payment.id),
+                mercadoPagoStatus: backendResp.data.payment.status || 'pending',
+                mercadoPagoStatusDetail: backendResp.data.payment.status_detail || 'waiting_payment',
+                pixQrCode: mpPix.qr_code,
+                pixQrCodeBase64: mpPix.qr_code_base64 || null,
+                pixTicketUrl: mpPix.ticket_url
+              };
+              try { await createOrder(finalizedOrder); } catch {}
+              pixResult = {
+                success: true,
+                paymentId: String(backendResp.data.payment.id),
+                status: 'pending',
+                status_detail: 'waiting_payment',
+                pixQrCode: mpPix.qr_code,
+                pixQrCodeBase64: mpPix.qr_code_base64 || '',
+                pixTicketUrl: mpPix.ticket_url || '',
+                transactionAmount: sanitizedTotal,
+                order: finalizedOrder
+              };
+            }
+          } catch (backendErr) {
+            console.info('[Checkout] Operando PIX no modo Client-Side resiliente:', backendErr);
+          }
+
+          // 2. Se backend indisponível (404/Vercel) ou sem credenciais, processa 100% Client-Side instantâneo
+          if (!pixResult) {
+            pixResult = await processClientSidePixOrder(baseOrderData);
+          }
 
           setIsProcessing(false);
 
@@ -784,7 +769,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           onOrderSuccess(pixResult.order);
           return;
         } catch (pixErr: any) {
-          console.error('[Checkout] Erro ao gerar PIX Client-Side:', pixErr);
+          console.error('[Checkout] Erro ao gerar PIX:', pixErr);
           setPaymentErrorMessage(pixErr?.message || 'Erro ao gerar o código PIX. Por favor, tente novamente.');
           setIsProcessing(false);
           return;
@@ -989,6 +974,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Se estiver em modo Payment Brick e o controller estiver montado, tenta extrair os dados diretamente do Brick
+      if (paymentMethod === 'credit' && creditCardMode === 'brick' && window.paymentBrickController?.getFormData) {
+        try {
+          setIsProcessing(true);
+          const brickFormData = await window.paymentBrickController.getFormData();
+          if (brickFormData) {
+            await executeMercadoPagoPayment(brickFormData);
+            return;
+          }
+        } catch (brickErr: any) {
+          console.warn('[CheckoutModal] Tentativa via getFormData do Brick:', brickErr);
+          // Prossegue com fallback de submissão padrão
+        }
+      }
       await executeMercadoPagoPayment();
     } catch (err: any) {
       console.error('[CheckoutModal] Falha inesperada ao fechar pedido:', err);
@@ -1536,8 +1535,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             {/* Container visual oficial do Payment Brick do Mercado Pago */}
                             <div
                               id="paymentBrick_container"
-                              className={`w-full min-h-[140px] bg-white rounded-2xl p-2 border border-purple-100 shadow-2xs ${
-                                isBrickLoading ? 'hidden' : 'block'
+                              className={`w-full min-h-[140px] bg-white rounded-2xl p-2 border border-purple-100 shadow-2xs transition-opacity duration-200 ${
+                                isBrickLoading ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'
                               }`}
                             />
 

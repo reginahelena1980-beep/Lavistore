@@ -164,14 +164,40 @@ export async function fetchSovereignStoreConfig(): Promise<{
 }
 
 /**
+ * Helper interno: parsing seguro de JSON que valida Content-Type antes de parsear,
+ * prevenindo SyntaxError com HTML 404 / 200 SPA ("Unexpected token <").
+ */
+async function safeParseResponseJson<T = any>(res: Response): Promise<T | null> {
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  const rawText = await res.text();
+  if (
+    contentType.includes('application/json') ||
+    rawText.trim().startsWith('{') ||
+    rawText.trim().startsWith('[')
+  ) {
+    try {
+      return JSON.parse(rawText) as T;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
  * Recupera os dados oficiais da loja da API Express
  */
 export async function fetchStoreData(): Promise<StoreDataResponse> {
-  const res = await fetch('/api/store/data');
-  if (!res.ok) {
-    throw new Error(`Falha ao obter dados da loja (HTTP ${res.status})`);
+  try {
+    const res = await fetch('/api/store/data');
+    if (!res.ok) {
+      return { success: false, hasCustomData: false, data: null };
+    }
+    const data = await safeParseResponseJson<StoreDataResponse>(res);
+    return data || { success: false, hasCustomData: false, data: null };
+  } catch {
+    return { success: false, hasCustomData: false, data: null };
   }
-  return res.json();
 }
 
 /**
@@ -201,7 +227,8 @@ export async function syncStoreData(payload: SyncStorePayload): Promise<SyncStor
       body: JSON.stringify(payload)
     });
     if (res.ok) {
-      return res.json();
+      const parsed = await safeParseResponseJson<SyncStoreResponse>(res);
+      if (parsed) return parsed;
     }
   } catch (err) {
     console.warn('[StoreAPI] Falha na sincronização com Express, Firestore status:', firestoreSuccess);
@@ -232,7 +259,10 @@ export async function saveAdminSettings(settings: AdminSettingsPayload): Promise
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings)
     });
-    if (res.ok) return res.json();
+    if (res.ok) {
+      const parsed = await safeParseResponseJson<GenericApiResponse>(res);
+      if (parsed) return parsed;
+    }
   } catch {}
 
   return { success: true };
@@ -242,22 +272,32 @@ export async function saveAdminSettings(settings: AdminSettingsPayload): Promise
  * Obtém as configurações do administrador
  */
 export async function fetchAdminSettings(): Promise<AdminSettingsResponse> {
-  const res = await fetch('/api/admin/settings');
-  if (!res.ok) {
-    throw new Error(`Falha ao obter configurações do administrador (HTTP ${res.status})`);
+  try {
+    const res = await fetch('/api/admin/settings');
+    if (!res.ok) {
+      return { success: false, isLockedByAdmin: false, settings: null };
+    }
+    const data = await safeParseResponseJson<AdminSettingsResponse>(res);
+    return data || { success: false, isLockedByAdmin: false, settings: null };
+  } catch {
+    return { success: false, isLockedByAdmin: false, settings: null };
   }
-  return res.json();
 }
 
 /**
  * Obtém o cofre do administrador
  */
 export async function fetchAdminVault(): Promise<AdminVaultResponse> {
-  const res = await fetch('/api/admin/vault');
-  if (!res.ok) {
-    throw new Error(`Falha ao obter cofre do administrador (HTTP ${res.status})`);
+  try {
+    const res = await fetch('/api/admin/vault');
+    if (!res.ok) {
+      return { success: false, vault: null };
+    }
+    const data = await safeParseResponseJson<AdminVaultResponse>(res);
+    return data || { success: false, vault: null };
+  } catch {
+    return { success: false, vault: null };
   }
-  return res.json();
 }
 
 /**
@@ -270,15 +310,19 @@ export async function saveAdminVault(vault: AdminCustomVault): Promise<GenericAp
     } catch {}
   }
 
-  const res = await fetch('/api/admin/vault', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(vault)
-  });
-  if (!res.ok) {
-    throw new Error(`Falha ao salvar cofre do administrador (HTTP ${res.status})`);
-  }
-  return res.json();
+  try {
+    const res = await fetch('/api/admin/vault', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(vault)
+    });
+    if (res.ok) {
+      const data = await safeParseResponseJson<GenericApiResponse>(res);
+      if (data) return data;
+    }
+  } catch {}
+
+  return { success: true };
 }
 
 /**
@@ -297,7 +341,7 @@ export async function fetchBiRecords(): Promise<BiProductCalculatedRecord[]> {
   try {
     const res = await fetch('/api/bi/records');
     if (res.ok) {
-      const data = await res.json();
+      const data = await safeParseResponseJson<any>(res);
       if (Array.isArray(data)) return data;
       if (data && Array.isArray(data.records)) return data.records;
     }
@@ -322,7 +366,10 @@ export async function saveBiRecords(records: BiProductCalculatedRecord[]): Promi
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ records })
     });
-    if (res.ok) return res.json();
+    if (res.ok) {
+      const data = await safeParseResponseJson<GenericApiResponse>(res);
+      if (data) return data;
+    }
   } catch {}
 
   return { success: true };
@@ -344,7 +391,7 @@ export async function fetchOrders(): Promise<OrderData[]> {
   try {
     const res = await fetch('/api/orders');
     if (res.ok) {
-      const data = await res.json();
+      const data = await safeParseResponseJson<any>(res);
       if (Array.isArray(data)) return data;
       if (data && Array.isArray(data.orders)) return data.orders;
     }
@@ -371,7 +418,10 @@ export async function createOrder(order: OrderData): Promise<GenericApiResponse>
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(order)
     });
-    if (res.ok) return res.json();
+    if (res.ok) {
+      const data = await safeParseResponseJson<GenericApiResponse>(res);
+      if (data) return data;
+    }
   } catch {}
 
   return { success: true };
@@ -399,7 +449,10 @@ export async function updateOrderStatus(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId, customStatus, trackingCode })
     });
-    if (res.ok) return res.json();
+    if (res.ok) {
+      const data = await safeParseResponseJson<GenericApiResponse>(res);
+      if (data) return data;
+    }
   } catch {}
 
   return { success: true };
@@ -419,7 +472,10 @@ export async function clearAllOrders(): Promise<GenericApiResponse> {
     const res = await fetch('/api/orders/clear', {
       method: 'POST'
     });
-    if (res.ok) return res.json();
+    if (res.ok) {
+      const data = await safeParseResponseJson<GenericApiResponse>(res);
+      if (data) return data;
+    }
   } catch {}
 
   return { success: true };
@@ -444,7 +500,10 @@ export async function submitProductReview(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (res.ok) return res.json();
+    if (res.ok) {
+      const data = await safeParseResponseJson<GenericApiResponse>(res);
+      if (data) return data;
+    }
   } catch {}
 
   return { success: true };
@@ -476,7 +535,10 @@ export async function subscribeNewsletter(email: string, name?: string, source?:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, name, source })
     });
-    if (res.ok) return res.json();
+    if (res.ok) {
+      const data = await safeParseResponseJson<GenericApiResponse>(res);
+      if (data) return data;
+    }
   } catch {}
 
   return { success: true };
@@ -498,7 +560,7 @@ export async function fetchNewsletterLeads(): Promise<NewsletterLead[]> {
   try {
     const res = await fetch('/api/newsletter/leads');
     if (res.ok) {
-      const data = await res.json();
+      const data = await safeParseResponseJson<any>(res);
       if (data && Array.isArray(data.leads)) return data.leads;
       if (Array.isArray(data)) return data;
     }
@@ -521,7 +583,10 @@ export async function deleteNewsletterLead(id: string): Promise<GenericApiRespon
     const res = await fetch(`/api/newsletter/leads/${id}`, {
       method: 'DELETE'
     });
-    if (res.ok) return res.json();
+    if (res.ok) {
+      const data = await safeParseResponseJson<GenericApiResponse>(res);
+      if (data) return data;
+    }
   } catch {}
 
   return { success: true };

@@ -43,6 +43,7 @@ export const MercadoPagoManager: React.FC = () => {
     methodsCount: number;
     methods?: Array<{ id: string; name: string; status: string; type: string }>;
     verifiedAt: string;
+    environment?: string;
   } | null>(null);
 
   // Form states for manual key rotation if needed
