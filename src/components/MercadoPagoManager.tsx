@@ -23,6 +23,7 @@ interface MercadoPagoCredentialsResponse {
   accessTokenMasked: string;
   clientId: string;
   userId: string;
+  pixKey?: string;
   environment: 'production' | 'sandbox';
   updatedAt?: string;
   lastTestedAt?: string;
@@ -52,6 +53,7 @@ export const MercadoPagoManager: React.FC = () => {
   const [editAccessToken, setEditAccessToken] = useState('');
   const [editClientId, setEditClientId] = useState('');
   const [editClientSecret, setEditClientSecret] = useState('');
+  const [editPixKey, setEditPixKey] = useState('reginahelena1980@gmail.com');
   const [showSecretInForm, setShowSecretInForm] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
@@ -153,7 +155,8 @@ export const MercadoPagoManager: React.FC = () => {
     try {
       const payload: any = {
         publicKey: editPublicKey.trim(),
-        clientId: editClientId.trim()
+        clientId: editClientId.trim(),
+        pixKey: editPixKey.trim()
       };
       if (editAccessToken.trim()) {
         payload.accessToken = editAccessToken.trim();
@@ -506,6 +509,22 @@ export const MercadoPagoManager: React.FC = () => {
                   className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Chave Pix Direta da Loja (E-mail, CPF, CNPJ ou Telefone)
+                </label>
+                <input
+                  type="text"
+                  value={editPixKey}
+                  onChange={(e) => setEditPixKey(e.target.value)}
+                  placeholder="reginahelena1980@gmail.com ou 29051956819"
+                  className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                />
+                <span className="text-[10px] text-slate-500 block mt-1">
+                  Chave utilizada para gerar QR Code estático ou de contingência direta BACEN.
+                </span>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
@@ -525,7 +544,7 @@ export const MercadoPagoManager: React.FC = () => {
             </div>
           </form>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-slate-500 block text-[11px]">Chave Pública Ativa:</span>
               <span className="font-mono text-slate-800 font-bold block truncate mt-0.5">
@@ -541,13 +560,69 @@ export const MercadoPagoManager: React.FC = () => {
             </div>
 
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-slate-500 block text-[11px]">Chave PIX da Loja:</span>
+              <span className="font-mono text-slate-800 font-bold block truncate mt-0.5" title={data?.pixKey || 'reginahelena1980@gmail.com'}>
+                {data?.pixKey || 'reginahelena1980@gmail.com'}
+              </span>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-slate-500 block text-[11px]">Métodos Disponíveis:</span>
               <span className="text-slate-800 font-bold block mt-0.5">
-                Pix, Cartão de Crédito, Boleto
+                Pix, Cartão de Crédito (12x)
               </span>
             </div>
           </div>
         )}
+      </div>
+
+      {/* CARD EDUCATIVO - REGRA DO BANCO CENTRAL SOBRE TESTES DE PIX EM PRODUÇÃO */}
+      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 rounded-3xl p-6 sm:p-7 border-2 border-emerald-200/90 shadow-sm space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 shrink-0">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+              <span>Como Funciona o PIX em Produção & Testes do Lojista</span>
+              <span className="bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-lg text-xs font-mono font-semibold border border-emerald-300/80">
+                Regra Oficial BACEN
+              </span>
+            </h3>
+            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
+              Tudo está pronto e funcionando perfeitamente para seus clientes. Entenda por que você não consegue pagar um PIX gerado para sua própria conta:
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+            <h4 className="font-bold text-amber-900 flex items-center gap-1.5">
+              <AlertCircle className="w-4 h-4 text-amber-600" />
+              <span>Por que dá erro se você tentar pagar? (Auto-pagamento)</span>
+            </h4>
+            <p className="text-slate-600 leading-relaxed">
+              O Banco Central do Brasil <strong>proíbe expressamente</strong> que qualquer pessoa pague uma cobrança PIX emitida por ela mesma (onde o pagador e o recebedor têm o mesmo CPF/conta). Ao escanear o QR Code no seu aplicativo bancário (Nubank, Itaú, Mercado Pago, etc.), o banco rejeita com o aviso: <em>"O CPF informado pertence ao titular da conta recebedora"</em>.
+            </p>
+          </div>
+
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+            <h4 className="font-bold text-emerald-900 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Como seus clientes pagarão normalmente?</span>
+            </h4>
+            <p className="text-slate-600 leading-relaxed">
+              Qualquer cliente real que acessar a loja (com CPF e conta bancária diferentes da sua) conseguirá escanear o QR Code ou usar o Pix Copia e Cola em qualquer banco instantaneamente com 5% de desconto automático. O valor cairá diretamente na sua conta do Mercado Pago em segundos!
+            </p>
+          </div>
+        </div>
+
+        <div className="p-3 bg-white/80 rounded-2xl border border-emerald-200 text-xs text-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span><strong>Dica para testar:</strong> Na tela de pedido finalizado, use o botão <em>"Aprovar Pagamento no Sistema (Teste do Lojista)"</em> para testar todo o fluxo de e-mails e confirmação de estoque sem gastar dinheiro!</span>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -929,9 +929,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           errorMsg = 'Valor do pedido inválido para processamento pelo Mercado Pago.';
         }
 
-        if (result?.isSelfPayment || result?.status_detail === 'cc_rejected_high_risk' || lowerErr.includes('auto-compra') || lowerErr.includes('mesma titularidade')) {
+        if (result?.isSelfPayment || (result?.status_detail === 'cc_rejected_high_risk' && result?.isSelfPayment)) {
           setIsSelfPaymentError(true);
-          errorMsg = 'Aviso: Pelas regras do Banco Central e Mercado Pago, pagamentos entre a mesma conta/titularidade (dono da loja) não são permitidos no mesmo app. Use a simulação de lojista ou outra conta bancária.';
+          errorMsg = 'Para segurança bancária, o Mercado Pago não permite que a titular da loja realize pagamentos no cartão com os mesmos dados da conta recebedora. Por favor, utilize a opção PIX Instantâneo ou outro cartão.';
         }
 
         setPaymentErrorMessage(errorMsg);
@@ -1469,18 +1469,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             <strong className="text-emerald-700 text-sm font-bold">R$ {finalOrderTotal.toFixed(2)}</strong>
                           </div>
                         </div>
-
-                        {(cleanCustomerCpf(customerCpf) === '29051956819' || customerEmail.toLowerCase().trim() === 'reginahelena1980@gmail.com') && (
-                          <div className="p-2.5 bg-amber-100/90 rounded-xl border border-amber-300 text-[11px] text-amber-950 space-y-1">
-                            <span className="font-bold flex items-center gap-1 text-amber-900">
-                              <Info className="w-3.5 h-3.5 text-amber-700" />
-                              Nota de Teste do Titular (Mercado Pago):
-                            </span>
-                            <p className="text-[10px] leading-tight text-amber-900">
-                              O QR Code oficial será gerado em produção normalmente. Lembre-se que o Banco Central impede você de pagar uma cobrança emitida por você mesma usando sua própria conta do Mercado Pago (auto-pagamento). Para testar, pague por outro banco ou use a simulação de lojista.
-                            </p>
-                          </div>
-                        )}
                       </div>
                     )}
 

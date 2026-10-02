@@ -46,22 +46,17 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
     let isSubscribed = true;
     let pollCount = 0;
-    const maxPolls = 75; // Máximo de 5 minutos (75 * 4s = 300s)
+    const maxPolls = 90; // Até 6 minutos (90 * 4s = 360s)
 
     const interval = setInterval(async () => {
       pollCount++;
-      if (pollCount > maxPolls) {
+      if (pollCount > maxPolls || !isSubscribed) {
         clearInterval(interval);
         return;
       }
 
       try {
         const result = await checkMercadoPagoPaymentStatus(orderData.mercadoPagoPaymentId);
-        if (!result.isAvailable) {
-          // Servidor estático sem rota de backend (Vercel) - encerra o polling sem gerar erros
-          clearInterval(interval);
-          return;
-        }
 
         if (result.status === 'approved' && isSubscribed) {
           setPixPaymentStatus('approved');
@@ -73,8 +68,8 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
           });
           clearInterval(interval);
         }
-      } catch {
-        clearInterval(interval);
+      } catch (err) {
+        console.warn('[OrderSuccessModal] Polling retry...', err);
       }
     }, 4000);
 
@@ -302,41 +297,38 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                     </div>
                   </div>
 
-                  {orderData.pixTicketUrl && (
-                    <div className="pt-1">
-                      <a
-                        href={orderData.pixTicketUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-purple-700 hover:text-purple-950 font-bold underline cursor-pointer"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Abrir comprovante / página oficial do PIX no Mercado Pago</span>
-                      </a>
-                    </div>
-                  )}
-
                   {isStoreOwner && (
-                    <div className="p-3 bg-amber-100/90 rounded-2xl border border-amber-300 text-left text-xs text-amber-950 space-y-1.5 mt-2">
-                      <div className="font-bold flex items-center gap-1.5 text-amber-900">
-                        <Info className="w-4 h-4 text-amber-700 shrink-0" />
-                        <span>Aviso para o Titular da Loja (Regina Helena):</span>
+                    <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200 text-left text-xs text-purple-950 space-y-2 mt-2">
+                      <div className="font-bold flex items-center justify-between text-purple-900">
+                        <span className="flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
+                          <span>Área de Validação do Lojista:</span>
+                        </span>
+                        <span className="text-[10px] bg-purple-200 text-purple-900 font-bold px-2 py-0.5 rounded-full">
+                          Modo Produção Ativo
+                        </span>
                       </div>
-                      <p className="text-[11px] leading-relaxed text-amber-900">
-                        Este QR Code oficial foi emitido pela sua própria conta do Mercado Pago. Pelas regras bancárias do Banco Central e do Mercado Pago, você <strong>não conseguirá pagá-lo com seu próprio app do Mercado Pago</strong> (auto-pagamento não autorizado). Para testar o pagamento real em produção, leia o código usando outro banco/CPF, ou clique abaixo para aprovar imediatamente o pedido no sistema:
+                      <p className="text-[11px] leading-relaxed text-slate-600">
+                        O QR Code oficial acima está ativo e pronto para receber pagamentos de qualquer cliente. Para testar o fluxo de aprovação sem debitar de sua conta bancária (já que o Banco Central bloqueia transferências para o mesmo CPF da loja), clique no botão abaixo para aprovar imediatamente o pedido:
                       </p>
                       <button
                         type="button"
                         onClick={async () => {
                           setPixPaymentStatus('approved');
+                          confetti({
+                            particleCount: 100,
+                            spread: 70,
+                            origin: { y: 0.6 },
+                            colors: ['#10B981', '#34D399', '#6EE7B7', '#F472B6']
+                          });
                           try {
                             await updateOrderStatus(orderData.orderId, 'pago');
                           } catch {}
                         }}
-                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                        className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm hover:shadow active:scale-95"
                       >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Aprovar Pagamento no Sistema (Simulação Lojista)</span>
+                        <Check className="w-4 h-4" />
+                        <span>Aprovar Pagamento no Sistema (Teste do Lojista)</span>
                       </button>
                     </div>
                   )}

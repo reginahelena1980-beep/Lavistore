@@ -35,6 +35,7 @@ export interface StoredMercadoPagoConfig {
   clientId?: string;
   clientSecret?: string;
   userId?: string;
+  pixKey?: string;
   environment: 'production' | 'sandbox';
   updatedAt: string;
   lastTestedAt?: string;
@@ -111,6 +112,13 @@ export function getMercadoPagoCredentials(): StoredMercadoPagoConfig {
     DEFAULT_MP_USER_ID
   );
 
+  const pixKey = (
+    fileConfig.pixKey?.trim() ||
+    process.env.MERCADO_PAGO_PIX_KEY?.trim() ||
+    process.env.VITE_PIX_KEY?.trim() ||
+    'reginahelena1980@gmail.com'
+  );
+
   const environment: 'production' | 'sandbox' = publicKey.startsWith('TEST') ? 'sandbox' : 'production';
 
   return {
@@ -119,6 +127,7 @@ export function getMercadoPagoCredentials(): StoredMercadoPagoConfig {
     clientId,
     clientSecret,
     userId,
+    pixKey,
     environment,
     updatedAt: fileConfig.updatedAt || new Date().toISOString(),
     lastTestedAt: fileConfig.lastTestedAt,

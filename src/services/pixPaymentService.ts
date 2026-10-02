@@ -41,15 +41,16 @@ export interface ClientPixPaymentResult {
 
 /**
  * Chaves padrão de contingência e produção do Mercado Pago / Lavistore
+ * A chave oficial cadastrada no Mercado Pago da loja é o e-mail: reginahelena1980@gmail.com
  */
 export const DEFAULT_PIX_KEY = (
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PIX_KEY) ||
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_MP_PIX_KEY) ||
-  'estilobeeadm@gmail.com'
+  'reginahelena1980@gmail.com'
 );
 
-export const DEFAULT_MERCHANT_NAME = 'LAVISTORE';
-export const DEFAULT_MERCHANT_CITY = 'SAO PAULO';
+export const DEFAULT_MERCHANT_NAME = 'REGINA HELENA FERRAZ';
+export const DEFAULT_MERCHANT_CITY = 'GUARULHOS';
 
 /**
  * Remove acentos e caracteres especiais para conformidade estrita com o padrão BACEN

@@ -2921,6 +2921,7 @@ app.get('/api/mercadopago/credentials', (_req, res) => {
     accessTokenMasked: creds.accessToken ? `${creds.accessToken.slice(0, 15)}...${creds.accessToken.slice(-8)}` : '',
     clientId: creds.clientId || '',
     userId: creds.userId || '',
+    pixKey: creds.pixKey || 'reginahelena1980@gmail.com',
     environment: creds.environment,
     updatedAt: creds.updatedAt,
     lastTestedAt: creds.lastTestedAt,
@@ -2936,13 +2937,14 @@ app.get('/api/mercadopago/credentials', (_req, res) => {
  */
 app.post('/api/mercadopago/credentials', (req, res) => {
   try {
-    const { publicKey, accessToken, clientId, clientSecret, userId } = req.body;
+    const { publicKey, accessToken, clientId, clientSecret, userId, pixKey } = req.body;
     const updated = saveMercadoPagoCredentials({
       ...(publicKey ? { publicKey: String(publicKey).trim() } : {}),
       ...(accessToken ? { accessToken: String(accessToken).trim() } : {}),
       ...(clientId ? { clientId: String(clientId).trim() } : {}),
       ...(clientSecret ? { clientSecret: String(clientSecret).trim() } : {}),
-      ...(userId ? { userId: String(userId).trim() } : {})
+      ...(userId ? { userId: String(userId).trim() } : {}),
+      ...(pixKey ? { pixKey: String(pixKey).trim() } : {})
     });
     res.json({ success: true, message: 'Credenciais do Mercado Pago atualizadas com sucesso!', config: updated });
   } catch (err: any) {
@@ -3347,11 +3349,8 @@ app.post([
 
     const cleanEmail = String(payer?.email || orderData.customerEmail || 'cliente@lavistore.com.br').trim().toLowerCase();
 
-    // Detecta se é o próprio dono da loja/conta do Mercado Pago tentando fazer checkout
-    const isSelfPayment = (
-      (cleanEmail === 'reginahelena1980@gmail.com') ||
-      (cleanCpf === '29051956819')
-    );
+    // Detecta se é exatamente o próprio titular da conta tentando auto-compra no cartão de crédito
+    const isSelfPayment = (cleanCpf === '29051956819' && cleanEmail === 'reginahelena1980@gmail.com');
 
     let paymentResult: any = null;
 
