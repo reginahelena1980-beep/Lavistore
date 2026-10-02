@@ -293,7 +293,7 @@ async function parseSafeJsonResponse<T>(
 
 /**
  * Obtém o status de configuração da integração oficial do Melhor Envio em Produção.
- * Resiliente: se a API retornar 404 (modo SPA na Vercel), consulta o Firestore (coleção lavistorekides) e o localStorage.
+ * Resiliente: se a API retornar 404 (modo SPA na Vercel), consulta o Firestore (coleção lavistorekides) com zero dependência de localStorage.
  */
 export async function getShippingConfig(): Promise<ShippingConfigResponse> {
   let serverConfig: ShippingConfigResponse | null = null;
@@ -339,29 +339,13 @@ export async function getShippingConfig(): Promise<ShippingConfigResponse> {
     console.warn('[Melhor Envio] Aviso ao checar Firestore:', fsErr);
   }
 
-  // 2. Fallback seguro em localStorage
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const cachedToken = window.localStorage.getItem('lavistore_melhor_envio_token');
-      const cachedTime = window.localStorage.getItem('lavistore_melhor_envio_token_updated_at');
-      if (cachedToken && cachedToken.length > 10) {
-        return {
-          configured: true,
-          env: 'production',
-          baseUrl: 'https://melhorenvio.com.br',
-          clientId: '30288',
-          contactEmail: 'estilobeeadm@gmail.com',
-          userAgent: 'Lavistore Kids (estilobeeadm@gmail.com)',
-          fromCep: '01001-000',
-          tokenSource: 'local_storage',
-          hasRefreshToken: false,
-          updatedAt: cachedTime || new Date().toISOString(),
-          expiresAt: null,
-          help: 'Token manual salvo no storage local do navegador.'
-        };
-      }
-    }
-  } catch {}
+  // Purga proativa de localStorage legado
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem('lavistore_melhor_envio_token');
+      window.localStorage.removeItem('lavistore_melhor_envio_token_updated_at');
+    } catch {}
+  }
 
   return serverConfig || {
     configured: false,
@@ -438,17 +422,7 @@ export async function saveManualTokenApi(token: string): Promise<SaveManualToken
 
   const now = new Date().toISOString();
 
-  // 1. Armazenamento imediato em localStorage para tolerância a falhas na SPA
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem('lavistore_melhor_envio_token', cleanToken);
-      window.localStorage.setItem('lavistore_melhor_envio_token_updated_at', now);
-    }
-  } catch (storageErr) {
-    console.warn('[Storage] Aviso ao gravar localStorage:', storageErr);
-  }
-
-  // 2. Persistência direta no Firebase Firestore na coleção da loja (lavistorekides)
+  // 1. Persistência direta no Firebase Firestore na coleção da loja (lavistorekides)
   let savedToFirestore = false;
   try {
     savedToFirestore = await saveMelhorEnvioTokenToFirestore(cleanToken);
@@ -456,7 +430,15 @@ export async function saveManualTokenApi(token: string): Promise<SaveManualToken
     console.warn('[Firestore] Aviso ao gravar token diretamente no Firestore:', fsErr);
   }
 
-  // 3. Tenta salvar nas rotas do servidor Express (caso backend próprio esteja rodando)
+  // Purga proativa de chave legada do localStorage
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem('lavistore_melhor_envio_token');
+      window.localStorage.removeItem('lavistore_melhor_envio_token_updated_at');
+    } catch {}
+  }
+
+  // 2. Tenta salvar nas rotas do servidor Express (caso backend próprio esteja rodando)
   const candidateEndpoints = [
     '/api/shipping/token/manual',
     '/api/shipping/token',
@@ -509,8 +491,8 @@ export async function saveManualTokenApi(token: string): Promise<SaveManualToken
   }
 
   // Se o servidor retornou HTTP 404 (típico de SPAs na Vercel onde não há backend Express ativo)
-  // Mas o token já foi salvo no Firestore na coleção lavistorekides (ou no storage do navegador):
-  if (savedToFirestore || (typeof window !== 'undefined' && window.localStorage?.getItem('lavistore_melhor_envio_token') === cleanToken)) {
+  // Mas o token já foi salvo no Firestore na coleção lavistorekides:
+  if (savedToFirestore) {
     console.info('[Melhor Envio] Aplicação operando em modo SPA/Vercel (rota 404 interceptada): token gravado com sucesso no Firebase Firestore na coleção "lavistorekides".');
     return {
       success: true,
@@ -543,8 +525,8 @@ export async function getAccountInfoApi(): Promise<any> {
     console.warn('[Melhor Envio Account] Erro na rota de backend:', e);
   }
 
-  // Fallback para SPA na Vercel: se houver token salvo, consulta diretamente se CORS permitir
-  const token = (typeof window !== 'undefined' ? window.localStorage?.getItem('lavistore_melhor_envio_token') : null) || await loadMelhorEnvioTokenFromFirestore();
+  // Fallback soberano via Firestore
+  const token = await loadMelhorEnvioTokenFromFirestore();
   if (token) {
     try {
       const res = await fetch('https://melhorenvio.com.br/api/v2/me', {

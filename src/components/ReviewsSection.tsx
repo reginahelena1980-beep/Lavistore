@@ -115,7 +115,9 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                   <div className="flex items-center gap-1">
                     <h4 className="text-xs font-bold text-purple-950">{rev.author}</h4>
                     {rev.verified && (
-                      <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0" title="Compra Verificada" />
+                      <span title="Compra Verificada" className="shrink-0 flex items-center">
+                        <CheckCircle className="w-3 h-3 text-emerald-500" />
+                      </span>
                     )}
                   </div>
                   <p className="text-[10px] text-slate-400">{rev.city}</p>

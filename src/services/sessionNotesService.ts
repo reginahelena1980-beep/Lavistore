@@ -121,30 +121,30 @@ export const SAMPLE_SESSION_NOTES: SessionNote[] = [
   }
 ];
 
+// Cache volátil em memória (Zero LocalStorage)
+let inMemorySessionNotesCache: SessionNote[] = [...SAMPLE_SESSION_NOTES];
+
 /**
- * Lê cache local das notas
+ * Lê cache em memória das notas (Zero LocalStorage)
  */
 export function getLocalNotesCache(): SessionNote[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (e) {
-    console.error('Erro ao ler cache local de session notes:', e);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(LOCAL_STORAGE_KEY);
+    } catch {}
   }
-  return SAMPLE_SESSION_NOTES;
+  return inMemorySessionNotesCache.length > 0 ? inMemorySessionNotesCache : SAMPLE_SESSION_NOTES;
 }
 
 /**
- * Salva cache local das notas
+ * Salva cache em memória das notas (Zero LocalStorage)
  */
 export function setLocalNotesCache(notes: SessionNote[]) {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(notes));
-  } catch (e) {
-    console.error('Erro ao gravar cache local de session notes:', e);
+  inMemorySessionNotesCache = Array.isArray(notes) ? notes : [];
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(LOCAL_STORAGE_KEY);
+    } catch {}
   }
 }
 

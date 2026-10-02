@@ -73,7 +73,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
     return () => unsubscribe();
   }, []);
 
-  // Mantém a configuração sincronizada com o localStorage
+  // Mantém a configuração sincronizada com a sessão ativa
   useEffect(() => {
     if (isOpen) {
       setSheetsConfig(getStoredSheetsConfig());

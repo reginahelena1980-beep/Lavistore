@@ -47,26 +47,23 @@ export interface GoogleSheetsConfig {
 }
 
 const CONFIG_KEY = 'lavistore_google_sheets_config';
+let inMemorySheetsConfig: GoogleSheetsConfig | null = null;
 
 export function getStoredSheetsConfig(): GoogleSheetsConfig | null {
-  try {
-    const raw = localStorage.getItem(CONFIG_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Erro ao ler config do Google Sheets:', e);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(CONFIG_KEY);
+    } catch {}
   }
-  return null;
+  return inMemorySheetsConfig;
 }
 
 export function saveStoredSheetsConfig(config: GoogleSheetsConfig | null): void {
-  try {
-    if (config) {
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-    } else {
-      localStorage.removeItem(CONFIG_KEY);
-    }
-  } catch (e) {
-    console.error('Erro ao salvar config do Google Sheets:', e);
+  inMemorySheetsConfig = config;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(CONFIG_KEY);
+    } catch {}
   }
 }
 

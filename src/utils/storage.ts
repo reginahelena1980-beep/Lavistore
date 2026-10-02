@@ -18,38 +18,89 @@ export interface StoredCartItem {
   };
 }
 
+// Armazenamento estritamente em memória volátil (Zero LocalStorage)
+const memoryStorage = new Map<string, string>();
+
 /**
- * Safely writes to localStorage, catching QuotaExceededError and preventing app crashes.
- * If quota is exceeded, tries to purge non-critical temporary keys.
+ * Remove proativamente quaisquer dados residuais legados do localStorage do navegador,
+ * garantindo conformidade total com a diretriz de zero armazenamento local.
+ */
+export function purgeAllProjectLocalStorage(): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key && (
+        key.startsWith('lavistore') || 
+        key.startsWith('lavi') || 
+        key.includes('melhor_envio') || 
+        key.includes('bi_') || 
+        key.includes('session_notes') || 
+        key.includes('google_sheets') ||
+        key.includes('order')
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    for (const k of keysToRemove) {
+      window.localStorage.removeItem(k);
+    }
+    if (keysToRemove.length > 0) {
+      console.info(`[Storage Security] ${keysToRemove.length} chaves residuais removidas do localStorage com sucesso.`);
+    }
+  } catch (err) {
+    console.warn('[Storage Security] Aviso ao purgar localStorage:', err);
+  }
+}
+
+// Executa a purga imediatamente ao importar o módulo
+purgeAllProjectLocalStorage();
+
+/**
+ * Grava exclusivamente em memória volátil da sessão.
+ * NUNCA armazena nada no localStorage do navegador.
  */
 export function safeSetItem(key: string, value: string): boolean {
   try {
-    localStorage.setItem(key, value);
+    memoryStorage.set(key, value);
+    // Assegura que nada seja gravado no localStorage
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem(key);
+      } catch {}
+    }
     return true;
   } catch (err: any) {
-    console.warn(`[Storage] Failed to set "${key}":`, err?.message || err);
-
-    // If quota exceeded, try cleaning temporary items and retry
-    try {
-      localStorage.removeItem('lavistore_product_draft');
-      localStorage.removeItem('lavistore_temp_upload');
-      localStorage.setItem(key, value);
-      console.info(`[Storage] Successfully saved "${key}" after clearing draft cache.`);
-      return true;
-    } catch (retryErr) {
-      console.error(`[Storage] Quota still exceeded when saving "${key}".`, retryErr);
-      return false;
-    }
+    console.warn(`[MemoryStorage] Falha ao definir "${key}":`, err?.message || err);
+    return false;
   }
 }
 
 /**
- * Serializes cart items into a lightweight JSON format without duplicating heavy images.
- * Reduces storage footprint from megabytes to ~500 bytes!
+ * Lê exclusivamente da memória volátil da sessão (Zero LocalStorage).
+ */
+export function safeGetItem(key: string): string | null {
+  return memoryStorage.get(key) || null;
+}
+
+/**
+ * Remove da memória volátil e garante ausência no localStorage.
+ */
+export function safeRemoveItem(key: string): void {
+  memoryStorage.delete(key);
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {}
+  }
+}
+
+/**
+ * Serializa itens do carrinho em formato JSON leve
  */
 export function serializeCart(items: CartItem[]): string {
   const minimalItems: StoredCartItem[] = items.map(item => {
-    // Only keep first image if it is an HTTP or asset URL, never duplicate huge base64 in cart storage
     const firstImg = item.product?.images?.[0] || '';
     const safeImg = firstImg.startsWith('data:') ? '' : firstImg;
 
@@ -75,8 +126,7 @@ export function serializeCart(items: CartItem[]): string {
 }
 
 /**
- * Deserializes stored cart data and associates each item with the actual catalog product.
- * Handles both new lightweight format and legacy full-product format safely.
+ * Desserializa os dados do carrinho associando cada item aos produtos do catálogo
  */
 export function deserializeCart(savedJson: string | null, catalogProducts: Product[] = PRODUCTS): CartItem[] {
   if (!savedJson) return [];
@@ -88,7 +138,6 @@ export function deserializeCart(savedJson: string | null, catalogProducts: Produ
     const pool = catalogProducts.length > 0 ? catalogProducts : PRODUCTS;
 
     return parsed.map((item: any): CartItem | null => {
-      // Find product by id from pool
       const prodId = item.productId || item.product?.id;
       const foundProduct = pool.find(p => p.id === prodId);
 
@@ -104,7 +153,6 @@ export function deserializeCart(savedJson: string | null, catalogProducts: Produ
         };
       }
 
-      // If legacy format had a full product, use it but sanitize images
       if (item.product && item.product.id && item.product.name) {
         return {
           product: item.product,
@@ -117,7 +165,6 @@ export function deserializeCart(savedJson: string | null, catalogProducts: Produ
         };
       }
 
-      // If only fallback is available
       if (item.fallback) {
         const fallbackProduct: Product = {
           id: item.fallback.id,
@@ -152,7 +199,7 @@ export function deserializeCart(savedJson: string | null, catalogProducts: Produ
 }
 
 /**
- * Serializes favorites by storing only product IDs.
+ * Serializa favoritos armazenando IDs de produtos
  */
 export function serializeFavorites(favorites: Product[]): string {
   const ids = favorites.map(f => f.id);
@@ -160,7 +207,7 @@ export function serializeFavorites(favorites: Product[]): string {
 }
 
 /**
- * Deserializes favorites from IDs by matching with current product pool.
+ * Desserializa favoritos recuperando os produtos da lista de produtos
  */
 export function deserializeFavorites(savedJson: string | null, catalogProducts: Product[] = PRODUCTS): Product[] {
   if (!savedJson) return [PRODUCTS[0], PRODUCTS[3]].filter(Boolean);
@@ -171,7 +218,6 @@ export function deserializeFavorites(savedJson: string | null, catalogProducts: 
 
     const pool = catalogProducts.length > 0 ? catalogProducts : PRODUCTS;
 
-    // Check if it's array of string IDs
     if (typeof parsed[0] === 'string') {
       const matched = parsed
         .map(id => pool.find(p => p.id === id))
@@ -179,7 +225,6 @@ export function deserializeFavorites(savedJson: string | null, catalogProducts: 
       return matched.length > 0 ? matched : [PRODUCTS[0], PRODUCTS[3]].filter(Boolean);
     }
 
-    // Legacy format: array of Product objects
     if (parsed[0] && typeof parsed[0] === 'object' && parsed[0].id) {
       const matched = parsed
         .map((legacy: Product) => pool.find(p => p.id === legacy.id) || legacy)
@@ -194,8 +239,7 @@ export function deserializeFavorites(savedJson: string | null, catalogProducts: 
 }
 
 /**
- * Client-side image compressor that scales down large user uploads before saving to base64.
- * Reduces 3MB-5MB photos to ~60KB-120KB without visible quality loss for web view.
+ * Compressor de imagens no cliente
  */
 export async function compressImage(
   file: File, 
@@ -203,7 +247,6 @@ export async function compressImage(
   quality: number = 0.8
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    // If not an image, reject
     if (!file.type.startsWith('image/')) {
       reject(new Error('O arquivo selecionado não é uma imagem válida.'));
       return;
@@ -240,7 +283,6 @@ export async function compressImage(
 
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          // Fallback to original if canvas 2d context unavailable
           resolve(src);
           return;
         }
@@ -249,7 +291,6 @@ export async function compressImage(
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Export as JPEG with 0.8 quality
         const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
         resolve(compressedBase64);
       };

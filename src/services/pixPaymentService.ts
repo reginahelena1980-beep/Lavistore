@@ -13,6 +13,9 @@
 import QRCode from 'qrcode';
 import { OrderData } from '../types.ts';
 import { createOrder } from './storeApiService';
+import { cleanCustomerCpf, formatDocument } from '../utils/documentUtils';
+
+export { cleanCustomerCpf };
 
 export interface PixPayloadOptions {
   pixKey: string;
@@ -203,9 +206,11 @@ export async function processClientSidePixOrder(
   const paymentId = `MP-PIX-${cleanOrderId || randomSuffix}`;
   const ticketUrl = `https://www.mercadopago.com.br/payments/${randomSuffix}/ticket`;
 
-  // 4. Cria o pedido finalizado com todos os dados do PIX
+  // 4. Cria o pedido finalizado com todos os dados do PIX e CPF saneado
+  const cleanedCpf = cleanCustomerCpf(baseOrderData.customerCpf);
   const finalizedOrder: OrderData = {
     ...baseOrderData,
+    customerCpf: cleanedCpf ? formatDocument(cleanedCpf) : baseOrderData.customerCpf,
     paymentMethod: 'PIX Instantâneo (Mercado Pago)',
     mercadoPagoPaymentId: paymentId,
     mercadoPagoStatus: 'pending',

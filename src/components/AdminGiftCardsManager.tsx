@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { OrderData } from '../types';
 import { fetchOrders as fetchOrdersFromApi } from '../services/storeApiService';
+import { fetchOrdersFromFirestore } from '../services/firestoreConfigService';
 import { extractDedicationFromOrder, openDedicationPrintWindow, OrderDedicationInfo } from '../utils/dedicationHelper';
 import { CARD_TEMPLATES } from '../data/categories';
 
@@ -45,24 +46,25 @@ export const AdminGiftCardsManager: React.FC<AdminGiftCardsManagerProps> = ({ on
   const loadOrders = async () => {
     setIsLoading(true);
     let list: OrderData[] = [];
+
+    // Purga proativa de localStorage legado se existir
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem('lavistore_orders');
+      } catch {}
+    }
+
     try {
       list = await fetchOrdersFromApi();
     } catch {
       // fallback
     }
 
-    try {
-      const saved = localStorage.getItem('lavistore_orders');
-      if (saved) {
-        const local = JSON.parse(saved);
-        if (Array.isArray(local)) {
-          const map = new Map<string, OrderData>();
-          local.forEach(o => map.set(o.orderId, o));
-          list.forEach(o => map.set(o.orderId, { ...(map.get(o.orderId) || {}), ...o }));
-          list = Array.from(map.values());
-        }
-      }
-    } catch {}
+    if (list.length === 0) {
+      try {
+        list = await fetchOrdersFromFirestore();
+      } catch {}
+    }
 
     setOrders(list);
     setIsLoading(false);

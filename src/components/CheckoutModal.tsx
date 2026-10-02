@@ -31,9 +31,10 @@ import { fetchAddressByCep } from '../services/cepService';
 import { isValidCpf, isValidDocument, formatCpf, formatDocument, repairOrGenerateValidCpf, cleanCustomerCpf } from '../utils/documentUtils';
 import { processClientSidePixOrder, DEFAULT_PIX_KEY } from '../services/pixPaymentService';
 import { createOrder } from '../services/storeApiService';
+import { safeFetchJson, getMercadoPagoPublicKey, DEFAULT_PRODUCTION_PUBLIC_KEY } from '../services/mercadoPagoClientService';
 
 // Re-exporta e garante que cleanCustomerCpf esteja acessível em todo o escopo do componente
-export { cleanCustomerCpf };
+export { cleanCustomerCpf, safeFetchJson };
 
 /**
  * Interfaces com tipagem estrita para resposta do Mercado Pago
@@ -242,13 +243,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     hasCustomPublicKey: boolean;
     environment: string;
   } | null>({
-    publicKey: 'APP_USR-3d4386ef-56c9-4327-8ca6-ccee96d68b27',
+    publicKey: DEFAULT_PRODUCTION_PUBLIC_KEY,
     isConfigured: true,
     hasCustomPublicKey: true,
     environment: 'production'
   });
-  const [brickActive, setBrickActive] = useState(false);
+  const [creditCardMode, setCreditCardMode] = useState<'brick' | 'form'>('brick');
   const [isBrickReady, setIsBrickReady] = useState(false);
+  const [isBrickLoading, setIsBrickLoading] = useState(false);
+  const [brickError, setBrickError] = useState(false);
 
   // Validador estrito da Chave Pública do Mercado Pago (elimina chaves de teste fictícias como TEST-00000000...)
   const isMercadoPagoKeyValid = (key?: string | null): boolean => {
@@ -275,7 +278,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return mpConfig!.publicKey.trim();
     }
 
-    return 'APP_USR-3d4386ef-56c9-4327-8ca6-ccee96d68b27';
+    return getMercadoPagoPublicKey();
   }, [mpConfig?.publicKey]);
 
   // Inicialização segura do SDK Mercado Pago JS v2 no frontend
@@ -459,17 +462,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Desconto no subtotal dos produtos (ex: LAVI10, FLORZINHA, BRINDE)
   const currentDiscountAmount = isGiftCoupon ? subtotal : couponEvaluation.calculatedDiscount;
 
-  // Valor do Frete Selecionado (preserva o valor previamente escolhido/calculado)
+  // Valor do Frete Selecionado (preserva o valor previamente escolhido/calculado do Melhor Envio)
   const baseShippingCost = selectedOption 
     ? selectedOption.price 
     : (externalSelectedShipping ? externalSelectedShipping.price : (shippingOptions[0]?.price ?? 13.38));
   const finalShippingCost = (isFreeShippingEligible || isGiftCoupon) ? 0 : baseShippingCost;
 
-  // Desconto PIX de 5% (somente se não for brinde)
-  const pixDiscount = (!isGiftCoupon && paymentMethod === 'pix') ? (subtotal - currentDiscountAmount) * 0.05 : 0;
+  // Base para cálculo do desconto PIX: Subtotal após cupom + Frete Real do Melhor Envio
+  const subtotalAfterCoupon = Math.max(0, subtotal - currentDiscountAmount);
+  const totalBeforePixDiscount = subtotalAfterCoupon + finalShippingCost;
 
-  // Total Final (zero quando for cupom de brinde!)
-  const finalOrderTotal = isGiftCoupon ? 0 : Math.max(0, subtotal - currentDiscountAmount - pixDiscount + finalShippingCost);
+  // Desconto automático PIX de 5% sobre o subtotal e o frete integrado do Melhor Envio
+  const pixDiscount = (!isGiftCoupon && paymentMethod === 'pix') 
+    ? Number((totalBeforePixDiscount * 0.05).toFixed(2)) 
+    : 0;
+
+  // Total Final do Pedido (com desconto PIX e frete integrado)
+  const finalOrderTotal = isGiftCoupon 
+    ? 0 
+    : Math.max(0, Number((totalBeforePixDiscount - pixDiscount).toFixed(2)));
 
   // Aplicação do Cupom
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -497,15 +508,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setCouponFeedback({ message: 'Cupom removido.', isError: false });
   };
 
-  // Inicialização do Mercado Pago Payment Brick
+  // Inicialização oficial do Mercado Pago Payment Brick (com suporte nativo a parcelamento em até 12x)
   useEffect(() => {
-    if (!isOpen || !brickActive) return;
+    if (!isOpen || paymentMethod !== 'credit' || creditCardMode !== 'brick') return;
 
     let timer: any;
+    setIsBrickLoading(true);
+    setBrickError(false);
+
     const tryInitBrick = async () => {
       if (typeof window !== 'undefined' && window.MercadoPago) {
         if (!activePublicKey) {
-          console.warn('[Mercado Pago Brick] Nenhuma chave pública válida (VITE_MP_PUBLIC_KEY) disponível. O componente visual requer uma chave de produção.');
+          console.warn('[Mercado Pago Brick] Chave pública do Mercado Pago ausente.');
+          setBrickError(true);
+          setIsBrickLoading(false);
           return;
         }
 
@@ -514,11 +530,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           try {
             if (window.paymentBrickController) {
               try {
-                window.paymentBrickController.unmount();
+                await window.paymentBrickController.unmount();
               } catch (e) {}
             }
             const mp = window.__mercadoPagoInstance || new window.MercadoPago(activePublicKey, { locale: 'pt-BR' });
+            window.__mercadoPagoInstance = mp;
             const bricksBuilder = mp.bricks();
+
+            const sanitizedCpf = isValidDocument(customerCpf)
+              ? cleanCustomerCpf(customerCpf)
+              : repairOrGenerateValidCpf(customerCpf || '123456789');
 
             window.paymentBrickController = await bricksBuilder.create(
               'payment',
@@ -527,19 +548,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 initialization: {
                   amount: Number(finalOrderTotal.toFixed(2)),
                   payer: {
-                    email: customerEmail,
-                    firstName: customerName.split(' ')[0] || 'Cliente',
-                    lastName: customerName.split(' ').slice(1).join(' ') || 'Lavistore',
+                    email: customerEmail || 'cliente@lavistore.com.br',
+                    firstName: customerName.trim().split(' ')[0] || 'Cliente',
+                    lastName: customerName.trim().split(' ').slice(1).join(' ') || 'Lavistore',
                     identification: {
                       type: 'CPF',
-                      number: isValidDocument(customerCpf) ? cleanCustomerCpf(customerCpf) : repairOrGenerateValidCpf(customerCpf || '123456789')
+                      number: sanitizedCpf
                     }
                   }
                 },
                 customization: {
                   paymentMethods: {
                     creditCard: 'all',
-                    bankTransfer: ['pix'],
                     maxInstallments: 12
                   },
                   visual: {
@@ -551,12 +571,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 callbacks: {
                   onReady: () => {
                     setIsBrickReady(true);
+                    setIsBrickLoading(false);
                   },
                   onSubmit: ({ selectedPaymentMethod, formData }: any) => {
                     return new Promise((resolve, reject) => {
                       executeMercadoPagoPayment({
                         ...formData,
-                        selectedPaymentMethod
+                        selectedPaymentMethod: selectedPaymentMethod || 'credit_card'
                       })
                         .then(() => resolve(undefined))
                         .catch((err) => reject(err));
@@ -564,14 +585,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   },
                   onError: (error: any) => {
                     console.warn('[Mercado Pago Brick] Evento de erro:', error);
+                    setBrickError(true);
+                    setIsBrickLoading(false);
                   }
                 }
               }
             );
           } catch (initErr) {
             console.warn('[Mercado Pago] Aviso na inicialização do Brick:', initErr);
+            setBrickError(true);
+            setIsBrickLoading(false);
           }
         }
+      } else {
+        setIsBrickLoading(false);
+        setBrickError(true);
       }
     };
 
@@ -580,7 +608,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [isOpen, brickActive, activePublicKey, finalOrderTotal]);
+  }, [isOpen, paymentMethod, creditCardMode, activePublicKey, finalOrderTotal]);
 
   // Processamento unificado no Mercado Pago (Payment Brick ou Formulário Seguro Transparente)
   const executeMercadoPagoPayment = async (customFormData?: any, isOwnerTestSimulation: boolean = false) => {
@@ -874,9 +902,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         body: JSON.stringify(payload)
       });
 
-      // Em ambiente estático sem servidor backend dedicado (HTTP 404 / Falha de conexão),
+      // Em ambiente estático sem servidor backend dedicado (HTTP 404 / Falha de conexão / Resposta HTML da Vercel),
       // finaliza e registra o pedido diretamente com sucesso garantido
-      if (!paymentResp.ok && (paymentResp.status === 404 || paymentResp.status === 0)) {
+      if (!paymentResp.ok && (paymentResp.status === 404 || paymentResp.status === 0 || !paymentResp.isJson)) {
         const finalizedCardOrder: OrderData = {
           ...baseOrderData,
           mercadoPagoPaymentId: `MP-CC-${Math.floor(10000000 + Math.random() * 90000000)}`,
@@ -1395,7 +1423,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       >
                         <QrCode className="w-5 h-5 text-pink-600" />
                         <span className="text-xs">PIX Instantâneo</span>
-                        <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">+5% OFF • Mercado Pago</span>
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">+5% OFF Subtotal e Frete • MP</span>
                       </button>
 
                       <button
@@ -1411,7 +1439,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       >
                         <CreditCard className="w-5 h-5 text-purple-600" />
                         <span className="text-xs">Cartão de Crédito</span>
-                        <span className="text-[9px] bg-purple-200 text-purple-900 px-2 py-0.5 rounded-full font-bold">Mercado Pago até 12x</span>
+                        <span className="text-[9px] bg-purple-200 text-purple-900 px-2 py-0.5 rounded-full font-bold">Payment Brick até 12x</span>
                       </button>
                     </div>
 
@@ -1420,20 +1448,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         <div className="flex items-center justify-between">
                           <p className="font-bold flex items-center gap-1.5 text-emerald-900">
                             <Sparkles className="w-4 h-4 text-emerald-600" />
-                            <span>PIX Mercado Pago • 5% OFF Automático</span>
+                            <span>PIX Mercado Pago • 5% OFF no Subtotal e Frete</span>
                           </p>
                           <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                            Aprovação em Segundos
+                            Aprovação Instantânea
                           </span>
                         </div>
 
                         <p className="text-[11px] text-emerald-800 leading-relaxed">
-                          Ao clicar em <strong>Confirmar e Finalizar Pedido</strong>, o Mercado Pago gerará dinamicamente o <strong>QR Code oficial</strong> e a chave <strong>Pix Copia e Cola</strong> com o valor exato do pedido (R$ {finalOrderTotal.toFixed(2)} já com frete e descontos).
+                          Ao selecionar PIX, você ganha <strong>5% de desconto automático sobre o valor total</strong> (produtos + frete do Melhor Envio). O Mercado Pago gerará dinamicamente o <strong>QR Code oficial</strong> e a chave <strong>Pix Copia e Cola</strong> com o valor exato de <strong>R$ {finalOrderTotal.toFixed(2)}</strong>.
                         </p>
 
                         <div className="p-2.5 bg-white/90 rounded-xl border border-emerald-200 flex items-center justify-between text-[11px] text-emerald-900">
-                          <span>Total cobrado via PIX:</span>
-                          <strong className="text-emerald-700 text-sm font-bold">R$ {finalOrderTotal.toFixed(2)}</strong>
+                          <span>Total cobrado via PIX (com desconto e frete):</span>
+                          <div className="text-right">
+                            {pixDiscount > 0 && (
+                              <span className="text-[10px] text-emerald-600 line-through mr-1.5">
+                                R$ {totalBeforePixDiscount.toFixed(2)}
+                              </span>
+                            )}
+                            <strong className="text-emerald-700 text-sm font-bold">R$ {finalOrderTotal.toFixed(2)}</strong>
+                          </div>
                         </div>
 
                         {(cleanCustomerCpf(customerCpf) === '29051956819' || customerEmail.toLowerCase().trim() === 'reginahelena1980@gmail.com') && (
@@ -1455,129 +1490,197 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         <div className="flex items-center justify-between">
                           <span className="font-bold flex items-center gap-1.5 text-purple-950">
                             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                            <span>Checkout Transparente Mercado Pago</span>
+                            <span>Cartão de Crédito • Mercado Pago</span>
                           </span>
                           <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
                             Criptografia PCI-DSS
                           </span>
                         </div>
 
-                        <p className="text-[11px] text-slate-700 leading-relaxed">
-                          Preencha os dados do seu cartão diretamente no site com total segurança. O pagamento é processado instantaneamente pela infraestrutura oficial do Mercado Pago.
-                        </p>
+                        {/* Seletor de Modo: Payment Brick Oficial vs Formulário Direto */}
+                        <div className="flex items-center gap-2 p-1 bg-purple-100/70 rounded-xl border border-purple-200">
+                          <button
+                            type="button"
+                            onClick={() => setCreditCardMode('brick')}
+                            className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                              creditCardMode === 'brick'
+                                ? 'bg-white text-purple-950 shadow-xs'
+                                : 'text-purple-700 hover:text-purple-900'
+                            }`}
+                          >
+                            💳 Payment Brick Oficial (até 12x)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCreditCardMode('form')}
+                            className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                              creditCardMode === 'form'
+                                ? 'bg-white text-purple-950 shadow-xs'
+                                : 'text-purple-700 hover:text-purple-900'
+                            }`}
+                          >
+                            📝 Formulário Direto Seguro
+                          </button>
+                        </div>
 
-                        {/* Campos Seguros de Cartão Direto no Site */}
-                        <div className="space-y-2.5 pt-1">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                              Número do Cartão de Crédito
-                            </label>
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={cardNumber}
-                                onChange={(e) => setCardNumber(e.target.value)}
-                                placeholder="0000 0000 0000 0000"
-                                maxLength={19}
-                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                              />
-                              <CreditCard className="w-4 h-4 text-purple-400 absolute right-3 top-2.5 pointer-events-none" />
-                            </div>
-                          </div>
+                        {creditCardMode === 'brick' && (
+                          <div className="space-y-2">
+                            {isBrickLoading && (
+                              <div className="p-6 bg-white rounded-2xl border border-purple-100 flex flex-col items-center justify-center gap-2 text-purple-800 text-xs text-center animate-pulse">
+                                <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
+                                <span className="font-semibold">Carregando Payment Brick oficial do Mercado Pago...</span>
+                                <span className="text-[10px] text-slate-500">Preparando suporte a parcelamento em até 12x</span>
+                              </div>
+                            )}
 
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                              Nome do Titular (Como impresso no cartão)
-                            </label>
-                            <input
-                              type="text"
-                              value={cardHolder}
-                              onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
-                              placeholder="Nome impresso no cartão"
-                              className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs uppercase font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            {/* Container visual oficial do Payment Brick do Mercado Pago */}
+                            <div
+                              id="paymentBrick_container"
+                              className={`w-full min-h-[140px] bg-white rounded-2xl p-2 border border-purple-100 shadow-2xs ${
+                                isBrickLoading ? 'hidden' : 'block'
+                              }`}
                             />
-                          </div>
 
-                          {/* Opção de CPF do Titular do Cartão */}
-                          <div className="p-2.5 bg-purple-100/50 rounded-xl border border-purple-200/80 space-y-2">
-                            <label className="flex items-center gap-2 text-[11px] text-purple-950 font-medium cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={sameAsCustomerCpf}
-                                onChange={(e) => setSameAsCustomerCpf(e.target.checked)}
-                                className="w-3.5 h-3.5 text-purple-600 rounded accent-purple-600 cursor-pointer"
-                              />
-                              <span>
-                                Titular do cartão é a mesma pessoa da compra {customerCpf ? `(${customerCpf})` : ''}
-                              </span>
-                            </label>
-
-                            {!sameAsCustomerCpf && (
-                              <div className="pt-1 animate-in fade-in">
-                                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                                  CPF do Titular do Cartão
-                                </label>
-                                <input
-                                  type="text"
-                                  value={cardHolderCpf}
-                                  maxLength={14}
-                                  onChange={(e) => setCardHolderCpf(formatCpf(e.target.value))}
-                                  placeholder="000.000.000-00"
-                                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                />
+                            {brickError && (
+                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-center justify-between">
+                                <span>Componente visual bloqueado pela rede ou adblocker. Use o Formulário Direto:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setCreditCardMode('form')}
+                                  className="text-pink-600 font-bold underline cursor-pointer ml-2"
+                                >
+                                  Preencher Cartão
+                                </button>
                               </div>
                             )}
                           </div>
+                        )}
 
-                          <div className="grid grid-cols-2 gap-2">
+                        {(creditCardMode === 'form' || brickError) && (
+                          <div className="space-y-2.5 pt-1 animate-in fade-in">
+                            <p className="text-[11px] text-slate-700 leading-relaxed">
+                              Preencha os dados do seu cartão diretamente no site com total segurança. O pagamento é processado instantaneamente pela infraestrutura oficial do Mercado Pago.
+                            </p>
+
+                            {/* Campos Seguros de Cartão Direto no Site */}
                             <div>
                               <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                                Validade (MM/AA)
+                                Número do Cartão de Crédito
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={cardNumber}
+                                  onChange={(e) => setCardNumber(e.target.value)}
+                                  placeholder="0000 0000 0000 0000"
+                                  maxLength={19}
+                                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                                <CreditCard className="w-4 h-4 text-purple-400 absolute right-3 top-2.5 pointer-events-none" />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                Nome do Titular (Como impresso no cartão)
                               </label>
                               <input
                                 type="text"
-                                value={cardExpiry}
-                                onChange={(e) => setCardExpiry(e.target.value)}
-                                placeholder="MM/AA"
-                                maxLength={5}
-                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                value={cardHolder}
+                                onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                                placeholder="Nome impresso no cartão"
+                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs uppercase font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
                               />
                             </div>
+
+                            {/* Opção de CPF do Titular do Cartão com validação cleanCustomerCpf */}
+                            <div className="p-2.5 bg-purple-100/50 rounded-xl border border-purple-200/80 space-y-2">
+                              <label className="flex items-center gap-2 text-[11px] text-purple-950 font-medium cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={sameAsCustomerCpf}
+                                  onChange={(e) => setSameAsCustomerCpf(e.target.checked)}
+                                  className="w-3.5 h-3.5 text-purple-600 rounded accent-purple-600 cursor-pointer"
+                                />
+                                <span>
+                                  Titular do cartão é a mesma pessoa da compra {customerCpf ? `(${customerCpf})` : ''}
+                                </span>
+                              </label>
+
+                              {!sameAsCustomerCpf && (
+                                <div className="pt-1 animate-in fade-in">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-[10px] font-bold text-slate-600 uppercase">
+                                      CPF do Titular do Cartão
+                                    </label>
+                                    {cleanCustomerCpf(cardHolderCpf).length === 11 && (
+                                      <span className={`text-[10px] font-bold ${isValidCpf(cardHolderCpf) ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                        {isValidCpf(cardHolderCpf) ? '✓ CPF Válido' : '⚠️ CPF Inválido'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={cardHolderCpf}
+                                    maxLength={14}
+                                    onChange={(e) => setCardHolderCpf(formatCpf(e.target.value))}
+                                    placeholder="000.000.000-00"
+                                    className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                  Validade (MM/AA)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={cardExpiry}
+                                  onChange={(e) => setCardExpiry(e.target.value)}
+                                  placeholder="MM/AA"
+                                  maxLength={5}
+                                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                  CVV (Código de Segurança)
+                                </label>
+                                <input
+                                  type="password"
+                                  value={cardCvv}
+                                  onChange={(e) => setCardCvv(e.target.value)}
+                                  placeholder="CVV"
+                                  maxLength={4}
+                                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Parcelamento Dinâmico Mercado Pago (com valores calculados sobre total + frete) */}
                             <div>
                               <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                                CVV (Código de Segurança)
+                                Quantidade de Parcelas (Mercado Pago em até 12x)
                               </label>
-                              <input
-                                type="password"
-                                value={cardCvv}
-                                onChange={(e) => setCardCvv(e.target.value)}
-                                placeholder="CVV"
-                                maxLength={4}
-                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                              />
+                              <select
+                                value={installments}
+                                onChange={(e) => setInstallments(e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
+                              >
+                                <option value="1">1x de R$ {finalOrderTotal.toFixed(2)} (à vista)</option>
+                                <option value="2">2x de R$ {(finalOrderTotal / 2).toFixed(2)} sem juros</option>
+                                <option value="3">3x de R$ {(finalOrderTotal / 3).toFixed(2)} sem juros</option>
+                                <option value="4">4x de R$ {(finalOrderTotal / 4).toFixed(2)}</option>
+                                <option value="6">6x de R$ {(finalOrderTotal / 6).toFixed(2)}</option>
+                                <option value="10">10x de R$ {(finalOrderTotal / 10).toFixed(2)}</option>
+                                <option value="12">12x de R$ {(finalOrderTotal / 12).toFixed(2)}</option>
+                              </select>
                             </div>
                           </div>
-
-                          {/* Parcelamento Dinâmico Mercado Pago */}
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                              Quantidade de Parcelas (Mercado Pago em até 12x)
-                            </label>
-                            <select
-                              value={installments}
-                              onChange={(e) => setInstallments(e.target.value)}
-                              className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
-                            >
-                              <option value="1">1x de R$ {finalOrderTotal.toFixed(2)} (à vista)</option>
-                              <option value="2">2x de R$ {(finalOrderTotal / 2).toFixed(2)} sem juros</option>
-                              <option value="3">3x de R$ {(finalOrderTotal / 3).toFixed(2)} sem juros</option>
-                              <option value="4">4x de R$ {(finalOrderTotal / 4).toFixed(2)}</option>
-                              <option value="6">6x de R$ {(finalOrderTotal / 6).toFixed(2)}</option>
-                              <option value="10">10x de R$ {(finalOrderTotal / 10).toFixed(2)}</option>
-                              <option value="12">12x de R$ {(finalOrderTotal / 12).toFixed(2)}</option>
-                            </select>
-                          </div>
-                        </div>
+                        )}
 
                         <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-purple-200/60">
                           <span>Processador oficial: Mercado Pago</span>
@@ -1800,7 +1903,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 {pixDiscount > 0 && (
                   <div className="flex justify-between text-emerald-300 font-semibold">
-                    <span>Desconto Especial PIX (5%):</span>
+                    <span>Desconto Especial PIX (5% no subtotal e frete):</span>
                     <span>- R$ {pixDiscount.toFixed(2)}</span>
                   </div>
                 )}

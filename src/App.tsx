@@ -33,7 +33,15 @@ import { HomeTextEditorModal } from './components/HomeTextEditorModal';
 import { CategoryEditorModal } from './components/CategoryEditorModal';
 import { DEFAULT_HOME_PAGE_CONFIG, getFontSizeClass, getFontWeightClass } from './utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from './data/filterConfig';
-import { safeSetItem, serializeCart, deserializeCart, serializeFavorites, deserializeFavorites } from './utils/storage';
+import { 
+  safeSetItem, 
+  safeGetItem, 
+  purgeAllProjectLocalStorage, 
+  serializeCart, 
+  deserializeCart, 
+  serializeFavorites, 
+  deserializeFavorites 
+} from './utils/storage';
 import { aggregateProductsForVitrine, findExactBiRecordForOrderItem, groupBiRecordsByBaseProduct, createParentProductFromBiRecords, getGroupingKey } from './utils/productGroupingEngine';
 import { DEFAULT_BI_SAMPLE_RECORDS } from './utils/biFinanceEngine';
 import { 
@@ -93,14 +101,19 @@ export default function App() {
   const [isCategoryEditorOpen, setIsCategoryEditorOpen] = useState(false);
   const [isReturnPolicyOpen, setIsReturnPolicyOpen] = useState(false);
 
-  // Categories Customization State (Persisted in localStorage & Admin Vault)
+  // Garantia de Zero LocalStorage no projeto: purga quaisquer chaves legadas na montagem
+  useEffect(() => {
+    purgeAllProjectLocalStorage();
+  }, []);
+
+  // Categories Customization State
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
       const vault = getLocalAdminVault();
       if (vault?.categories && Array.isArray(vault.categories) && vault.categories.length > 0) {
         return vault.categories;
       }
-      const saved = localStorage.getItem('lavistore_categories');
+      const saved = safeGetItem('lavistore_categories');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -113,7 +126,7 @@ export default function App() {
     return DEFAULT_CATEGORIES;
   });
 
-  // Home Page Typography & Text Customization State (Persisted in localStorage & Admin Vault)
+  // Home Page Typography & Text Customization State
   const [homePageConfig, setHomePageConfig] = useState<HomePageConfig>(() => {
     try {
       const vault = getLocalAdminVault();
@@ -122,7 +135,7 @@ export default function App() {
         if (merged.announcementCoupon === 'PRIMEIRACOMPRA') merged.announcementCoupon = '';
         return merged;
       }
-      const saved = localStorage.getItem('lavistore_home_page_config');
+      const saved = safeGetItem('lavistore_home_page_config');
       if (saved) {
         const parsed = JSON.parse(saved);
         const merged = mergeHomePageConfigSafely(parsed, DEFAULT_HOME_PAGE_CONFIG);
@@ -144,14 +157,14 @@ export default function App() {
     label: string;
   } | null>(null);
 
-  // Hero Banner Customization State (Persisted in localStorage & Admin Vault)
+  // Hero Banner Customization State
   const [heroConfig, setHeroConfig] = useState<HeroConfig>(() => {
     try {
       const vault = getLocalAdminVault();
       if (vault?.heroConfig) {
         return mergeHeroConfigSafely(vault.heroConfig, DEFAULT_HERO_CONFIG);
       }
-      const saved = localStorage.getItem('lavistore_hero_config');
+      const saved = safeGetItem('lavistore_hero_config');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.title) {
@@ -164,10 +177,10 @@ export default function App() {
     return mergeHeroConfigSafely(storeState.heroConfig as unknown as HeroConfig, DEFAULT_HERO_CONFIG);
   });
 
-  // Filter Bar Configuration State (Price & Sort, Persisted in localStorage)
+  // Filter Bar Configuration State
   const [filterBarConfig, setFilterBarConfig] = useState<FilterBarConfig>(() => {
     try {
-      const saved = localStorage.getItem('lavistore_filter_bar_config');
+      const saved = safeGetItem('lavistore_filter_bar_config');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && Array.isArray(parsed.priceRanges)) {
@@ -180,11 +193,11 @@ export default function App() {
     return DEFAULT_FILTER_BAR_CONFIG;
   });
 
-  // Editable Products State (Persisted in localStorage with default fallback, excluding any test products)
+  // Editable Products State (Strictly Zero LocalStorage, with default fallback)
   const [products, setProducts] = useState<Product[]>(() => {
     const testIds = new Set(['lav-74750', 'lav-15329', 'lav-03352', 'lav-01', 'lav-02']);
     try {
-      const saved = localStorage.getItem('lavistore_products');
+      const saved = safeGetItem('lavistore_products');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -203,14 +216,13 @@ export default function App() {
   // Admin Authentication state - Strictly password-protected (never auto-authenticate)
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
 
-  // Customer Reviews State (Persisted in localStorage & Server - strictly real customer reviews)
+  // Customer Reviews State (Zero LocalStorage - real customer reviews)
   const [reviews, setReviews] = useState<CustomerReview[]>(() => {
     try {
-      const saved = localStorage.getItem('lavistore_reviews');
+      const saved = safeGetItem('lavistore_reviews');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Remove any demonstration/example fake reviews
           const filtered = parsed.filter(
             (r: CustomerReview) => r && !['rev-1', 'rev-2', 'rev-3', 'rev-4'].includes(r.id)
           );
@@ -224,11 +236,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    try {
-      localStorage.setItem('lavistore_reviews', JSON.stringify(reviews));
-    } catch (e) {
-      console.error(e);
-    }
+    safeSetItem('lavistore_reviews', JSON.stringify(reviews));
   }, [reviews]);
 
   // Handler para adição de avaliações reais de clientes
@@ -243,9 +251,7 @@ export default function App() {
 
     const updatedReviews = [newRev, ...reviews];
     setReviews(updatedReviews);
-    try {
-      localStorage.setItem('lavistore_reviews', JSON.stringify(updatedReviews));
-    } catch (e) {}
+    safeSetItem('lavistore_reviews', JSON.stringify(updatedReviews));
 
     // Recalcula dinamicamente rating e reviewCount para o produto avaliado sem alterar nenhum outro campo
     const updatedProducts = products.map(p => {
@@ -273,9 +279,7 @@ export default function App() {
     });
 
     setProducts(updatedProducts);
-    try {
-      localStorage.setItem('lavistore_products', JSON.stringify(updatedProducts));
-    } catch (e) {}
+    safeSetItem('lavistore_products', JSON.stringify(updatedProducts));
 
     try {
       await submitProductReview(newRev);
@@ -291,34 +295,34 @@ export default function App() {
   // Interactive Product States
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
-  // Cart State (Persisted in localStorage with quota-safe serializer)
+  // Cart State (In-memory session state)
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem('lavistore_cart');
+      const saved = safeGetItem('lavistore_cart');
       return deserializeCart(saved, products);
     } catch {
       return [];
     }
   });
 
-  // Favorites State (Persisted in localStorage with quota-safe serializer)
+  // Favorites State (In-memory session state)
   const [favorites, setFavorites] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem('lavistore_favs');
+      const saved = safeGetItem('lavistore_favs');
       return deserializeFavorites(saved, products);
     } catch {
       return [];
     }
   });
 
-  // Coupons State (Persisted in localStorage & Admin Vault)
+  // Coupons State (Zero LocalStorage)
   const [coupons, setCoupons] = useState<Coupon[]>(() => {
     try {
       const vault = getLocalAdminVault();
       if (vault?.coupons && Array.isArray(vault.coupons) && vault.coupons.length > 0) {
         return vault.coupons;
       }
-      const saved = localStorage.getItem('lavistore_coupons');
+      const saved = safeGetItem('lavistore_coupons');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -326,7 +330,7 @@ export default function App() {
         }
       }
     } catch (e) {
-      console.error('Error loading coupons from localStorage', e);
+      console.error('Error loading coupons', e);
     }
     return DEFAULT_COUPONS;
   });
@@ -345,19 +349,19 @@ export default function App() {
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Persist Coupons to localStorage
+  // Persist Coupons to memory
   useEffect(() => {
     safeSetItem('lavistore_coupons', JSON.stringify(coupons));
   }, [coupons]);
 
-  // Packaging Models (Sacolinhas) State (Persisted in localStorage & Admin Vault)
+  // Packaging Models (Sacolinhas) State
   const [bagTypes, setBagTypes] = useState<BagType[]>(() => {
     try {
       const vault = getLocalAdminVault();
       if (vault?.bagTypes && Array.isArray(vault.bagTypes) && vault.bagTypes.length > 0) {
         return vault.bagTypes;
       }
-      const saved = localStorage.getItem('lavistore_bag_types');
+      const saved = safeGetItem('lavistore_bag_types');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -365,7 +369,7 @@ export default function App() {
         }
       }
     } catch (e) {
-      console.error('Error loading bag types from localStorage', e);
+      console.error('Error loading bag types', e);
     }
     return BAG_TYPES;
   });
@@ -374,14 +378,14 @@ export default function App() {
     safeSetItem('lavistore_bag_types', JSON.stringify(bagTypes));
   }, [bagTypes]);
 
-  // Ribbon Colors State (Persisted in localStorage & Admin Vault)
+  // Ribbon Colors State
   const [ribbonOptions, setRibbonOptions] = useState<RibbonOption[]>(() => {
     try {
       const vault = getLocalAdminVault();
       if (vault?.ribbonOptions && Array.isArray(vault.ribbonOptions) && vault.ribbonOptions.length > 0) {
         return vault.ribbonOptions;
       }
-      const saved = localStorage.getItem('lavistore_ribbon_options');
+      const saved = safeGetItem('lavistore_ribbon_options');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -389,7 +393,7 @@ export default function App() {
         }
       }
     } catch (e) {
-      console.error('Error loading ribbon options from localStorage', e);
+      console.error('Error loading ribbon options', e);
     }
     return RIBBON_OPTIONS;
   });
@@ -398,18 +402,13 @@ export default function App() {
     safeSetItem('lavistore_ribbon_options', JSON.stringify(ribbonOptions));
   }, [ribbonOptions]);
 
-  // Persist Products to localStorage
+  // Persist Products to session memory
   useEffect(() => {
     safeSetItem('lavistore_products', JSON.stringify(products));
   }, [products]);
 
   // Synchronize URL with Dedicated Admin Route (/admin) and Storefront
   useEffect(() => {
-    // Clear any leftover admin session so authentication is strictly requested
-    try {
-      localStorage.removeItem('lavistore_admin_authenticated');
-    } catch {}
-
     const handleLocationChange = () => {
       const pathname = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase();
@@ -428,12 +427,7 @@ export default function App() {
 
   // Safe navigation helpers between Storefront and Admin area
   const navigateToAdmin = () => {
-    // Exigir sempre a autenticação por senha ao acessar a área restrita
     setIsAdminAuthenticated(false);
-    try {
-      localStorage.removeItem('lavistore_admin_authenticated');
-    } catch {}
-
     try {
       if (window.location.pathname !== '/admin') {
         window.history.pushState({}, '', '/admin');
@@ -448,10 +442,6 @@ export default function App() {
   const navigateToStorefront = (tab: ActiveTab = 'catalog') => {
     setIsAdminAuthenticated(false);
     try {
-      localStorage.removeItem('lavistore_admin_authenticated');
-    } catch {}
-
-    try {
       if (window.location.pathname === '/admin' || window.location.hash === '#admin') {
         window.history.pushState({}, '', '/');
       }
@@ -462,12 +452,12 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Persist Cart with lightweight serialization to prevent quota exceeded errors
+  // Persist Cart in session memory
   useEffect(() => {
     safeSetItem('lavistore_cart', serializeCart(cartItems));
   }, [cartItems]);
 
-  // Persist Favorites with lightweight serialization
+  // Persist Favorites in session memory
   useEffect(() => {
     safeSetItem('lavistore_favs', serializeFavorites(favorites));
   }, [favorites]);
@@ -477,7 +467,7 @@ export default function App() {
     safeSetItem('lavistore_hero_config', JSON.stringify(heroConfig));
   }, [heroConfig]);
 
-  // Persist Categories to localStorage
+  // Persist Categories to session memory
   useEffect(() => {
     safeSetItem('lavistore_categories', JSON.stringify(categories));
   }, [categories]);
@@ -505,7 +495,7 @@ export default function App() {
     try {
       let biRecordsList: BiProductCalculatedRecord[] = [];
       try {
-        const localBi = localStorage.getItem('lavistore_bi_records');
+        const localBi = safeGetItem('lavistore_bi_records');
         if (localBi) biRecordsList = JSON.parse(localBi);
       } catch {}
 
@@ -735,7 +725,7 @@ export default function App() {
   const handleRestoreFromBi = async () => {
     try {
       let biRecords: BiProductCalculatedRecord[] = [];
-      const localBi = localStorage.getItem('lavistore_bi_records');
+      const localBi = safeGetItem('lavistore_bi_records');
       if (localBi) {
         try {
           const parsed = JSON.parse(localBi);
@@ -779,7 +769,7 @@ export default function App() {
 
       setProducts(combined);
       try {
-        localStorage.setItem('lavistore_products', JSON.stringify(combined));
+        safeSetItem('lavistore_products', JSON.stringify(combined));
       } catch {}
       await handlePublishToServer({ products: combined }, false);
       showToast(`🌸 ${restoredProducts.length} mimos e fotos restaurados com sucesso do BI! ✨`);
@@ -806,7 +796,7 @@ export default function App() {
         showToast(`🌸 Cofre protegido do Administrador restaurado com sucesso! (${vault.products.length} mimos) ✨`);
         return;
       }
-      const backupRaw = localStorage.getItem('lavistore_products_safety_backup') || localStorage.getItem('lavistore_products');
+      const backupRaw = safeGetItem('lavistore_products_safety_backup') || safeGetItem('lavistore_products');
       if (!backupRaw) {
         showToast('Nenhuma cópia de segurança anterior encontrada.');
         return;
@@ -815,7 +805,7 @@ export default function App() {
       if (Array.isArray(parsed) && parsed.length > 0) {
         setProducts(parsed);
         try {
-          localStorage.setItem('lavistore_products', JSON.stringify(parsed));
+          safeSetItem('lavistore_products', JSON.stringify(parsed));
         } catch {}
         await handlePublishToServer({ products: parsed }, false);
         showToast(`🌸 Cópia de segurança com ${parsed.length} produtos restaurada e blindada com sucesso! ✨`);
@@ -852,7 +842,7 @@ export default function App() {
     // Sincroniza o status de publicação unificado nos registros de BI correspondentes
     let syncedBiRecords: BiProductCalculatedRecord[] | undefined;
     try {
-      const localBi = localStorage.getItem('lavistore_bi_records');
+      const localBi = safeGetItem('lavistore_bi_records');
       if (localBi) {
         const biList: BiProductCalculatedRecord[] = JSON.parse(localBi);
         const pKey = getGroupingKey(productData.name);
@@ -879,7 +869,7 @@ export default function App() {
             }
             return r;
           });
-          localStorage.setItem('lavistore_bi_records', JSON.stringify(syncedBiRecords));
+          safeSetItem('lavistore_bi_records', JSON.stringify(syncedBiRecords));
           saveBiRecordsToFirestore(syncedBiRecords);
         }
       }
@@ -1127,7 +1117,7 @@ export default function App() {
   // Agregação automática Pai/Filho para a Vitrine pública (baseada na coluna Tam/Cor)
   const vitrineProducts = useMemo(() => {
     try {
-      const rawBi = localStorage.getItem('lavistore_bi_records');
+      const rawBi = safeGetItem('lavistore_bi_records');
       const biRecs = rawBi ? JSON.parse(rawBi) : undefined;
       return aggregateProductsForVitrine(products, Array.isArray(biRecs) ? biRecs : undefined);
     } catch {
@@ -2007,7 +1997,7 @@ export default function App() {
 
             // 3. Sincronização e Abatimento em Tempo Real no BI Financeiro e Estoque da Lavistore
             try {
-              const biRaw = localStorage.getItem('lavistore_bi_records');
+              const biRaw = safeGetItem('lavistore_bi_records');
               if (biRaw && Array.isArray(orderData?.items)) {
                 const biRecords = JSON.parse(biRaw);
                 if (Array.isArray(biRecords)) {
@@ -2050,12 +2040,12 @@ export default function App() {
                   });
 
                   if (hasChanges) {
-                    localStorage.setItem('lavistore_bi_records', JSON.stringify(updatedBiRecords));
+                    safeSetItem('lavistore_bi_records', JSON.stringify(updatedBiRecords));
                     saveBiRecords(updatedBiRecords).catch(console.warn);
 
                     // Canal Inverso Automático: Atualiza a planilha inicial do Google Sheets se configurada
                     try {
-                      const initialDriveUrl = localStorage.getItem('lavistore_bi_google_drive_url');
+                      const initialDriveUrl = safeGetItem('lavistore_bi_google_drive_url');
                       if (initialDriveUrl) {
                         updateUserInitialSpreadsheet(initialDriveUrl, updatedBiRecords).catch(e => {
                           console.warn('[Google Sheets] Aviso na sincronização automática da planilha inicial:', e);

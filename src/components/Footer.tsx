@@ -19,6 +19,7 @@ import { LavistoreLogo } from './LavistoreLogo';
 import { HomePageConfig, Category } from '../types';
 import { getFontSizeClass, getFontWeightClass } from '../utils/textFormatter';
 import { CATEGORIES as DEFAULT_CATEGORIES } from '../data/categories';
+import { saveNewsletterLeadToFirestore } from '../services/firestoreConfigService';
 
 interface FooterProps {
   config?: HomePageConfig;
@@ -83,26 +84,25 @@ export const Footer: React.FC<FooterProps> = ({
 
     setIsSubscribing(true);
 
-    // 1. Persist to localStorage immediately for instant client-side offline support
+    // Purga proativa de localStorage legado se existir
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem('lavistore_newsletter_leads');
+      } catch {}
+    }
+
+    // 1. Persistência soberana direta no Firebase Firestore
     try {
-      const LOCAL_KEY = 'lavistore_newsletter_leads';
-      const existingRaw = localStorage.getItem(LOCAL_KEY);
-      let localLeads = existingRaw ? JSON.parse(existingRaw) : [];
-      if (!Array.isArray(localLeads)) localLeads = [];
-      const alreadyExists = localLeads.some((l: any) => (l.email || '').toLowerCase() === cleanEmail);
-      if (!alreadyExists) {
-        localLeads.unshift({
-          id: `lead-${Date.now()}`,
-          email: cleanEmail,
-          registeredAt: new Date().toISOString(),
-          source: 'Clube de Mimos (Rodapé)',
-          couponOffered: 'LAVI10',
-          status: 'active'
-        });
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(localLeads));
-      }
-    } catch (localErr) {
-      console.warn('[Newsletter] Erro ao gravar lead no localStorage:', localErr);
+      await saveNewsletterLeadToFirestore({
+        id: `lead-${Date.now()}`,
+        email: cleanEmail,
+        registeredAt: new Date().toISOString(),
+        source: 'Clube de Mimos (Rodapé)',
+        couponOffered: 'LAVI10',
+        status: 'active'
+      });
+    } catch (fsErr) {
+      console.warn('[Newsletter] Erro ao gravar lead no Firestore:', fsErr);
     }
 
     // 2. Persist to Express backend /api/newsletter/subscribe

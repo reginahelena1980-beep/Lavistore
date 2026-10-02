@@ -1,11 +1,11 @@
 {
   "projectId": "lavistorekides",
-  "appId": "1:657145040484:web:38d6961e2eb7fca1a04f81",
-  "apiKey": "AIzaSyBhBlBv82oIsNaJ1HVHwbuJtFMw09c1zps",
+  "appId": "1:65714504084:web:10a5f97e8404e6c1a04f81",
+  "apiKey": "AIzaSyBhBlBv82oIsNaJ1HVHwbuJtFMwO9c1zps",
   "authDomain": "lavistorekides.firebaseapp.com",
   "firestoreDatabaseId": "(default)",
-  "storageBucket": "lavistorekides.appspot.com",
-  "messagingSenderId": "657145040484",
+  "storageBucket": "lavistorekides.firebasestorage.app",
+  "messagingSenderId": "65714504084",
   "measurementId": "G-03GEH7RLW8",
   "oauthClientId": "",
   "recaptchaSiteKey": ""

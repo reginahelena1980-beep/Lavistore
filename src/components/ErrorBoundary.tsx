@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCw, ShoppingBag, Home } from 'lucide-react';
+import { purgeAllProjectLocalStorage } from '../utils/storage';
 
 interface Props {
   children: ReactNode;
@@ -34,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleReload = () => {
     try {
       sessionStorage.clear();
-      localStorage.removeItem('lavistore_checkout_error');
+      purgeAllProjectLocalStorage();
     } catch {}
     this.setState({ hasError: false, error: null, errorInfo: null });
     window.location.reload();
@@ -43,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleGoHome = () => {
     try {
       sessionStorage.clear();
-      localStorage.removeItem('lavistore_checkout_error');
+      purgeAllProjectLocalStorage();
     } catch {}
     this.setState({ hasError: false, error: null, errorInfo: null });
     window.location.href = window.location.origin;

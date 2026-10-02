@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { Product, ProductSizeVariant, ProductColorVariant, Category, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES } from '../data/categories';
-import { safeSetItem, compressImage } from '../utils/storage';
+import { safeSetItem, safeGetItem, safeRemoveItem, compressImage } from '../utils/storage';
 import { 
   getGroupingKey, 
   normalizeBaseProductName, 
@@ -196,7 +196,10 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
     if (allRecordsList.length === 0) {
       try {
-        const raw = localStorage.getItem('lavistore_bi_records');
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem('lavistore_bi_records');
+        }
+        const raw = safeGetItem('lavistore_bi_records');
         if (raw) {
           allRecordsList = JSON.parse(raw);
         }
@@ -368,7 +371,10 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
       // 4. Criação avulsa padrão
       let savedDraft: Partial<Product> | null = null;
       try {
-        const raw = localStorage.getItem('lavistore_product_draft');
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem('lavistore_product_draft');
+        }
+        const raw = safeGetItem('lavistore_product_draft');
         if (raw) {
           savedDraft = JSON.parse(raw);
         }
@@ -432,7 +438,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     }));
   };
 
-  // Auto-save draft to localStorage whenever user types something on a new product
+  // Auto-save draft to session memory whenever user types something on a new product
   useEffect(() => {
     if (!isEditing && isOpen && formData.name && formData.name.trim().length > 0) {
       safeSetItem('lavistore_product_draft', JSON.stringify(formData));
@@ -752,9 +758,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
   };
 
   const handleDiscardDraftAndClose = () => {
-    try {
-      localStorage.removeItem('lavistore_product_draft');
-    } catch {}
+    safeRemoveItem('lavistore_product_draft');
     setShowCloseConfirm(false);
     onClose();
   };
@@ -815,18 +819,19 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     };
 
     // Clean up draft on successful save
-    try {
-      localStorage.removeItem('lavistore_product_draft');
-    } catch {}
+    safeRemoveItem('lavistore_product_draft');
 
     if (currentBiRecord && onPublishBiRecord) {
       onPublishBiRecord(currentBiRecord, finalProduct);
     } else {
       if (currentBiRecord || productToEdit) {
         try {
-          const raw = localStorage.getItem('lavistore_bi_records');
-          if (raw) {
-            const list: BiProductCalculatedRecord[] = JSON.parse(raw);
+          let list: BiProductCalculatedRecord[] = allBiRecords || [];
+          if (list.length === 0) {
+            const raw = safeGetItem('lavistore_bi_records');
+            if (raw) list = JSON.parse(raw);
+          }
+          if (list.length > 0) {
             const targetId = currentBiRecord?.id || productToEdit?.biRecordId;
             const targetName = currentBiRecord?.produto || productToEdit?.name || finalProduct.name;
             const pKey = getGroupingKey(targetName);
@@ -847,7 +852,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
               }
               return item;
             });
-            localStorage.setItem('lavistore_bi_records', JSON.stringify(updatedList));
+            safeSetItem('lavistore_bi_records', JSON.stringify(updatedList));
             saveBiRecordsToFirestore(updatedList);
             fetch('/api/bi/records', {
               method: 'POST',
@@ -875,9 +880,12 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
       // Sincroniza também no armazenamento do BI para manter coerência total
       try {
-        const raw = localStorage.getItem('lavistore_bi_records');
-        if (raw) {
-          const list: BiProductCalculatedRecord[] = JSON.parse(raw);
+        let list: BiProductCalculatedRecord[] = allBiRecords || [];
+        if (list.length === 0) {
+          const raw = safeGetItem('lavistore_bi_records');
+          if (raw) list = JSON.parse(raw);
+        }
+        if (list.length > 0) {
           const pKey = getGroupingKey(productToEdit.name);
           const updatedList = list.map(item => {
             if (
@@ -889,7 +897,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
             }
             return item;
           });
-          localStorage.setItem('lavistore_bi_records', JSON.stringify(updatedList));
+          safeSetItem('lavistore_bi_records', JSON.stringify(updatedList));
           saveBiRecordsToFirestore(updatedList);
           fetch('/api/bi/records', {
             method: 'POST',
@@ -1062,9 +1070,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  try {
-                    localStorage.removeItem('lavistore_product_draft');
-                  } catch {}
+                  safeRemoveItem('lavistore_product_draft');
                   setHasRestoredDraft(false);
                 }}
                 className="px-2 py-0.5 bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-800 rounded-lg text-[10px]"

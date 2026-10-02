@@ -17,6 +17,15 @@ export const DEFAULT_MP_CLIENT_SECRET = Buffer.from('UzQyNDVmMjFrMmM1SE82aGgxaEF
 export const DEFAULT_MP_USER_ID = '153059854';
 export const MERCADO_PAGO_API_BASE_URL = 'https://api.mercadopago.com';
 
+/**
+ * Remove qualquer caractere não numérico de uma string de CPF (pontos, traços e espaços)
+ */
+export function cleanCustomerCpf(value?: string | number | null): string {
+  if (value === null || value === undefined) return '';
+  const str = typeof value === 'string' ? value : String(value);
+  return str.replace(/\D/g, '').trim();
+}
+
 const PERSISTENT_DIR = path.join(process.cwd(), 'persistent_data');
 const MP_CONFIG_FILE = path.join(PERSISTENT_DIR, 'mercadopago_config.json');
 

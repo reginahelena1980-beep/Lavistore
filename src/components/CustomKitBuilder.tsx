@@ -25,18 +25,23 @@ export interface SelectedKitItem {
   price: number;
 }
 
+import { safeGetItem } from '../utils/storage';
+import { BiProductCalculatedRecord } from '../types';
+
 interface CustomKitBuilderProps {
   products: Product[];
   onAddKitToCart: (customKitProduct: Product, kitDetails: any) => void;
   bagTypes?: BagType[];
   ribbonOptions?: RibbonOption[];
+  biRecords?: BiProductCalculatedRecord[];
 }
 
 export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
   products,
   onAddKitToCart,
   bagTypes = BAG_TYPES,
-  ribbonOptions = RIBBON_OPTIONS
+  ribbonOptions = RIBBON_OPTIONS,
+  biRecords = []
 }) => {
   const currentBags = bagTypes && bagTypes.length > 0 ? bagTypes : BAG_TYPES;
   const currentRibbons = ribbonOptions && ribbonOptions.length > 0 ? ribbonOptions : RIBBON_OPTIONS;
@@ -77,10 +82,22 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
 
     // 2. Busca na base de registros do BI (importada pelo Google Sheets / Drive)
     try {
-      const rawBi = localStorage.getItem('lavistore_bi_records');
-      if (rawBi) {
-        const records = JSON.parse(rawBi);
-        if (Array.isArray(records)) {
+      // Purga proativa de localStorage legado
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.removeItem('lavistore_bi_records');
+        } catch {}
+      }
+
+      let records: any[] = biRecords && biRecords.length > 0 ? biRecords : [];
+      if (records.length === 0) {
+        const rawBi = safeGetItem('lavistore_bi_records');
+        if (rawBi) {
+          records = JSON.parse(rawBi);
+        }
+      }
+
+      if (Array.isArray(records) && records.length > 0) {
           const pKey = getGroupingKey(product.name);
           const matches = records.filter((r: any) => 
             getGroupingKey(r.produto || '') === pKey && 
@@ -106,7 +123,6 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
             }
           }
         }
-      }
     } catch {
       // Ignora erro de parsing
     }

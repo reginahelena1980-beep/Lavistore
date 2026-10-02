@@ -2964,6 +2964,15 @@ app.post('/api/mercadopago/test_connection', async (_req, res) => {
 });
 
 /**
+ * Helper: Sanitização de CPF / Documentos
+ */
+function cleanCustomerCpf(value?: string | number | null): string {
+  if (value === null || value === undefined) return '';
+  const str = typeof value === 'string' ? value : String(value);
+  return str.replace(/\D/g, '').trim();
+}
+
+/**
  * Helper: Validação algorítmica de CPF (Módulo 11) para o Mercado Pago
  */
 function isValidCpfServer(cpf?: string | null): boolean {

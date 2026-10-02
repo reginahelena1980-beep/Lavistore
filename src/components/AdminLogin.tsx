@@ -15,6 +15,8 @@ import {
   Key
 } from 'lucide-react';
 import { LavistoreLogo } from './LavistoreLogo';
+import { saveStoreConfigToFirestore } from '../services/firestoreConfigService';
+import { safeSetItem, safeGetItem } from '../utils/storage';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
@@ -85,8 +87,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
           }
         }
       } catch (err) {
-        // Fallback to localStorage check
-        const hasChanged = localStorage.getItem('lavistore_admin_password_changed') === 'true';
+        // Fallback to memory check (Zero LocalStorage)
+        const hasChanged = safeGetItem('lavistore_admin_password_changed') === 'true';
         setIsDefaultPasswordOnServer(!hasChanged);
       }
     };
@@ -98,6 +100,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     e.preventDefault();
     setErrorMessage(null);
     setIsLoading(true);
+
+    // Purga proativa de localStorage legado
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem('lavistore_admin_password');
+        window.localStorage.removeItem('lavistore_admin_password_changed');
+      } catch {}
+    }
 
     const entered = password.trim();
 
@@ -118,15 +128,15 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         // Fallback local
       }
 
-      // 2. Validação local de contingência
-      const savedPass = localStorage.getItem('lavistore_admin_password') || '1234';
+      // 2. Validação local de contingência em memória
+      const savedPass = safeGetItem('lavistore_admin_password') || '1234';
       const isLocalValid = entered === savedPass || (savedPass === '1234' && (entered === '1234' || entered === 'admin'));
 
       if (isValidOnServer || isLocalValid) {
         setIsLoading(false);
 
         // Se o usuário entrou com a senha padrão '1234' e ainda não cadastrou uma nova, oferecer a troca
-        const hasChanged = localStorage.getItem('lavistore_admin_password_changed') === 'true';
+        const hasChanged = safeGetItem('lavistore_admin_password_changed') === 'true';
         if (entered === '1234' && (!hasChanged || isDefaultPasswordOnServer)) {
           setShowFirstAccessPrompt(true);
           return;
@@ -192,17 +202,35 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       }
 
       // 2. Validação local caso o servidor não tenha respondido
-      const savedPass = localStorage.getItem('lavistore_admin_password') || '1234';
+      const savedPass = safeGetItem('lavistore_admin_password') || '1234';
       if (!serverSuccess && current !== savedPass && current !== '1234' && current !== 'admin') {
         setChangeError('A senha atual informada está incorreta. Se esqueceu a senha, clique na opção "Esqueci a senha".');
         setIsChangingPassword(false);
         return;
       }
 
-      // 3. Salvar permanentemente no localStorage
-      localStorage.setItem('lavistore_admin_password', newPass);
-      localStorage.setItem('lavistore_admin_password_changed', 'true');
+      // Purga proativa de localStorage legado
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.removeItem('lavistore_admin_password');
+          window.localStorage.removeItem('lavistore_admin_password_changed');
+        } catch {}
+      }
+
+      // 3. Salvar na memória volátil da sessão e de forma soberana no Firestore
+      safeSetItem('lavistore_admin_password', newPass);
+      safeSetItem('lavistore_admin_password_changed', 'true');
       setIsDefaultPasswordOnServer(false);
+
+      try {
+        await saveStoreConfigToFirestore({
+          adminPassword: newPass,
+          adminPasswordChanged: true,
+          adminPasswordChangedAt: new Date().toISOString()
+        } as any);
+      } catch (fsErr) {
+        console.warn('[AdminLogin] Aviso ao sincronizar senha no Firestore:', fsErr);
+      }
 
       setChangeSuccess('Nova senha de gerência cadastrada com sucesso! Entrando no painel...');
 
@@ -316,10 +344,28 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         return;
       }
 
-      // Salvar nova senha localmente
-      localStorage.setItem('lavistore_admin_password', newPass);
-      localStorage.setItem('lavistore_admin_password_changed', 'true');
+      // Purga proativa de localStorage legado
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.removeItem('lavistore_admin_password');
+          window.localStorage.removeItem('lavistore_admin_password_changed');
+        } catch {}
+      }
+
+      // Salvar nova senha na memória da sessão e no Firestore
+      safeSetItem('lavistore_admin_password', newPass);
+      safeSetItem('lavistore_admin_password_changed', 'true');
       setIsDefaultPasswordOnServer(false);
+
+      try {
+        await saveStoreConfigToFirestore({
+          adminPassword: newPass,
+          adminPasswordChanged: true,
+          adminPasswordChangedAt: new Date().toISOString()
+        } as any);
+      } catch (fsErr) {
+        console.warn('[AdminLogin] Aviso ao sincronizar nova senha no Firestore:', fsErr);
+      }
 
       setRecoverySuccess('🎉 Nova senha redefinida com sucesso! Acessando painel de gerência...');
 

@@ -57,6 +57,7 @@ import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, Custome
 import { CATEGORIES, BAG_TYPES, RIBBON_OPTIONS } from '../data/categories';
 import { CUSTOMER_REVIEWS } from '../data/reviews';
 import { DEFAULT_COUPONS } from '../data/coupons';
+import { safeSetItem, safeGetItem } from '../utils/storage';
 import { TrioFlowersIcon } from './LavistoreLogo';
 import defaultHeroImg from '../assets/images/lavistore_trio_flowers_1788111020961.jpg';
 import { HomeTextManager } from './HomeTextManager';
@@ -184,7 +185,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Registros do BI para unificação automática de dados (quantidades, custos, preços e margens)
   const [biRecords, setBiRecords] = useState<BiProductCalculatedRecord[]>(() => {
     try {
-      const local = localStorage.getItem('lavistore_bi_records');
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('lavistore_bi_records');
+      }
+      const local = safeGetItem('lavistore_bi_records');
       if (local) {
         const parsed = JSON.parse(local);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -202,7 +206,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           const data = await res.json();
           if (data.records && Array.isArray(data.records) && data.records.length > 0) {
             setBiRecords(data.records);
-            localStorage.setItem('lavistore_bi_records', JSON.stringify(data.records));
+            safeSetItem('lavistore_bi_records', JSON.stringify(data.records));
           }
         }
       } catch (err) {
@@ -528,7 +532,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             if (Array.isArray(imported.biRecords)) {
               setBiRecords(imported.biRecords);
               try {
-                localStorage.setItem('lavistore_bi_records', JSON.stringify(imported.biRecords));
+                safeSetItem('lavistore_bi_records', JSON.stringify(imported.biRecords));
                 fetch('/api/bi/records', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -919,11 +923,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* MAIN PRODUCTS PAGE: Section Switcher Tabs & Product Catalog */}
-      {adminSection === 'products' && (
-        <>
-          {/* Section Switcher Tabs - Minimalist, Delicate & Organized */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-white/75 backdrop-blur-md border border-amber-200/70 rounded-2xl shadow-2xs">
+      {/* Section Switcher Tabs - Minimalist, Delicate & Organized */}
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-white/75 backdrop-blur-md border border-amber-200/70 rounded-2xl shadow-2xs">
             <button
               onClick={() => setAdminSection('products')}
               className={`py-1.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -1125,31 +1126,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           </div>
 
-          <AdminProductCatalogView
-            products={products}
-            filteredProducts={filteredProducts}
-            categories={categories}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            categoryFilter={categoryFilter}
-            setCategoryFilter={setCategoryFilter}
-            stockFilter={stockFilter}
-            setStockFilter={setStockFilter}
-            handleExportFullStore={handleExportFullStore}
-            handleExportBackup={handleExportBackup}
-            handleImportBackup={handleImportBackup}
-            setShowResetCatalogModal={setShowResetCatalogModal}
-            onRestoreFromBi={onRestoreFromBi}
-            onRestoreSafetyBackup={onRestoreSafetyBackup}
-            biRecords={biRecords}
-            onAddProduct={onAddProduct}
-            onEditProduct={onEditProduct}
-            onSaveProduct={onSaveProduct}
-            onDuplicateProduct={onDuplicateProduct}
-            onDeleteProduct={setProductToDelete}
-            onViewProductLive={onViewProductLive}
-          />
-        </>
+      {/* MAIN PRODUCTS PAGE: Product Catalog */}
+      {adminSection === 'products' && (
+        <AdminProductCatalogView
+          products={products}
+          filteredProducts={filteredProducts}
+          categories={categories}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          categoryFilter={categoryFilter}
+          setCategoryFilter={setCategoryFilter}
+          stockFilter={stockFilter}
+          setStockFilter={setStockFilter}
+          handleExportFullStore={handleExportFullStore}
+          handleExportBackup={handleExportBackup}
+          handleImportBackup={handleImportBackup}
+          setShowResetCatalogModal={setShowResetCatalogModal}
+          onRestoreFromBi={onRestoreFromBi}
+          onRestoreSafetyBackup={onRestoreSafetyBackup}
+          biRecords={biRecords}
+          onAddProduct={onAddProduct}
+          onEditProduct={onEditProduct}
+          onSaveProduct={onSaveProduct}
+          onDuplicateProduct={onDuplicateProduct}
+          onDeleteProduct={setProductToDelete}
+          onViewProductLive={onViewProductLive}
+        />
       )}
 
       {/* CLUBE DE MIMOS & CADASTROS DE CLIENTES (LEADS DE NEWSLETTER E COMPRADORES) */}

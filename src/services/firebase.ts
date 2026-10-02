@@ -45,6 +45,16 @@ export interface FirestoreErrorInfo {
   };
 }
 
+export const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBhBlBv82oIsNaJ1HVHwbuJtFMwO9c1zps",
+  authDomain: "lavistorekides.firebaseapp.com",
+  projectId: "lavistorekides",
+  storageBucket: "lavistorekides.firebasestorage.app",
+  messagingSenderId: "65714504084",
+  appId: "1:65714504084:web:10a5f97e8404e6c1a04f81",
+  firestoreDatabaseId: "(default)"
+};
+
 let appInstance: FirebaseApp | null = null;
 let firestoreInstance: Firestore | null = null;
 let authInstance: Auth | null = null;
@@ -53,7 +63,12 @@ let isConfigured = false;
 function resolveFirebaseConfig() {
   // 1. Tentar ler do arquivo oficial provisionado firebase-applet-config.json
   if (firebaseAppletConfig && (firebaseAppletConfig as any).apiKey && (firebaseAppletConfig as any).projectId) {
-    return firebaseAppletConfig;
+    return {
+      ...DEFAULT_FIREBASE_CONFIG,
+      ...firebaseAppletConfig,
+      storageBucket: (firebaseAppletConfig as any).storageBucket || DEFAULT_FIREBASE_CONFIG.storageBucket,
+      firestoreDatabaseId: (firebaseAppletConfig as any).firestoreDatabaseId || '(default)'
+    };
   }
 
   // 2. Tentar ler de variáveis de ambiente Vite
@@ -65,9 +80,9 @@ function resolveFirebaseConfig() {
       apiKey,
       authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
       projectId,
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-      appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || DEFAULT_FIREBASE_CONFIG.messagingSenderId,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID || DEFAULT_FIREBASE_CONFIG.appId,
       firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || '(default)'
     };
   }
@@ -80,7 +95,7 @@ function resolveFirebaseConfig() {
     }
   }
 
-  return null;
+  return DEFAULT_FIREBASE_CONFIG;
 }
 
 try {
@@ -92,13 +107,16 @@ try {
       appInstance = getApp();
     }
 
+    const dbId = config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)' ? config.firestoreDatabaseId : undefined;
     try {
-      firestoreInstance = initializeFirestore(appInstance, {
-        ignoreUndefinedProperties: true
-      }, config.firestoreDatabaseId || '(default)');
+      firestoreInstance = dbId 
+        ? initializeFirestore(appInstance, { ignoreUndefinedProperties: true }, dbId)
+        : initializeFirestore(appInstance, { ignoreUndefinedProperties: true });
     } catch {
       // Caso já tenha sido inicializado anteriormente
-      firestoreInstance = getFirestore(appInstance, config.firestoreDatabaseId || '(default)');
+      firestoreInstance = dbId
+        ? getFirestore(appInstance, dbId)
+        : getFirestore(appInstance);
     }
 
     authInstance = getAuth(appInstance);

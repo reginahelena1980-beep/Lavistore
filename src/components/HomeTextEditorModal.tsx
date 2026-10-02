@@ -107,7 +107,7 @@ export const HomeTextEditorModal: React.FC<HomeTextEditorModalProps> = ({
               <span>Texto / Conteúdo</span>
               <span className="text-[8px] text-slate-400 font-normal">{text.length} caracteres</span>
             </label>
-            {text.length > 60 || fieldKey.includes('Desc') || fieldKey.includes('Subtitle') ? (
+            {text.length > 60 || String(fieldKey).includes('Desc') || String(fieldKey).includes('Subtitle') ? (
               <textarea
                 rows={3}
                 value={text}

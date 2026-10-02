@@ -35,28 +35,29 @@ export interface AdminCustomVault {
   newsletterLeads?: NewsletterLead[];
 }
 
+// Cofre volátil mantido estritamente em memória durante a sessão (Zero LocalStorage)
+let inMemoryAdminVault: AdminCustomVault | null = null;
+
 /**
- * Carrega o cofre protegido do administrador a partir do localStorage
+ * Carrega o cofre protegido do administrador a partir da memória volátil da sessão
  */
 export function getLocalAdminVault(): Partial<AdminCustomVault> | null {
-  try {
-    const raw = localStorage.getItem(ADMIN_VAULT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      return parsed;
-    }
-  } catch (err) {
-    console.warn('[AdminProtection] Erro ao ler cofre local:', err);
+  // Purga proativa de chave legada do localStorage se existir
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(ADMIN_VAULT_KEY);
+      window.localStorage.removeItem(ADMIN_LOCK_KEY);
+      window.localStorage.removeItem(ADMIN_LAST_UPDATE_KEY);
+    } catch {}
   }
-  return null;
+  return inMemoryAdminVault;
 }
 
 /**
- * Salva o cofre protegido no localStorage de forma atômica
+ * Salva o cofre protegido na memória volátil da sessão (Zero LocalStorage)
  */
 export function saveLocalAdminVault(partialVault: Partial<AdminCustomVault>): AdminCustomVault {
-  const existing = getLocalAdminVault() || {};
+  const existing = inMemoryAdminVault || {} as Partial<AdminCustomVault>;
   const updatedVault: AdminCustomVault = {
     version: (existing.version || 0) + 1,
     lastAdminSavedAt: partialVault.lastAdminSavedAt || new Date().toISOString(),
@@ -65,12 +66,15 @@ export function saveLocalAdminVault(partialVault: Partial<AdminCustomVault>): Ad
     ...partialVault
   };
 
-  try {
-    localStorage.setItem(ADMIN_VAULT_KEY, JSON.stringify(updatedVault));
-    localStorage.setItem(ADMIN_LOCK_KEY, 'true');
-    localStorage.setItem(ADMIN_LAST_UPDATE_KEY, updatedVault.lastAdminSavedAt);
-  } catch (err) {
-    console.warn('[AdminProtection] Erro ao salvar cofre no localStorage:', err);
+  inMemoryAdminVault = updatedVault;
+
+  // Garante que nenhuma informação seja salva em localStorage
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.removeItem(ADMIN_VAULT_KEY);
+      window.localStorage.removeItem(ADMIN_LOCK_KEY);
+      window.localStorage.removeItem(ADMIN_LAST_UPDATE_KEY);
+    } catch {}
   }
 
   return updatedVault;

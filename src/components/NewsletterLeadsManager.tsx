@@ -28,7 +28,12 @@ import {
   subscribeNewsletter, 
   fetchOrders 
 } from '../services/storeApiService';
-import { subscribeToNewsletterLeads } from '../services/firestoreConfigService';
+import { 
+  subscribeToNewsletterLeads,
+  fetchNewsletterLeadsFromFirestore,
+  deleteNewsletterLeadFromFirestore,
+  saveNewsletterLeadToFirestore
+} from '../services/firestoreConfigService';
 
 interface NewsletterLeadsManagerProps {
   onNotify?: (message: string) => void;
@@ -50,11 +55,18 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
   const [newName, setNewName] = useState('');
   const [leadToDelete, setLeadToDelete] = useState<NewsletterLead | null>(null);
 
-  // Fetch leads from Server API & localStorage
+  // Fetch leads from Server API & Firestore (Zero LocalStorage)
   const fetchLeads = async () => {
     setIsLoading(true);
     let serverList: NewsletterLead[] = [];
-    let localList: NewsletterLead[] = [];
+    let firestoreList: NewsletterLead[] = [];
+
+    // Purga proativa de localStorage legado
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem('lavistore_newsletter_leads');
+      } catch {}
+    }
 
     // 1. Fetch from server API via storeApiService
     try {
@@ -63,22 +75,16 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
       console.warn('Erro ao carregar leads do servidor:', err);
     }
 
-    // 2. Fetch from localStorage
+    // 2. Fetch from Firestore
     try {
-      const saved = localStorage.getItem('lavistore_newsletter_leads');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          localList = parsed;
-        }
-      }
+      firestoreList = await fetchNewsletterLeadsFromFirestore();
     } catch (err) {
-      console.warn('Erro ao ler leads do localStorage:', err);
+      console.warn('Erro ao ler leads do Firestore:', err);
     }
 
     // Merge and deduplicate by email
     const map = new Map<string, NewsletterLead>();
-    [...serverList, ...localList].forEach((lead) => {
+    [...serverList, ...firestoreList].forEach((lead) => {
       if (lead?.email) {
         const key = lead.email.trim().toLowerCase();
         if (!map.has(key)) {
@@ -102,13 +108,6 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
         orders = await fetchOrders();
       } catch {
         orders = [];
-      }
-
-      if (orders.length === 0) {
-        const localOrders = localStorage.getItem('lavistore_orders');
-        if (localOrders) {
-          orders = JSON.parse(localOrders);
-        }
       }
 
       // Group buyers by email or phone
@@ -289,12 +288,16 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
       console.warn('Erro ao deletar lead no servidor:', e);
     }
 
-    // Remove from local state and localStorage
+    // Remove from Firestore
+    try {
+      await deleteNewsletterLeadFromFirestore(id);
+    } catch (e) {
+      console.warn('Erro ao deletar lead no Firestore:', e);
+    }
+
+    // Remove from local state
     const updated = leads.filter((l) => l.id !== id);
     setLeads(updated);
-    try {
-      localStorage.setItem('lavistore_newsletter_leads', JSON.stringify(updated));
-    } catch (e) {}
 
     setLeadToDelete(null);
     if (onNotify) onNotify('Cadastro de e-mail excluído com sucesso.');
@@ -319,6 +322,13 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
       status: 'active'
     };
 
+    // Save to Firestore
+    try {
+      await saveNewsletterLeadToFirestore(newLeadItem);
+    } catch (e) {
+      console.warn('Erro ao salvar no Firestore:', e);
+    }
+
     // Save to server via storeApiService
     try {
       await subscribeNewsletter(newLeadItem.email, newLeadItem.name, newLeadItem.source);
@@ -326,12 +336,9 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
       console.warn('Erro ao salvar no servidor:', e);
     }
 
-    // Save locally
+    // Save locally in React state
     const updated = [newLeadItem, ...leads.filter((l) => l.email.toLowerCase() !== cleanEmail)];
     setLeads(updated);
-    try {
-      localStorage.setItem('lavistore_newsletter_leads', JSON.stringify(updated));
-    } catch (e) {}
 
     setNewEmail('');
     setNewName('');
@@ -391,8 +398,8 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
             <span>💾 Onde o sistema armazena esses dados cadastrados?</span>
           </p>
           <p className="text-slate-700 leading-relaxed text-[11px] sm:text-xs">
-            1. <strong>No Servidor (Backend Express):</strong> Os e-mails são gravados automaticamente no arquivo <code>src/data/newsletter_leads.json</code>, garantindo persistência oficial e permanente na loja.<br />
-            2. <strong>No Navegador (Armazenamento Local):</strong> Ficam sincronizados na chave <code>lavistore_newsletter_leads</code> do <code>localStorage</code>, permitindo visualização instantânea mesmo offline.<br />
+            1. <strong>No Firebase Firestore:</strong> Os e-mails são sincronizados em tempo real na coleção oficial <code>newsletter_leads</code> na nuvem.<br />
+            2. <strong>No Servidor Backend:</strong> Os cadastros são persistidos de forma segura e soberana, sem nenhum dado retido em localStorage.<br />
             3. <strong>Disparo & Exportação:</strong> Você pode exportar para planilha Excel/CSV ou copiar todos os e-mails com 1 clique para colar no campo CCO de ferramentas como Gmail, Mailchimp ou Brevo.
           </p>
         </div>

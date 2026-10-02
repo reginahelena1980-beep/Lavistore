@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, KeyRound, Eye, EyeOff, Check, X, ShieldCheck, AlertCircle, Sparkles } from 'lucide-react';
+import { saveStoreConfigToFirestore } from '../services/firestoreConfigService';
+import { safeSetItem } from '../utils/storage';
 
 interface AdminPasswordModalProps {
   isOpen: boolean;
@@ -72,19 +74,28 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
         console.warn('[AdminPassword] Backend offline, usando validação local:', netErr);
       }
 
-      // 2. Validação local caso o servidor não tenha retornado erro mas não tenha sido alcançado
-      if (!forgotCurrent) {
-        const savedPass = localStorage.getItem('lavistore_admin_password') || '1234';
-        if (!serverSuccess && currentPassword !== savedPass && currentPassword !== '1234' && currentPassword !== 'admin') {
-          setErrorMessage('A senha atual informada está incorreta. Se esqueceu, clique em "Não lembro a senha atual".');
-          setIsLoading(false);
-          return;
-        }
+      // Purga proativa de localStorage legado
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.removeItem('lavistore_admin_password');
+          window.localStorage.removeItem('lavistore_admin_password_changed');
+        } catch {}
       }
 
-      // 3. Salvar no localStorage
-      localStorage.setItem('lavistore_admin_password', newPassword.trim());
-      localStorage.setItem('lavistore_admin_password_changed', 'true');
+      // Salva na memória volátil da sessão
+      safeSetItem('lavistore_admin_password', newPassword.trim());
+      safeSetItem('lavistore_admin_password_changed', 'true');
+
+      // Salva de forma soberana no Firebase Firestore
+      try {
+        await saveStoreConfigToFirestore({
+          adminPassword: newPassword.trim(),
+          adminPasswordChanged: true,
+          adminPasswordChangedAt: new Date().toISOString()
+        } as any);
+      } catch (fsErr) {
+        console.warn('[AdminPassword] Aviso ao gravar senha no Firestore:', fsErr);
+      }
 
       setSuccessMessage('Senha de gerência atualizada com sucesso! 🎉');
       if (onSuccess) {

@@ -78,11 +78,18 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
       .catch(() => {});
   }, []);
 
-  // Carrega pedidos da API & localStorage (com fallback)
+  // Carrega pedidos da API e Firestore
   const fetchOrders = async () => {
     setIsLoading(true);
     let serverList: OrderData[] = [];
     let hasServerSuccess = false;
+
+    // Purga proativa de chave legada do localStorage
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem('lavistore_orders');
+      } catch {}
+    }
 
     // 1. Fetch from server API via storeApiService
     try {
@@ -94,27 +101,8 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
 
     let finalOrders: OrderData[] = [];
 
-    if (hasServerSuccess) {
-      // O servidor é a autoridade máxima. Atualiza o cache local.
+    if (hasServerSuccess && serverList.length > 0) {
       finalOrders = serverList;
-      try {
-        localStorage.setItem('lavistore_orders', JSON.stringify(serverList));
-      } catch (err) {
-        console.error(err);
-      }
-    } else {
-      // 2. Read from localStorage fallback apenas se a chamada à API falhar
-      try {
-        const saved = localStorage.getItem('lavistore_orders');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            finalOrders = parsed;
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      }
     }
 
     const merged = finalOrders.sort((a, b) => {
@@ -201,11 +189,6 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
         }
         return o;
       });
-      try {
-        localStorage.setItem('lavistore_orders', JSON.stringify(updated));
-      } catch (e) {
-        console.error(e);
-      }
       return updated;
     });
 

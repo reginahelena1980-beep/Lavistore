@@ -68,6 +68,7 @@ import {
   saveBiRecordsToFirestore,
   updateProductPublicationStatusInFirestore 
 } from '../services/firestoreConfigService';
+import { safeSetItem, safeGetItem } from '../utils/storage';
 
 interface BiFinancialManagerProps {
   products?: Product[];
@@ -101,16 +102,16 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
   // Modo de importação: Google Drive / Google Sheets ou Arquivo do Computador
   const [importTab, setImportTab] = useState<'googledrive' | 'file'>('googledrive');
   const [googleDriveUrl, setGoogleDriveUrl] = useState<string>(() => {
-    return localStorage.getItem('lavistore_bi_google_drive_url') || '';
+    return safeGetItem('lavistore_bi_google_drive_url') || '';
   });
   const [isLoadingDrive, setIsLoadingDrive] = useState<boolean>(false);
   const [lastDriveSync, setLastDriveSync] = useState<string | null>(() => {
-    return localStorage.getItem('lavistore_bi_last_drive_sync') || null;
+    return safeGetItem('lavistore_bi_last_drive_sync') || null;
   });
   const [isLoadingSyncBack, setIsLoadingSyncBack] = useState<boolean>(false);
   const [showConfirmSyncBackModal, setShowConfirmSyncBackModal] = useState<boolean>(false);
   const [lastSyncBackTimestamp, setLastSyncBackTimestamp] = useState<string | null>(() => {
-    return localStorage.getItem('lavistore_bi_last_sync_back') || null;
+    return safeGetItem('lavistore_bi_last_sync_back') || null;
   });
 
   // Filtros interativos solicitados
@@ -198,8 +199,18 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         console.warn('[BI] Falha ao carregar registros do servidor, usando fallback local.');
       }
 
-      // Fallback: tenta recuperar do localStorage ou usa dados de demonstração
-      const local = localStorage.getItem('lavistore_bi_records');
+      // Purga proativa de localStorage legado
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.removeItem('lavistore_bi_records');
+          window.localStorage.removeItem('lavistore_bi_google_drive_url');
+          window.localStorage.removeItem('lavistore_bi_last_drive_sync');
+          window.localStorage.removeItem('lavistore_bi_last_sync_back');
+        } catch {}
+      }
+
+      // Fallback em memória volátil da sessão
+      const local = safeGetItem('lavistore_bi_records');
       if (local) {
         try {
           const parsed = JSON.parse(local);
@@ -231,7 +242,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     };
   }, []);
 
-  // Persiste no Firebase Firestore e no backend quando os dados são atualizados
+  // Persiste no Firebase Firestore e no backend quando os dados são atualizados (Zero LocalStorage)
   const persistRecords = async (newRecords: BiProductCalculatedRecord[]) => {
     setRecords(newRecords);
     if (onRecordsChange) {
@@ -245,9 +256,9 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       console.warn('[BI Firestore] Aviso ao gravar registros no Firestore:', fsErr);
     }
 
-    // 2. Grava no cache e endpoint de contingência
+    // 2. Grava em memória volátil da sessão e endpoint de contingência
     try {
-      localStorage.setItem('lavistore_bi_records', JSON.stringify(newRecords));
+      safeSetItem('lavistore_bi_records', JSON.stringify(newRecords));
       await fetch('/api/bi/records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -361,8 +372,8 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       const now = new Date();
       const syncTimestamp = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
       setLastDriveSync(syncTimestamp);
-      localStorage.setItem('lavistore_bi_google_drive_url', urlToUse);
-      localStorage.setItem('lavistore_bi_last_drive_sync', syncTimestamp);
+      safeSetItem('lavistore_bi_google_drive_url', urlToUse);
+      safeSetItem('lavistore_bi_last_drive_sync', syncTimestamp);
 
       setUploadSuccess(`Planilha importada com sucesso via Google Sheets CSV! ${result.records.length} produtos apurados.`);
       if (result.warnings && result.warnings.length > 0) {
@@ -387,7 +398,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
 
   // Canal Inverso: Iniciar atualização da planilha inicial com os dados de vendas do site
   const handleStartUpdateInitialSpreadsheet = async () => {
-    const urlToUse = googleDriveUrl.trim() || localStorage.getItem('lavistore_bi_google_drive_url') || '';
+    const urlToUse = googleDriveUrl.trim() || safeGetItem('lavistore_bi_google_drive_url') || '';
     if (!urlToUse) {
       setUploadError('Por favor, informe o link da sua planilha do Google Sheets no campo correspondente.');
       return;
@@ -415,7 +426,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     setUploadError(null);
     setUploadSuccess(null);
 
-    const urlToUse = googleDriveUrl.trim() || localStorage.getItem('lavistore_bi_google_drive_url') || '';
+    const urlToUse = googleDriveUrl.trim() || safeGetItem('lavistore_bi_google_drive_url') || '';
 
     try {
       const result = await updateUserInitialSpreadsheet(urlToUse, records);
@@ -423,8 +434,8 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       const syncTimestamp = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
       
       setLastSyncBackTimestamp(syncTimestamp);
-      localStorage.setItem('lavistore_bi_last_sync_back', syncTimestamp);
-      localStorage.setItem('lavistore_bi_google_drive_url', urlToUse);
+      safeSetItem('lavistore_bi_last_sync_back', syncTimestamp);
+      safeSetItem('lavistore_bi_google_drive_url', urlToUse);
 
       const itemsWithSales = records.filter(r => r.quantidadeVendida > 0);
       setUploadSuccess(

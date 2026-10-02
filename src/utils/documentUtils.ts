@@ -20,6 +20,12 @@ export function cleanCustomerCpf(value?: string | number | null): string {
 export const cleanCpf = cleanCustomerCpf;
 export const cleanDocument = cleanCustomerCpf;
 
+// Disponibiliza no objeto window para evitar qualquer erro de referência
+if (typeof window !== 'undefined') {
+  (window as any).cleanCustomerCpf = cleanCustomerCpf;
+  (window as any).cleanCpf = cleanCustomerCpf;
+}
+
 /**
  * Validação algorítmica de CPF (Módulo 11 da Receita Federal do Brasil)
  */

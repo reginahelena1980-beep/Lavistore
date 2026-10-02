@@ -21,6 +21,7 @@ import { TrioFlowersIcon } from './LavistoreLogo';
 import { HomePageConfig, OrderData } from '../types';
 import { cleanCustomerCpf } from '../utils/documentUtils';
 import { updateOrderStatus } from '../services/storeApiService';
+import { checkMercadoPagoPaymentStatus } from '../services/mercadoPagoClientService';
 
 interface OrderSuccessModalProps {
   orderData: OrderData | any;
@@ -39,7 +40,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     orderData?.mercadoPagoStatus === 'approved' ? 'approved' : 'pending'
   );
 
-  // Polling em tempo real para verificar confirmação imediata do PIX no Mercado Pago (com limite máximo para evitar looping desnecessário)
+  // Polling em tempo real para verificar confirmação imediata do PIX no Mercado Pago (com validação estrita de JSON)
   useEffect(() => {
     if (!orderData?.mercadoPagoPaymentId || pixPaymentStatus === 'approved') return;
 
@@ -55,24 +56,24 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
       }
 
       try {
-        const resp = await fetch(`/api/mercadopago/payment_status/${orderData.mercadoPagoPaymentId}`);
-        if (resp.ok) {
-          const data = await resp.json().catch(() => null);
-          if (data && data.status === 'approved' && isSubscribed) {
-            setPixPaymentStatus('approved');
-            confetti({
-              particleCount: 100,
-              spread: 70,
-              origin: { y: 0.6 },
-              colors: ['#10B981', '#34D399', '#6EE7B7', '#F472B6']
-            });
-            clearInterval(interval);
-          }
-        } else if (resp.status === 404) {
-          // Servidor estático sem rota de backend - interrompe o polling para evitar 404 contínuos
+        const result = await checkMercadoPagoPaymentStatus(orderData.mercadoPagoPaymentId);
+        if (!result.isAvailable) {
+          // Servidor estático sem rota de backend (Vercel) - encerra o polling sem gerar erros
+          clearInterval(interval);
+          return;
+        }
+
+        if (result.status === 'approved' && isSubscribed) {
+          setPixPaymentStatus('approved');
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#10B981', '#34D399', '#6EE7B7', '#F472B6']
+          });
           clearInterval(interval);
         }
-      } catch (e) {
+      } catch {
         clearInterval(interval);
       }
     }, 4000);

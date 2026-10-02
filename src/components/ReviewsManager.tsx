@@ -531,7 +531,9 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                         <h4 className="text-xs sm:text-sm font-bold text-purple-950 flex items-center gap-1.5">
                           <span>{rev.author}</span>
                           {rev.verified && (
-                            <CheckCircle className="w-3 h-3 text-emerald-500" title="Compra Verificada" />
+                            <span title="Compra Verificada">
+                              <CheckCircle className="w-3 h-3 text-emerald-500" />
+                            </span>
                           )}
                         </h4>
                         <p className="text-[10px] text-slate-500">{rev.city} • {rev.date}</p>
