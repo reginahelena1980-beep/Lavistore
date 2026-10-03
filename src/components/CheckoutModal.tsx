@@ -763,6 +763,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               body: JSON.stringify({
                 payment_method_id: 'pix',
                 transaction_amount: sanitizedTotal,
+                expirationMinutes: 30,
                 payer: {
                   email: customerEmail.trim().toLowerCase(),
                   first_name: payerFirstName,
@@ -790,6 +791,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               }
 
               const ticketUrl = mpPix.ticket_url || `https://www.mercadopago.com.br/payments/${backendResp.data.payment.id}/ticket`;
+              const expDate = mpPix.date_of_expiration || backendResp.data.payment.pix?.date_of_expiration;
               const finalizedOrder: OrderData = {
                 ...baseOrderData,
                 mercadoPagoPaymentId: String(backendResp.data.payment.id),
@@ -797,7 +799,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 mercadoPagoStatusDetail: backendResp.data.payment.status_detail || 'pending_waiting_transfer',
                 pixQrCode: rawQrCode,
                 pixQrCodeBase64: mpPix.qr_code_base64 || null,
-                pixTicketUrl: ticketUrl
+                pixTicketUrl: ticketUrl,
+                pixDateOfExpiration: expDate,
+                pixExpiresAt: expDate,
+                pixExpirationMinutes: mpPix.expiration_minutes || 30
               };
               try { await createOrder(finalizedOrder); } catch {}
               pixResult = {

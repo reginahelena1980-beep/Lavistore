@@ -574,11 +574,25 @@ export interface CreatePixPaymentOptions {
   payer: {
     email: string;
     firstName: string;
-    lastName: string;
+    lastName?: string;
     cpfOrCnpj: string;
+    phone?: {
+      areaCode?: string;
+      number?: string;
+    };
+    address?: {
+      zipCode?: string;
+      streetName?: string;
+      streetNumber?: string | number;
+      neighborhood?: string;
+      city?: string;
+      federalUnit?: string;
+    };
   };
   description?: string;
+  expirationMinutes?: number; // Padrão: 30 minutos em conformidade com o BACEN / Mercado Pago
   expirationHours?: number;
+  notificationUrl?: string;
 }
 
 export interface MercadoPagoPixTransactionData {
@@ -601,13 +615,16 @@ export interface CreatePixPaymentResult {
   pixQrCodeBase64?: string;
   pixTicketUrl?: string;
   transactionAmount?: number;
+  dateOfExpiration?: string;
+  expirationMinutes?: number;
   error?: string;
   rawDetails?: any;
 }
 
 /**
  * Cria uma cobrança Pix oficial na API v1 do Mercado Pago (/v1/payments)
- * com validação estrita de payload, identificação fiscal e extração do point_of_interaction.transaction_data
+ * com validação estrita de payload, identificação fiscal limpa (cleanCustomerCpf),
+ * tempo de expiração adequado (30 minutos) e tipo estrito 'pix'.
  */
 export async function createMercadoPagoPixPayment(options: CreatePixPaymentOptions): Promise<CreatePixPaymentResult> {
   const creds = getMercadoPagoCredentials();
@@ -629,28 +646,33 @@ export async function createMercadoPagoPixPayment(options: CreatePixPaymentOptio
     };
   }
 
-  // 2. Validação e higienização estrita do CPF/CNPJ do pagador
+  // 2. Validação e higienização estrita do CPF/CNPJ do pagador (apenas dígitos numéricos)
   const cleanCpf = cleanCustomerCpf(options.payer.cpfOrCnpj);
   if (!cleanCpf || (cleanCpf.length !== 11 && cleanCpf.length !== 14)) {
     return {
       success: false,
-      error: 'O CPF do pagador é obrigatório (11 dígitos numéricos). Por favor, informe um CPF válido.'
+      error: 'O CPF do pagador é obrigatório (11 dígitos numéricos limpos). Por favor, informe um CPF válido.'
     };
   }
   const idType = cleanCpf.length === 14 ? 'CNPJ' : 'CPF';
 
   // 3. Validação do e-mail do pagador
   const cleanEmail = (options.payer.email || '').trim().toLowerCase();
-  if (!cleanEmail || !cleanEmail.includes('@')) {
+  if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
     return {
       success: false,
       error: 'E-mail do pagador inválido para emissão do Pix.'
     };
   }
 
-  // 4. Higienização dos nomes (alfanuméricos sem caracteres especiais para conformidade BACEN)
-  const cleanFirstName = sanitizePixText(options.payer.firstName || 'Cliente', 30) || 'Cliente';
-  const cleanLastName = sanitizePixText(options.payer.lastName || 'Lavistore', 30) || 'Lavistore';
+  // 4. Higienização e separação inteligente de primeiro nome e sobrenome do pagador
+  const rawFullName = `${options.payer.firstName || ''} ${options.payer.lastName || ''}`.trim();
+  const nameParts = rawFullName.split(/\s+/).filter(Boolean);
+  const cleanFirstName = sanitizePixText(options.payer.firstName || nameParts[0] || 'Cliente', 30) || 'Cliente';
+  const cleanLastName = sanitizePixText(
+    options.payer.lastName || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Lavistore'),
+    30
+  ) || 'Lavistore';
 
   // 5. Descrição limpa do pedido (ASCII simples, sem bullets ou símbolos)
   const cleanOrderId = String(options.orderId).replace(/[^A-Za-z0-9]/g, '');
@@ -658,12 +680,17 @@ export async function createMercadoPagoPixPayment(options: CreatePixPaymentOptio
     ? sanitizePixText(options.description, 60)
     : `Lavistore Pedido ${cleanOrderId}`;
 
-  // 6. Data de expiração da cobrança (padrão: 24 horas em formato ISO)
-  const expirationHours = Math.max(1, options.expirationHours || 24);
-  const dateOfExpiration = new Date(Date.now() + expirationHours * 3600 * 1000).toISOString();
+  // 6. Data de expiração da cobrança Pix (padrão: 30 minutos em tempo futuro adequado e formato ISO 8601)
+  // Cobrança Pix Imediata (Pix Cob) exige janela de expiração dinâmica entre 15 e 60 minutos
+  // para consulta SPI/DICT válida nos bancos (ex: C6 Bank, Itaú, Nubank).
+  const expirationMinutes = options.expirationMinutes 
+    ? Math.max(5, Math.min(1440, options.expirationMinutes)) 
+    : (options.expirationHours ? Math.max(5, options.expirationHours * 60) : 30);
+  const expirationDate = new Date(Date.now() + expirationMinutes * 60 * 1000);
+  const dateOfExpiration = expirationDate.toISOString();
 
-  // 7. Montagem do payload oficial para a API v1 do Mercado Pago
-  const payload = {
+  // 7. Montagem do payload oficial para a API v1 do Mercado Pago (/v1/payments)
+  const payload: any = {
     transaction_amount: amountNumber,
     description,
     payment_method_id: 'pix',
@@ -680,9 +707,38 @@ export async function createMercadoPagoPixPayment(options: CreatePixPaymentOptio
     date_of_expiration: dateOfExpiration
   };
 
+  if (options.payer.phone?.number) {
+    const rawPhoneDigits = options.payer.phone.number.replace(/\D/g, '');
+    payload.payer.phone = {
+      area_code: options.payer.phone.areaCode?.replace(/\D/g, '').slice(0, 2) || (rawPhoneDigits.length >= 10 ? rawPhoneDigits.slice(0, 2) : '11'),
+      number: rawPhoneDigits.length >= 10 ? rawPhoneDigits.slice(2, 11) : rawPhoneDigits.slice(0, 9)
+    };
+  }
+
+  if (options.payer.address?.zipCode) {
+    const cleanZip = options.payer.address.zipCode.replace(/\D/g, '').slice(0, 8);
+    if (cleanZip.length === 8) {
+      payload.payer.address = {
+        zip_code: cleanZip,
+        street_name: sanitizePixText(options.payer.address.streetName || 'Endereco', 60),
+        street_number: typeof options.payer.address.streetNumber === 'number'
+          ? options.payer.address.streetNumber
+          : (Number(String(options.payer.address.streetNumber || '').replace(/\D/g, '')) || 0),
+        neighborhood: sanitizePixText(options.payer.address.neighborhood || '', 60),
+        city: sanitizePixText(options.payer.address.city || 'Sao Paulo', 60),
+        federal_unit: (options.payer.address.federalUnit || 'SP').slice(0, 2).toUpperCase()
+      };
+    }
+  }
+
+  if (options.notificationUrl) {
+    payload.notification_url = options.notificationUrl;
+  }
+
   const idempotencyKey = `lavistore-pix-${cleanOrderId}-${Date.now()}`;
   console.log(`[Mercado Pago PIX] Enviando requisição para ${MERCADO_PAGO_API_BASE_URL}/v1/payments`);
-  console.log(`[Mercado Pago PIX] Pedido: #${options.orderId} | Valor: R$ ${amountNumber.toFixed(2)} | Pagador: ${cleanFirstName} ${cleanLastName} (${idType}: ${cleanCpf.slice(0, 3)}***${cleanCpf.slice(-2)})`);
+  console.log(`[Mercado Pago PIX] Pedido: #${options.orderId} | Valor: R$ ${amountNumber.toFixed(2)} | Expira em: ${expirationMinutes}min (${dateOfExpiration})`);
+  console.log(`[Mercado Pago PIX] Pagador: ${cleanFirstName} ${cleanLastName} (${idType}: ${cleanCpf.slice(0, 3)}***${cleanCpf.slice(-2)})`);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -759,6 +815,7 @@ export async function createMercadoPagoPixPayment(options: CreatePixPaymentOptio
 
     console.log(`[Mercado Pago PIX] ✅ Pagamento PIX gerado com sucesso! ID=${data.id}`);
     console.log(`[Mercado Pago PIX] Pix Copia e Cola validado: ${rawQrCode.slice(0, 35)}... (Total: ${rawQrCode.length} caracteres)`);
+    console.log(`[Mercado Pago PIX] Expira em: ${data.date_of_expiration || dateOfExpiration}`);
     console.log(`[Mercado Pago PIX] Link do comprovante/ticket: ${ticketUrl}`);
 
     return {
@@ -769,7 +826,9 @@ export async function createMercadoPagoPixPayment(options: CreatePixPaymentOptio
       pixQrCode: rawQrCode,
       pixQrCodeBase64: finalQrCodeBase64,
       pixTicketUrl: ticketUrl,
-      transactionAmount: data.transaction_amount || amountNumber
+      transactionAmount: data.transaction_amount || amountNumber,
+      dateOfExpiration: data.date_of_expiration || dateOfExpiration,
+      expirationMinutes
     };
   } catch (err: any) {
     clearTimeout(timeoutId);

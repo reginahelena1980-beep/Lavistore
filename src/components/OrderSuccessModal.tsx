@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   CheckCircle2, 
   Copy, 
@@ -14,14 +14,17 @@ import {
   CreditCard,
   ShieldCheck,
   Loader2,
-  Info
+  Info,
+  RefreshCw,
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { TrioFlowersIcon } from './LavistoreLogo';
 import { HomePageConfig, OrderData } from '../types';
 import { cleanCustomerCpf } from '../utils/documentUtils';
 import { updateOrderStatus } from '../services/storeApiService';
-import { checkMercadoPagoPaymentStatus } from '../services/mercadoPagoClientService';
+import { checkMercadoPagoPaymentStatus, regenerateMercadoPagoPix } from '../services/mercadoPagoClientService';
 import { validatePixCopiaECola } from '../services/pixPaymentService';
 
 interface OrderSuccessModalProps {
@@ -41,13 +44,59 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     orderData?.mercadoPagoStatus === 'approved' ? 'approved' : 'pending'
   );
 
-  // Polling em tempo real para verificar confirmação imediata do PIX no Mercado Pago (com validação estrita de JSON)
+  // Estados locais para chave Pix atualizada dinamicamente
+  const [currentPixKey, setCurrentPixKey] = useState<string>(orderData?.pixQrCode || '');
+  const [currentPixBase64, setCurrentPixBase64] = useState<string | null>(orderData?.pixQrCodeBase64 || null);
+  const [currentTicketUrl, setCurrentTicketUrl] = useState<string>(orderData?.pixTicketUrl || '');
+  const [currentPaymentId, setCurrentPaymentId] = useState<string>(String(orderData?.mercadoPagoPaymentId || ''));
+  const [isRegenerating, setIsRegenerating] = useState<boolean>(false);
+  const [regenError, setRegenError] = useState<string | null>(null);
+  const [regenSuccess, setRegenSuccess] = useState<string | null>(null);
+
+  // Temporizador de 30 minutos (1800 segundos) para expiração do Pix
+  const initialSeconds = useMemo(() => {
+    if (orderData?.pixDateOfExpiration || orderData?.pixExpiresAt) {
+      const expTime = new Date(orderData.pixDateOfExpiration || orderData.pixExpiresAt).getTime();
+      const diff = Math.floor((expTime - Date.now()) / 1000);
+      if (!isNaN(diff) && diff > 0) {
+        return Math.min(diff, 1800);
+      }
+    }
+    return 30 * 60; // 30 minutos
+  }, [orderData?.pixDateOfExpiration, orderData?.pixExpiresAt]);
+
+  const [timeLeft, setTimeLeft] = useState<number>(initialSeconds);
+
   useEffect(() => {
-    if (!orderData?.mercadoPagoPaymentId || pixPaymentStatus === 'approved') return;
+    if (pixPaymentStatus === 'approved') return;
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [pixPaymentStatus]);
+
+  const formatCountdown = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  // Polling em tempo real para verificar confirmação imediata do PIX no Mercado Pago
+  useEffect(() => {
+    const targetPaymentId = currentPaymentId || orderData?.mercadoPagoPaymentId;
+    if (!targetPaymentId || pixPaymentStatus === 'approved') return;
 
     let isSubscribed = true;
     let pollCount = 0;
-    const maxPolls = 90; // Até 6 minutos (90 * 4s = 360s)
+    const maxPolls = 120; // Até 8 minutos
 
     const interval = setInterval(async () => {
       pollCount++;
@@ -57,7 +106,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
       }
 
       try {
-        const result = await checkMercadoPagoPaymentStatus(orderData.mercadoPagoPaymentId);
+        const result = await checkMercadoPagoPaymentStatus(targetPaymentId);
 
         if (result.status === 'approved' && isSubscribed) {
           setPixPaymentStatus('approved');
@@ -78,7 +127,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
       isSubscribed = false;
       clearInterval(interval);
     };
-  }, [orderData?.mercadoPagoPaymentId, pixPaymentStatus]);
+  }, [currentPaymentId, orderData?.mercadoPagoPaymentId, pixPaymentStatus]);
 
   const paymentMethod = String(orderData?.paymentMethod || '');
   const isCartao = paymentMethod.toLowerCase().includes('cartão') || paymentMethod.toLowerCase().includes('cartao');
@@ -104,16 +153,16 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
   if (!orderData) return null;
 
-  const isMercadoPagoPayment = Boolean(orderData.mercadoPagoPaymentId) || 
+  const isMercadoPagoPayment = Boolean(currentPaymentId || orderData.mercadoPagoPaymentId) || 
                                paymentMethod.includes('Mercado Pago') ||
-                               Boolean(orderData.pixQrCode);
+                               Boolean(currentPixKey);
 
-  const pixKey = orderData.pixQrCode || '';
   const isStoreOwner = (orderData?.customerEmail?.toLowerCase().trim() === 'reginahelena1980@gmail.com') || 
                        (cleanCustomerCpf(orderData?.customerCpf) === '29051956819');
 
   const handleCopyPix = () => {
-    navigator.clipboard.writeText(pixKey);
+    if (!currentPixKey) return;
+    navigator.clipboard.writeText(currentPixKey);
     setCopiedPix(true);
     setTimeout(() => setCopiedPix(false), 2500);
   };
@@ -124,6 +173,41 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     navigator.clipboard.writeText(formattedAmount);
     setCopiedAmount(true);
     setTimeout(() => setCopiedAmount(false), 2500);
+  };
+
+  // Função para gerar um novo Pix quando expirar ou falhar no banco (ex: C6 Bank)
+  const handleRegeneratePix = async () => {
+    if (isRegenerating) return;
+    setIsRegenerating(true);
+    setRegenError(null);
+    setRegenSuccess(null);
+
+    try {
+      const res = await regenerateMercadoPagoPix({
+        orderId: orderData.orderId,
+        amount: Number(orderData.total || 0),
+        customerName: orderData.customerName,
+        customerEmail: orderData.customerEmail,
+        customerCpf: cleanCustomerCpf(orderData.customerCpf),
+        expirationMinutes: 30
+      });
+
+      if (res.success && res.pixQrCode) {
+        setCurrentPixKey(res.pixQrCode);
+        setCurrentPixBase64(res.pixQrCodeBase64 || null);
+        if (res.pixTicketUrl) setCurrentTicketUrl(res.pixTicketUrl);
+        if (res.paymentId) setCurrentPaymentId(res.paymentId);
+        setTimeLeft(30 * 60);
+        setRegenSuccess('Novo Pix gerado com sucesso! Válido por mais 30 minutos.');
+        setTimeout(() => setRegenSuccess(null), 6000);
+      } else {
+        setRegenError(res.error || 'Não foi possível gerar um novo código Pix. Tente novamente em instantes.');
+      }
+    } catch (err: any) {
+      setRegenError(err?.message || 'Erro de conexão ao gerar novo código Pix.');
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   return (
@@ -236,30 +320,60 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/80 pb-3">
                   <div className="flex items-center gap-2 text-purple-950 font-bold text-sm">
                     <QrCode className="w-5 h-5 text-amber-600" />
                     <span>Pague via PIX Mercado Pago (+5% OFF)</span>
                   </div>
-                  <span className="flex items-center gap-1.5 text-[10px] bg-amber-200/80 text-amber-950 font-bold px-2.5 py-1 rounded-full">
-                    <Loader2 className="w-3 h-3 animate-spin text-amber-800" />
-                    <span>Aguardando pagamento...</span>
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {/* Countdown Timer Badge de Expiração (30 min) */}
+                    <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full border shadow-2xs ${
+                      timeLeft <= 0 
+                        ? 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
+                        : timeLeft < 300
+                          ? 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse'
+                          : 'bg-purple-100 text-purple-900 border-purple-200'
+                    }`}>
+                      <Clock className="w-3.5 h-3.5 text-amber-700" />
+                      <span>{timeLeft <= 0 ? 'Expirado' : `Expira em: ${formatCountdown(timeLeft)}`}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[10px] bg-amber-200/80 text-amber-950 font-bold px-2.5 py-1 rounded-full">
+                      <Loader2 className="w-3 h-3 animate-spin text-amber-800" />
+                      <span>Aguardando transferência...</span>
+                    </span>
+                  </div>
                 </div>
 
+                {/* Alerta de Expiração */}
+                {timeLeft <= 0 && (
+                  <div className="p-3 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-900 flex items-center justify-between gap-2 animate-in fade-in max-w-md mx-auto">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>O tempo deste Pix expirou. Gere um novo código para pagar com segurança.</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* QR Code Real de Alta Resolução (Escaneável em qualquer aplicativo bancário) */}
-                <div className="w-52 h-52 bg-white p-3 rounded-2xl mx-auto border-2 border-amber-300 flex items-center justify-center shadow-md">
+                <div className="relative w-52 h-52 bg-white p-3 rounded-2xl mx-auto border-2 border-amber-300 flex items-center justify-center shadow-md">
                   <img 
-                    src={orderData.pixQrCodeBase64 ? (orderData.pixQrCodeBase64.startsWith('data:') ? orderData.pixQrCodeBase64 : `data:image/png;base64,${orderData.pixQrCodeBase64}`) : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(pixKey)}`}
+                    src={currentPixBase64 ? (currentPixBase64.startsWith('data:') ? currentPixBase64 : `data:image/png;base64,${currentPixBase64}`) : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=${encodeURIComponent(currentPixKey)}`}
                     alt="QR Code PIX Mercado Pago"
-                    className="w-full h-full object-contain rounded-lg"
+                    className={`w-full h-full object-contain rounded-lg transition-opacity ${timeLeft <= 0 ? 'opacity-30 grayscale' : 'opacity-100'}`}
                     onError={(e) => {
                       const target = e.currentTarget;
                       if (!target.src.includes('quickchart.io')) {
-                        target.src = `https://quickchart.io/qr?size=300&text=${encodeURIComponent(pixKey)}`;
+                        target.src = `https://quickchart.io/qr?size=300&text=${encodeURIComponent(currentPixKey)}`;
                       }
                     }}
                   />
+                  {timeLeft <= 0 && (
+                    <div className="absolute inset-0 bg-white/80 rounded-2xl flex flex-col items-center justify-center p-3 text-center">
+                      <Clock className="w-8 h-8 text-rose-500 mb-1" />
+                      <span className="text-xs font-bold text-rose-700">QR Code Expirado</span>
+                      <span className="text-[10px] text-slate-500">Clique abaixo para gerar um novo Pix</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -284,7 +398,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                       <input
                         type="text"
                         readOnly
-                        value={pixKey}
+                        value={currentPixKey}
                         className="flex-1 px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs text-slate-700 font-mono truncate"
                       />
                       <button
@@ -296,7 +410,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                         <span>{copiedPix ? 'Copiado!' : 'Copiar PIX'}</span>
                       </button>
                     </div>
-                    {pixKey && (
+                    {currentPixKey && (
                       <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 font-semibold pt-1">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         <span>Chave Pix Copia e Cola Oficial verificada (Padrão BACEN / Mercado Pago)</span>
@@ -304,28 +418,77 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                     )}
                   </div>
 
-                  {orderData?.pixTicketUrl && (
-                    <div className="max-w-md mx-auto">
+                  {/* Feedback de Notificações de Regeneração do Pix */}
+                  {regenSuccess && (
+                    <div className="p-3 bg-emerald-50 border-2 border-emerald-300 rounded-xl text-xs font-bold text-emerald-900 flex items-center gap-2 max-w-md mx-auto animate-in fade-in">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{regenSuccess}</span>
+                    </div>
+                  )}
+
+                  {regenError && (
+                    <div className="p-3 bg-rose-50 border-2 border-rose-300 rounded-xl text-xs font-bold text-rose-900 flex items-center gap-2 max-w-md mx-auto animate-in fade-in">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{regenError}</span>
+                    </div>
+                  )}
+
+                  {/* BOTÃO ATUALIZAR / GERAR NOVO PIX */}
+                  <div className="pt-1 max-w-md mx-auto">
+                    <button
+                      type="button"
+                      onClick={handleRegeneratePix}
+                      disabled={isRegenerating}
+                      className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 text-purple-950 font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm hover:shadow active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-amber-300"
+                    >
+                      {isRegenerating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-purple-950" />
+                          <span>Gerando Novo Pix no Mercado Pago...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4 text-purple-950" />
+                          <span>Atualizar / Gerar Novo Pix (30 min)</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[10px] text-slate-500 text-center mt-1">
+                      O seu banco (ex: C6 Bank, Itaú, Nubank) informou <em>"conta digitada incorretamente"</em> ou o código expirou? Clique para gerar um novo Pix atualizado.
+                    </p>
+                  </div>
+
+                  {currentTicketUrl && (
+                    <div className="max-w-md mx-auto pt-1">
                       <a
-                        href={orderData.pixTicketUrl}
+                        href={currentTicketUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full py-2.5 px-3 bg-white hover:bg-sky-50 text-sky-800 border border-sky-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs hover:shadow-xs"
+                        className="w-full py-2 px-3 bg-white hover:bg-sky-50 text-sky-800 border border-sky-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs hover:shadow-xs"
                       >
                         <ExternalLink className="w-3.5 h-3.5 text-sky-600" />
-                        <span>Abrir Link Oficial do QR Code no Mercado Pago</span>
+                        <span>Abrir Comprovante Oficial no Mercado Pago</span>
                       </a>
                     </div>
                   )}
 
-                  <div className="p-3 bg-amber-50/90 rounded-xl border border-amber-200/80 text-left max-w-md mx-auto space-y-1">
-                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Pagamento Centralizado e Seguro via Mercado Pago</span>
+                  {/* ORIENTAÇÕES ESPECÍFICAS PARA C6 BANK E BANCOS DIGITAIS */}
+                  <div className="p-3 bg-white/95 rounded-xl border border-amber-200/90 text-left max-w-md mx-auto space-y-2 text-xs">
+                    <div className="flex items-center gap-2 font-bold text-purple-950">
+                      <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Instruções para C6 Bank, Nubank, Itaú e outros:</span>
                     </div>
-                    <p className="text-[11px] text-slate-600 leading-relaxed">
-                      Abra o aplicativo do seu banco, escolha <strong>Pagar com Pix</strong>, aponte a câmera para o QR Code acima ou cole o código Copia e Cola. O Mercado Pago processa e confirma seu pedido automaticamente.
-                    </p>
+                    <ul className="text-[11px] text-slate-600 space-y-1 list-disc pl-4 leading-relaxed">
+                      <li>
+                        Abra o app do seu banco, escolha <strong>Pix Copia e Cola</strong> e cole o código acima (não use a opção de transferir para chave e-mail/CPF manual).
+                      </li>
+                      <li>
+                        Cobranças Pix Imediatas têm validade de <strong>30 minutos</strong>. Se você demorar para pagar, clique no botão <strong>Atualizar / Gerar Novo Pix</strong> acima.
+                      </li>
+                      <li>
+                        Por normas de segurança bancária do Banco Central, a conta que transfere não pode ser do mesmo CPF da conta recebedora do lojista.
+                      </li>
+                    </ul>
                   </div>
 
                   {isStoreOwner && (

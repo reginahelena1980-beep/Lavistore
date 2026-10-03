@@ -3442,6 +3442,7 @@ app.post([
         // =========================================================================
         // PROCESSAMENTO OFICIAL PIX VIA API V1 DO MERCADO PAGO (/v1/payments)
         // =========================================================================
+        const expirationMinutes = Number(req.body.expirationMinutes || 30);
         const pixRes = await createMercadoPagoPixPayment({
           amount: amountNum,
           orderId: orderData.orderId,
@@ -3452,7 +3453,7 @@ app.post([
             cpfOrCnpj: cleanCpf
           },
           description: `Lavistore Pedido ${orderData.orderId}`,
-          expirationHours: 24
+          expirationMinutes
         });
 
         if (!pixRes.success || !pixRes.pixQrCode) {
@@ -3475,7 +3476,9 @@ app.post([
           pix: {
             qr_code: pixRes.pixQrCode,
             qr_code_base64: pixRes.pixQrCodeBase64,
-            ticket_url: pixRes.pixTicketUrl
+            ticket_url: pixRes.pixTicketUrl,
+            date_of_expiration: pixRes.dateOfExpiration,
+            expiration_minutes: pixRes.expirationMinutes || expirationMinutes
           },
           isSimulated: false
         };
@@ -3720,6 +3723,9 @@ app.post([
       pixQrCode: paymentResult.pix?.qr_code,
       pixQrCodeBase64: paymentResult.pix?.qr_code_base64,
       pixTicketUrl: paymentResult.pix?.ticket_url,
+      pixDateOfExpiration: paymentResult.pix?.date_of_expiration,
+      pixExpiresAt: paymentResult.pix?.date_of_expiration,
+      pixExpirationMinutes: paymentResult.pix?.expiration_minutes || 30,
       receivedAt: new Date().toISOString(),
       storeEmailTarget: storeEmail,
       emailStatus: 'pending'
@@ -3801,6 +3807,106 @@ app.post([
       success: false,
       error: 'Falha ao processar pagamento no Mercado Pago.',
       details: error?.message || 'Erro interno desconhecido'
+    });
+  }
+});
+
+/**
+ * POST /api/mercadopago/regenerate_pix
+ * Gera uma nova cobrança Pix atualizada no Mercado Pago para um pedido existente
+ * com nova data de expiração (30 minutos) e higienização estrita de CPF/pagador.
+ * Permite que o cliente atualize o QR Code caso o código anterior tenha expirado
+ * ou apresentado erro de leitura / conta incorreta no aplicativo bancário (ex: C6 Bank).
+ */
+app.post([
+  '/api/mercadopago/regenerate_pix',
+  '/api/mercadopago/refresh_pix'
+], async (req, res) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  try {
+    const { orderId, amount, customerName, customerEmail, customerCpf, expirationMinutes = 30 } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ success: false, error: 'Identificador do pedido (orderId) obrigatório.' });
+    }
+
+    const orders = readStoredOrders();
+    const existingOrder = orders.find((o: any) => String(o.orderId) === String(orderId));
+
+    const resolvedAmount = Math.round(Number(amount || existingOrder?.total || 0) * 100) / 100;
+    if (resolvedAmount <= 0) {
+      return res.status(400).json({ success: false, error: 'Valor da cobrança Pix deve ser maior que zero (R$ 0,00).' });
+    }
+
+    const rawCpf = String(customerCpf || existingOrder?.customerCpf || '').trim();
+    const cleanCpf = cleanCustomerCpf(rawCpf);
+    if (!cleanCpf || cleanCpf.length < 11) {
+      return res.status(400).json({ success: false, error: 'CPF do pagador obrigatório e válido (11 dígitos numéricos limpos).' });
+    }
+
+    const cleanEmail = String(customerEmail || existingOrder?.customerEmail || 'cliente@lavistore.com.br').trim().toLowerCase();
+    const fullName = String(customerName || existingOrder?.customerName || 'Cliente Lavistore').trim();
+    const nameParts = fullName.split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] || 'Cliente';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Lavistore';
+
+    console.log(`[Mercado Pago Regenerate Pix] Regenerando Pix para pedido #${orderId} - R$ ${resolvedAmount.toFixed(2)} (${cleanEmail})`);
+
+    const pixRes = await createMercadoPagoPixPayment({
+      amount: resolvedAmount,
+      orderId,
+      payer: {
+        email: cleanEmail,
+        firstName,
+        lastName,
+        cpfOrCnpj: cleanCpf
+      },
+      description: `Lavistore Pedido ${orderId}`,
+      expirationMinutes: Number(expirationMinutes) || 30
+    });
+
+    if (!pixRes.success || !pixRes.pixQrCode) {
+      return res.status(400).json({
+        success: false,
+        error: pixRes.error || 'Não foi possível gerar um novo código Pix no Mercado Pago.',
+        details: pixRes.rawDetails
+      });
+    }
+
+    // Atualiza o pedido na lista de pedidos persistentes
+    if (existingOrder) {
+      existingOrder.mercadoPagoPaymentId = pixRes.paymentId;
+      existingOrder.mercadoPagoStatus = 'pending';
+      existingOrder.mercadoPagoStatusDetail = 'pending_waiting_transfer';
+      existingOrder.pixQrCode = pixRes.pixQrCode;
+      existingOrder.pixQrCodeBase64 = pixRes.pixQrCodeBase64;
+      existingOrder.pixTicketUrl = pixRes.pixTicketUrl;
+      existingOrder.pixDateOfExpiration = pixRes.dateOfExpiration;
+      existingOrder.pixExpiresAt = pixRes.dateOfExpiration;
+      existingOrder.pixExpirationMinutes = pixRes.expirationMinutes;
+      existingOrder.updatedAt = new Date().toISOString();
+      saveStoredOrders(orders);
+      storeOrders = orders;
+    }
+
+    return res.status(200).json({
+      success: true,
+      paymentId: pixRes.paymentId,
+      status: pixRes.status,
+      statusDetail: pixRes.statusDetail,
+      pixQrCode: pixRes.pixQrCode,
+      pixQrCodeBase64: pixRes.pixQrCodeBase64,
+      pixTicketUrl: pixRes.pixTicketUrl,
+      transactionAmount: pixRes.transactionAmount,
+      dateOfExpiration: pixRes.dateOfExpiration,
+      expirationMinutes: pixRes.expirationMinutes
+    });
+  } catch (err: any) {
+    console.error('[Mercado Pago Regenerate Pix] Erro:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Falha interna ao gerar novo Pix no Mercado Pago.',
+      details: err?.message || 'Erro desconhecido'
     });
   }
 });

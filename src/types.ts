@@ -432,6 +432,9 @@ export interface OrderData {
   pixQrCode?: string;
   pixQrCodeBase64?: string;
   pixTicketUrl?: string;
+  pixDateOfExpiration?: string;
+  pixExpiresAt?: string;
+  pixExpirationMinutes?: number;
   cardBrand?: string;
   cardLastFourDigits?: string;
   cardInstallments?: number;

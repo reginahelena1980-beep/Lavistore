@@ -234,3 +234,104 @@ export async function checkMercadoPagoPaymentStatus(paymentId: string | number):
     isAvailable: false
   };
 }
+
+export interface RegeneratePixOptions {
+  orderId: string;
+  amount: number;
+  customerName?: string;
+  customerEmail?: string;
+  customerCpf?: string;
+  expirationMinutes?: number;
+}
+
+export interface RegeneratePixResult {
+  success: boolean;
+  paymentId?: string;
+  status?: string;
+  statusDetail?: string;
+  pixQrCode?: string;
+  pixQrCodeBase64?: string;
+  pixTicketUrl?: string;
+  transactionAmount?: number;
+  dateOfExpiration?: string;
+  expirationMinutes?: number;
+  error?: string;
+}
+
+/**
+ * Regenera uma cobrança Pix no Mercado Pago com expiração atualizada (30 minutos)
+ * e CPF limpo para pedidos existentes quando o código expira ou falha no app do banco.
+ */
+export async function regenerateMercadoPagoPix(options: RegeneratePixOptions): Promise<RegeneratePixResult> {
+  const cleanCpf = cleanCustomerCpf(options.customerCpf);
+
+  try {
+    const res = await safeFetchJson<RegeneratePixResult>('/api/mercadopago/regenerate_pix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: options.orderId,
+        amount: options.amount,
+        customerName: options.customerName,
+        customerEmail: options.customerEmail,
+        customerCpf: cleanCpf,
+        expirationMinutes: options.expirationMinutes || 30
+      })
+    });
+
+    if (res.ok && res.data?.success && res.data.pixQrCode) {
+      return res.data;
+    }
+
+    if (!res.ok && res.status !== 404) {
+      return {
+        success: false,
+        error: res.data?.error || res.errorText || 'O Mercado Pago não pôde gerar um novo código Pix.'
+      };
+    }
+  } catch (err: any) {
+    console.warn('[Mercado Pago] Erro ao chamar /api/mercadopago/regenerate_pix:', err);
+  }
+
+  // Fallback client-side se o servidor Express estiver indisponível (hospedagem puramente estática)
+  try {
+    const dummyOrder: OrderData = {
+      orderId: options.orderId,
+      date: new Date().toLocaleDateString('pt-BR'),
+      customerName: options.customerName || 'Cliente Lavistore',
+      customerEmail: options.customerEmail || 'cliente@lavistore.com.br',
+      customerPhone: '',
+      customerCpf: cleanCpf,
+      address: '',
+      paymentMethod: 'PIX Instantâneo (Mercado Pago)',
+      shippingMethod: '',
+      shippingCost: 0,
+      items: [],
+      subtotal: options.amount,
+      discountAmount: 0,
+      total: options.amount
+    };
+
+    const clientResult = await processClientSidePixOrder(dummyOrder);
+    const expDate = new Date(Date.now() + (options.expirationMinutes || 30) * 60 * 1000).toISOString();
+
+    return {
+      success: true,
+      paymentId: clientResult.paymentId,
+      status: 'pending',
+      statusDetail: 'waiting_payment',
+      pixQrCode: clientResult.pixQrCode,
+      pixQrCodeBase64: clientResult.pixQrCodeBase64,
+      pixTicketUrl: clientResult.pixTicketUrl,
+      transactionAmount: options.amount,
+      dateOfExpiration: expDate,
+      expirationMinutes: options.expirationMinutes || 30
+    };
+  } catch (fallbackErr: any) {
+    return {
+      success: false,
+      error: fallbackErr?.message || 'Falha ao gerar novo código Pix.'
+    };
+  }
+}
+
