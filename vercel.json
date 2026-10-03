@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/mercadopago/process_payment",
+      "destination": "/api/mercadopago/process_payment.js"
+    }
+  ],
+  "functions": {
+    "api/mercadopago/process_payment.js": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { processMercadoPagoPayment } from '../../mercadoPagoServer.ts';
+import { processMercadoPagoPayment } from '../../mercadoPagoServer';
 
 /**
  * Vercel Serverless Function: POST /api/mercadopago/process_payment
