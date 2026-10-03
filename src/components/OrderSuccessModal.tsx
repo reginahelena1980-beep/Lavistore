@@ -109,6 +109,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
         const result = await checkMercadoPagoPaymentStatus(targetPaymentId);
 
         if (result.status === 'approved' && isSubscribed) {
+          clearInterval(interval);
           setPixPaymentStatus('approved');
           confetti({
             particleCount: 100,
@@ -116,7 +117,21 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             origin: { y: 0.6 },
             colors: ['#10B981', '#34D399', '#6EE7B7', '#F472B6']
           });
-          clearInterval(interval);
+
+          // Persiste o pedido como 'pago' no Firestore usando a função existente
+          if (orderData?.orderId) {
+            try {
+              const persistRes = await updateOrderStatus(orderData.orderId, 'pago');
+              if (persistRes && persistRes.success === false) {
+                console.error('[OrderSuccessModal] Pagamento APROVADO no Mercado Pago, porém houve falha ao persistir no Firestore:', persistRes);
+              } else {
+                console.info(`[OrderSuccessModal] ✅ Pagamento APROVADO! Pedido #${orderData.orderId} persistido com sucesso como 'pago' no Firestore.`);
+              }
+            } catch (persistErr: any) {
+              // Trata adequadamente erro de persistência para não confundir com pagamento não aprovado
+              console.error('[OrderSuccessModal] Pagamento APROVADO no Mercado Pago, porém ocorreu erro ao persistir no Firestore:', persistErr?.message || persistErr);
+            }
+          }
         }
       } catch (err) {
         console.warn('[OrderSuccessModal] Polling retry...', err);

@@ -16,6 +16,16 @@
       "requirePath": "/root/.npm/_npx/69f9afb961c37556/node_modules/@vercel/node/dist/index",
       "apiVersion": 3,
       "use": "@vercel/node",
+      "src": "api/mercadopago/payment_status/[id].js",
+      "config": {
+        "zeroConfig": true
+      }
+    },
+    {
+      "require": "@vercel/node",
+      "requirePath": "/root/.npm/_npx/69f9afb961c37556/node_modules/@vercel/node/dist/index",
+      "apiVersion": 3,
+      "use": "@vercel/node",
       "src": "api/mercadopago/process_payment.js",
       "config": {
         "zeroConfig": true

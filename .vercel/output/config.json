@@ -10,6 +10,16 @@
       "check": true
     },
     {
+      "src": "^/api/mercadopago/payment_status(?:/([^/]+?))$",
+      "dest": "/api/mercadopago/payment_status/[id].js?id=$1",
+      "check": true
+    },
+    {
+      "src": "^/api/mercadopago/payment_status/([^/]+)$",
+      "dest": "/api/mercadopago/payment_status/[id]?id=$1",
+      "check": true
+    },
+    {
       "src": "^/api(/.*)?$",
       "status": 404
     },

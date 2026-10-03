@@ -4,6 +4,10 @@
     {
       "source": "/api/mercadopago/process_payment",
       "destination": "/api/mercadopago/process_payment.js"
+    },
+    {
+      "source": "/api/mercadopago/payment_status/:id",
+      "destination": "/api/mercadopago/payment_status/[id].js"
     }
   ]
 }
