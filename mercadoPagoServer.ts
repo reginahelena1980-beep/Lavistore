@@ -8,6 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import QRCode from 'qrcode';
 
 // Credenciais padrão de produção codificadas para segurança de versionamento no GitHub
 export const DEFAULT_MP_PUBLIC_KEY = Buffer.from('QVBQX1VTUi0zZDQzODZlZi01NmM5LTQzMjctOGNhNi1jY2VlOTZkNjhiMjc=', 'base64').toString('utf-8');
@@ -24,6 +25,108 @@ export function cleanCustomerCpf(value?: string | number | null): string {
   if (value === null || value === undefined) return '';
   const str = typeof value === 'string' ? value : String(value);
   return str.replace(/\D/g, '').trim();
+}
+
+/**
+ * Utilitários Oficiais BACEN / EMVCo para PIX Copia e Cola & QR Code
+ */
+export function sanitizePixText(text: string, maxLength: number): string {
+  if (!text) return '';
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9 ]/g, '')
+    .trim()
+    .toUpperCase()
+    .slice(0, maxLength);
+}
+
+export function formatTlv(id: string, value: string): string {
+  const lengthStr = String(value.length).padStart(2, '0');
+  return `${id}${lengthStr}${value}`;
+}
+
+export function calculatePixCrc16(payload: string): string {
+  let crc = 0xFFFF;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= (payload.charCodeAt(i) << 8);
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+      } else {
+        crc = (crc << 1) & 0xFFFF;
+      }
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+export interface PixPayloadOptions {
+  pixKey: string;
+  merchantName?: string;
+  merchantCity?: string;
+  amount: number;
+  txId?: string;
+  description?: string;
+}
+
+export function generatePixCopiaECola(options: PixPayloadOptions): string {
+  const {
+    pixKey,
+    merchantName = 'REGINA HELENA FERRAZ',
+    merchantCity = 'GUARULHOS',
+    amount,
+    txId = '***',
+    description
+  } = options;
+
+  const f00 = formatTlv('00', '01');
+  const f01 = formatTlv('01', '12');
+
+  const maiGui = formatTlv('00', 'br.gov.bcb.pix');
+  const maiKey = formatTlv('01', pixKey.trim());
+  const maiDesc = description ? formatTlv('02', sanitizePixText(description, 40)) : '';
+  const f26 = formatTlv('26', `${maiGui}${maiKey}${maiDesc}`);
+
+  const f52 = formatTlv('52', '0000');
+  const f53 = formatTlv('53', '986');
+
+  const formattedAmount = Number(amount || 0).toFixed(2);
+  const f54 = formatTlv('54', formattedAmount);
+
+  const f58 = formatTlv('58', 'BR');
+  const cleanName = sanitizePixText(merchantName, 25) || 'REGINA HELENA FERRAZ';
+  const f59 = formatTlv('59', cleanName);
+
+  const cleanCity = sanitizePixText(merchantCity, 15) || 'GUARULHOS';
+  const f60 = formatTlv('60', cleanCity);
+
+  const cleanTxId = sanitizePixText(txId, 25).replace(/\s+/g, '') || '***';
+  const addField05 = formatTlv('05', cleanTxId);
+  const f62 = formatTlv('62', addField05);
+
+  const partialPayload = `${f00}${f01}${f26}${f52}${f53}${f54}${f58}${f59}${f60}${f62}6304`;
+  const checksum = calculatePixCrc16(partialPayload);
+
+  return `${partialPayload}${checksum}`;
+}
+
+export async function generatePixQrCodeDataUrl(copiaEColaString: string): Promise<string> {
+  try {
+    const dataUrl = await QRCode.toDataURL(copiaEColaString, {
+      width: 320,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#1e1b4b',
+        light: '#ffffff'
+      }
+    });
+    return dataUrl;
+  } catch (err) {
+    console.warn('[Mercado Pago PIX] Falha no QRCode local, usando fallback seguro:', err);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=8&data=${encodeURIComponent(copiaEColaString)}`;
+  }
 }
 
 const PERSISTENT_DIR = path.join(process.cwd(), 'persistent_data');
@@ -354,12 +457,14 @@ export async function createMercadoPagoPreference(options: CreatePreferenceOptio
       binary_mode: true
     };
 
+    const idempotencyKey = `pref-${options.external_reference || Date.now()}-${Date.now()}`;
     const response = await fetch(`${MERCADO_PAGO_API_BASE_URL}/checkout/preferences`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'X-Idempotency-Key': idempotencyKey,
         'User-Agent': 'Lavistore Kids (estilobeeadm@gmail.com)'
       },
       body: JSON.stringify(payload),
@@ -377,6 +482,13 @@ export async function createMercadoPagoPreference(options: CreatePreferenceOptio
     }
 
     if (!response.ok || !data || !data.id) {
+      console.error('[Mercado Pago Preference Error] Falha ao criar preferência na API do Mercado Pago:');
+      console.error('[Mercado Pago Preference Error] HTTP Status:', response.status);
+      console.error('[Mercado Pago Preference Error] Payload enviado:', JSON.stringify(payload, null, 2));
+      console.error('[Mercado Pago Preference Error] Resposta bruta:', data || rawText);
+      if (data?.cause) {
+        console.error('[Mercado Pago Preference Error] Causas:', JSON.stringify(data.cause, null, 2));
+      }
       const errMsg = data?.message || (data?.cause?.[0]?.description) || `Erro ao gerar preferência no Mercado Pago (HTTP ${response.status})`;
       return {
         success: false,

@@ -200,9 +200,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (typeof window !== 'undefined' && window.MercadoPago) {
       if (activePublicKey) {
         try {
-          if (!window.__mercadoPagoInstance) {
+          if (!window.__mercadoPagoInstance || (window as any).__mercadoPagoActiveKey !== activePublicKey) {
             window.__mercadoPagoInstance = new window.MercadoPago(activePublicKey, { locale: 'pt-BR' });
-            console.info('[Mercado Pago SDK] Inicializado no frontend com Chave Pública válida.');
+            (window as any).__mercadoPagoActiveKey = activePublicKey;
+            console.info('[Mercado Pago SDK] Inicializado no frontend com Chave Pública:', activePublicKey.slice(0, 16) + '...');
           }
         } catch (err) {
           console.warn('[Mercado Pago SDK] Aviso ao inicializar instância:', err);
@@ -426,16 +427,36 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   useEffect(() => {
     if (!isOpen || paymentMethod !== 'credit' || creditCardMode !== 'brick') return;
 
-    let timer: any;
+    let isMounted = true;
+    let checkTimer: any;
+    let safetyTimer: any;
+    let attempts = 0;
+
     setIsBrickLoading(true);
     setBrickError(false);
 
+    // Timeout de segurança: 4.5 segundos para garantir que o loader nunca fique travado
+    safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        setIsBrickLoading(false);
+        const container = document.getElementById('paymentBrick_container');
+        if (!container || !container.children.length) {
+          console.warn('[Mercado Pago Brick] Tempo limite de carregamento do componente visual excedido. Habilitando Formulário Direto.');
+          setBrickError(true);
+        }
+      }
+    }, 4500);
+
     const tryInitBrick = async () => {
+      if (!isMounted) return;
+
       if (typeof window !== 'undefined' && window.MercadoPago) {
         if (!activePublicKey) {
           console.warn('[Mercado Pago Brick] Chave pública do Mercado Pago ausente.');
-          setBrickError(true);
-          setIsBrickLoading(false);
+          if (isMounted) {
+            setBrickError(true);
+            setIsBrickLoading(false);
+          }
           return;
         }
 
@@ -450,21 +471,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             }
             container.innerHTML = '';
 
-            const mp = window.__mercadoPagoInstance || new window.MercadoPago(activePublicKey, { locale: 'pt-BR' });
+            const mp = ((window as any).__mercadoPagoActiveKey === activePublicKey && window.__mercadoPagoInstance)
+              ? window.__mercadoPagoInstance
+              : new window.MercadoPago(activePublicKey, { locale: 'pt-BR' });
             window.__mercadoPagoInstance = mp;
+            (window as any).__mercadoPagoActiveKey = activePublicKey;
+
             const bricksBuilder = mp.bricks();
 
-            const sanitizedCpf = isValidDocument(customerCpf)
-              ? cleanCustomerCpf(customerCpf)
-              : repairOrGenerateValidCpf(customerCpf || '123456789');
+            const sanitizedCpf = cleanCustomerCpf(customerCpf) || '12345678909';
 
             const brickConfig = {
               initialization: {
                 amount: Number(finalOrderTotal.toFixed(2)),
                 payer: {
-                  email: customerEmail || 'cliente@lavistore.com.br',
-                  firstName: customerName.trim().split(/\s+/)[0] || 'Cliente',
-                  lastName: customerName.trim().split(/\s+/).slice(1).join(' ') || 'Lavistore',
+                  email: customerEmail.trim() || 'cliente@lavistore.com.br',
+                  firstName: (customerName.trim().split(/\s+/)[0] || 'Cliente').slice(0, 30),
+                  lastName: (customerName.trim().split(/\s+/).slice(1).join(' ') || 'Lavistore').slice(0, 30),
                   identification: {
                     type: 'CPF',
                     number: sanitizedCpf
@@ -484,23 +507,43 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               },
               callbacks: {
                 onReady: () => {
-                  setIsBrickReady(true);
-                  setIsBrickLoading(false);
+                  if (isMounted) {
+                    setIsBrickReady(true);
+                    setIsBrickLoading(false);
+                  }
                 },
-                onSubmit: ({ selectedPaymentMethod, formData }: any) => {
+                onSubmit: (param: any) => {
+                  const brickFormData = param?.formData || param;
+                  const selectedPaymentMethod = param?.selectedPaymentMethod || brickFormData?.selectedPaymentMethod || 'credit_card';
+                  const token = brickFormData?.token;
+
+                  if (token) {
+                    console.info('[Payment Brick onSubmit] Token do cartão capturado de forma síncrona:', token.slice(0, 8) + '...');
+                  } else {
+                    console.warn('[Payment Brick onSubmit] Token não encontrado no payload retornado:', brickFormData);
+                  }
+
                   return new Promise((resolve, reject) => {
                     executeMercadoPagoPayment({
-                      ...formData,
-                      selectedPaymentMethod: selectedPaymentMethod || 'credit_card'
+                      ...brickFormData,
+                      token,
+                      selectedPaymentMethod
                     })
-                      .then(() => resolve(undefined))
-                      .catch((err) => reject(err));
+                      .then((res) => resolve(res))
+                      .catch((err) => {
+                        console.error('[Payment Brick onSubmit] Erro ao submeter:', err);
+                        setIsProcessing(false);
+                        reject(err);
+                      });
                   });
                 },
                 onError: (error: any) => {
-                  console.warn('[Mercado Pago Brick] Evento de erro:', error);
-                  setBrickError(true);
-                  setIsBrickLoading(false);
+                  console.error('[Mercado Pago Brick onError] Evento de erro no componente:', error);
+                  if (isMounted) {
+                    setBrickError(true);
+                    setIsBrickLoading(false);
+                    setIsProcessing(false);
+                  }
                 }
               }
             };
@@ -522,20 +565,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             }
           } catch (initErr) {
             console.warn('[Mercado Pago] Aviso na inicialização do Brick:', initErr);
-            setBrickError(true);
-            setIsBrickLoading(false);
+            if (isMounted) {
+              setBrickError(true);
+              setIsBrickLoading(false);
+            }
           }
         }
+      } else if (attempts < 12) {
+        attempts++;
+        checkTimer = setTimeout(tryInitBrick, 250);
       } else {
-        setIsBrickLoading(false);
-        setBrickError(true);
+        if (isMounted) {
+          setIsBrickLoading(false);
+          setBrickError(true);
+        }
       }
     };
 
-    timer = setTimeout(tryInitBrick, 300);
+    checkTimer = setTimeout(tryInitBrick, 150);
 
     return () => {
-      if (timer) clearTimeout(timer);
+      isMounted = false;
+      if (checkTimer) clearTimeout(checkTimer);
+      if (safetyTimer) clearTimeout(safetyTimer);
     };
   }, [isOpen, paymentMethod, creditCardMode, activePublicKey, finalOrderTotal]);
 
@@ -832,10 +884,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             if (tokenResp.data.payment_method_id) {
               finalPaymentMethodId = tokenResp.data.payment_method_id;
             }
+          } else {
+            const errorMsg = tokenResp.data?.error || tokenResp.errorText || 'Dados do cartão recusados pelo Mercado Pago.';
+            setPaymentErrorMessage(errorMsg);
+            setIsProcessing(false);
+            return;
           }
-        } catch {
-          // Em hospedagem estática, prossegue com tokenização virtual segura
-          finalToken = `tok_client_${Date.now()}_${cleanCard.slice(-4)}`;
+        } catch (tokErr: any) {
+          setPaymentErrorMessage('Falha ao tokenizar cartão no Mercado Pago: ' + (tokErr.message || ''));
+          setIsProcessing(false);
+          return;
         }
       }
 
@@ -973,21 +1031,50 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Finalizar Pedido com tratamento de erros robusto
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Validação obrigatória dos campos de contato
+    if (!customerName.trim()) {
+      setPaymentErrorMessage('Por favor, informe seu nome completo.');
+      setIsProcessing(false);
+      document.getElementById('checkout_customer_name')?.focus();
+      return;
+    }
+
+    if (!customerEmail.trim() || !customerEmail.includes('@')) {
+      setPaymentErrorMessage('Por favor, informe um endereço de e-mail válido para confirmação.');
+      setIsProcessing(false);
+      document.getElementById('checkout_customer_email')?.focus();
+      return;
+    }
+
+    if (!customerPhone.trim() || customerPhone.replace(/\D/g, '').length < 10) {
+      setPaymentErrorMessage('Por favor, informe um telefone/WhatsApp válido com DDD.');
+      setIsProcessing(false);
+      document.getElementById('checkout_customer_phone')?.focus();
+      return;
+    }
+
+    const cleanedCpf = cleanCustomerCpf(customerCpf);
+    if (!cleanedCpf || cleanedCpf.length < 11) {
+      setPaymentErrorMessage('Por favor, informe seu CPF completo (11 dígitos).');
+      setIsProcessing(false);
+      document.getElementById('checkout_customer_cpf')?.focus();
+      return;
+    }
+
     try {
-      // Se estiver em modo Payment Brick e o controller estiver montado, tenta extrair os dados diretamente do Brick
-      if (paymentMethod === 'credit' && creditCardMode === 'brick' && window.paymentBrickController?.getFormData) {
-        try {
+      // 2. Se for Cartão em modo Brick oficial, clica no botão de submissão do Brick para disparar tokenização síncrona
+      if (paymentMethod === 'credit' && creditCardMode === 'brick' && !brickError) {
+        const brickBtn = document.querySelector(
+          '#paymentBrick_container button[type="submit"], #paymentBrick_container input[type="submit"], #paymentBrick_container form button'
+        ) as HTMLButtonElement | null;
+        if (brickBtn) {
           setIsProcessing(true);
-          const brickFormData = await window.paymentBrickController.getFormData();
-          if (brickFormData) {
-            await executeMercadoPagoPayment(brickFormData);
-            return;
-          }
-        } catch (brickErr: any) {
-          console.warn('[CheckoutModal] Tentativa via getFormData do Brick:', brickErr);
-          // Prossegue com fallback de submissão padrão
+          brickBtn.click();
+          return;
         }
       }
+
       await executeMercadoPagoPayment();
     } catch (err: any) {
       console.error('[CheckoutModal] Falha inesperada ao fechar pedido:', err);
