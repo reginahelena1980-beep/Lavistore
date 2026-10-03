@@ -247,23 +247,23 @@
     },
     "perk1Icon": "🛍️",
     "perk1Title": {
-      "text": "Mimos Florais em Cada Sacolinha Amarela",
+      "text": "Mimos Especiais",
       "fontSize": "base",
       "isBold": true
     },
     "perk1Desc": {
-      "text": "Você sempre ganha adesivos das 3 florzinhas, marcadores fofos e mini surpresas.",
+      "text": "",
       "fontSize": "xs",
       "isBold": false
     },
-    "perk2Icon": "🍯",
+    "perk2Icon": "🎀",
     "perk2Title": {
-      "text": "Cheirinho Floral & Doce",
+      "text": "Embalagem Exclusiva",
       "fontSize": "base",
       "isBold": true
     },
     "perk2Desc": {
-      "text": "Cada sacolinha amarela é borrifada artesanalmente com nossa fragrância suave de lavanda e baunilha.",
+      "text": "",
       "fontSize": "xs",
       "isBold": false
     },
@@ -274,23 +274,24 @@
       "isBold": true
     },
     "perk3Desc": {
-      "text": "Envio gratuito para todo o Brasil em compras a partir de R$ 149 com rastreamento detalhado.",
+      "text": "",
       "fontSize": "xs",
       "isBold": false
     },
     "perk4Icon": "🌸",
     "perk4Title": {
-      "text": "Feito com Amor & Afeto",
+      "text": "Preço máximo: R$ 15,00",
       "fontSize": "base",
       "isBold": true
     },
     "perk4Desc": {
-      "text": "Produtos de papelaria selecionados a dedo com gramatura nobre e sacolinhas amarelas exclusivas.",
+      "text": "",
       "fontSize": "xs",
       "isBold": false
     },
+
     "catalogTitle": {
-      "text": "Nossos Mimos Encantados ✨",
+      "text": "Nossos Mimos✨",
       "fontSize": "2xl",
       "isBold": true
     },
@@ -320,7 +321,7 @@
       "isBold": true
     },
     "reviewsBadge": {
-      "text": "Clientes Encantadas",
+      "text": "Os melhores clientes!",
       "fontSize": "xs",
       "isBold": true
     },
@@ -330,7 +331,7 @@
       "isBold": true
     },
     "reviewsSubtitle": {
-      "text": "Confira o carinho e o afeto em cada mimo e sacolinha entregue.",
+      "text": "Confira o carinho em cada mimo e sacolinha entregue.",
       "fontSize": "base",
       "isBold": false
     },
@@ -346,18 +347,18 @@
       "isBold": true
     },
     "newsletterSubtitle": {
-      "text": "Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.",
+      "text": "Cadastre seu e-mail para receber lançamentos exclusivos.",
       "fontSize": "sm",
       "isBold": false
     },
     "newsletterDesc": {
-      "text": "Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.",
+      "text": "Cadastre seu e-mail para receber lançamentos exclusivos.",
       "fontSize": "sm",
       "isBold": false
     },
-    "footerDescription": "Loja virtual brasileira focada em presentes criativos, papelaria fofa, mimos delicados e caixas afetivas inspiradas no trio de flores: violeta, turquesa e rosa.",
+    "footerDescription": "Loja virtual brasileira focada em presentes e mimos criativos.",
     "companyLegalText": "© 2026 Lavistore Presentes e Mimos Criativos",
-    "footerCreditsText": "Desenvolvido com o encanto das 3 florzinhas",
+    "footerCreditsText": "Desenvolvido com amor",
     "showFooterCredits": true,
     "sslSecurityText": "SSL 256 Bits",
     "pixDiscountText": "PIX 5% OFF",
@@ -374,45 +375,45 @@
     "chatConciergeName": "Concierge Lavistore 🌸",
     "chatConciergeRole": "Atendimento Online • Suporte a Presentes",
     "chatWelcomeTitle": "Olá, bem-vinda à Lavistore! 🌷",
-    "chatWelcomeBody": "Posso ajudar você a escolher um mimo perfeito, tirar dúvidas sobre o frete ou montar uma caixa personalizada?",
+    "chatWelcomeBody": "Posso ajudar você a escolher um mimo perfeito, tirar dúvidas sobre o frete ou montar uma sacolinha personalizada?",
     "chatButtonLabel": "Dúvidas? Fale Conosco",
     "whatsappMode": "direct",
     "whatsappDefaultMessage": "Olá Lavistore! Estou na loja virtual e gostaria de tirar uma dúvida sobre os mimos. 🌸",
-    "aboutHeroSlogan": "A Lavistore nasce para fazer o mundo mais afetuoso, doce e colorido!",
+    "aboutHeroSlogan": "A Lavistore nasce para fazer o mundo mais divertido e colorido!",
     "aboutHeroQuote": "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-    "aboutHeroDescription": "Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore — desde o traço desenhado à mão do nosso trio de florzinhas com centrinho amarelo ensolarado até o cheirinho doce borrifado nas caixas e sacolinhas amarelas — foi criado para espalhar sorrisos e momentos inesquecíveis!",
+    "aboutHeroDescription": "Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore foi criado para espalhar sorrisos e momentos inesquecíveis!",
     "aboutTrioTitle": "O Significado do Nosso Trio Floral",
     "aboutTrioSubtitle": "Inspiradas em traços livres de criança, cada florzinha traz uma energia especial de cuidado e carinho.",
     "aboutFlower1Title": "Flor Violeta",
     "aboutFlower1Subtitle": "Criatividade & Calma",
-    "aboutFlower1Desc": "Representa os momentos de imaginação, o foco sereno ao preencher um planner fofo e a liberdade para sonhar novos projetos com canetinhas coloridas.",
+    "aboutFlower1Desc": "Representa os momentos de imaginação e a liberdade para desenhar com canetinhas coloridas.",
     "aboutFlower2Title": "Flor Turquesa",
     "aboutFlower2Subtitle": "Alegria & Frescor",
-    "aboutFlower2Desc": "Traz a vitalidade dos dias ensolarados, o frescor de estrear um caderno novinho e o entusiasmo contagiante de trocar bilhetinhos de carinho.",
+    "aboutFlower2Desc": "Traz entusiasmo contagiante de trocar bilhetinhos de carinho.",
     "aboutFlower3Title": "Flor Rosa",
     "aboutFlower3Subtitle": "Afeto & Doçura",
-    "aboutFlower3Desc": "Simboliza o amor colocado em cada laço de fita, a fragrância doce borrifada nas caixas e a sensação acolhedora de um abraço carinhoso.",
+    "aboutFlower3Desc": "Simboliza o amor colocado em cada laço.",
     "aboutSolarTag": "O Miolo Amarelo Solar ☀️",
     "aboutSolarTitle": "Traços Infantis Feitos com Amor & Energia Solar",
-    "aboutSolarDesc": "O estilo de desenho de criança com sorrisinhos meigos e o miolo amarelo brilhante celebram a pureza, a imaginação e a alegria genuína. Cada sacolinha amarela carrega esse raio de sol até você!",
+    "aboutSolarDesc": "O estilo de desenho de criança com sorrisinhos meigos e genuínos",
     "aboutSolarBtnText": "Conhecer Nossos Mimos",
     "aboutPillarsTitle": "Nossos 4 Toques de Afeto em Cada Envio",
     "aboutPillarsSubtitle": "Detalhes pensados com carinho para encantar todos os sentidos",
     "aboutPillar1Icon": "🍯",
-    "aboutPillar1Title": "Cheirinho Artesanal",
-    "aboutPillar1Desc": "Fragrância suave e doce com notas de baunilha e lavanda borrifada com carinho antes do envio.",
+    "aboutPillar1Title": "Mimos Especiais",
+    "aboutPillar1Desc": " ",
     "aboutPillar2Icon": "🎀",
     "aboutPillar2Title": "Sacolinhas Amarelas",
-    "aboutPillar2Desc": "Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para encantar antes mesmo de abrir.",
+    "aboutPillar2Desc": " ",
     "aboutPillar3Icon": "💌",
-    "aboutPillar3Title": "Dedicatórias Fofas",
-    "aboutPillar3Desc": "Cartinhas afetivas e bilhetinhos personalizados para emocionar e marcar memórias para sempre.",
+    "aboutPillar3Title": "Dedicatórias Especiais",
+    "aboutPillar3Desc": " ",
     "aboutPillar4Icon": "🌸",
-    "aboutPillar4Title": "Surpresas Florais",
-    "aboutPillar4Desc": "Adesivos colecionáveis das 3 florzinhas, marcadores de página e mimos extras em cada pedido.",
-    "aboutCtaBadge": "Pronta para Encantar?",
+    "aboutPillar4Title": "Preço máximo: 15,00",
+    "aboutPillar4Desc": " ",
+    "aboutCtaBadge": "Pronta para surpreender?",
     "aboutCtaTitle": "Venha conhecer nossos mimos e presentes",
-    "aboutCtaDesc": "Navegue pela nossa vitrine de papelaria fofa, monte sacolinhas personalizadas e espalhe sorrisos por onde passar!",
+    "aboutCtaDesc": "Navegue pela nossa vitrine e espalhe sorrisos por onde passar!",
     "aboutCtaBtn1": "Ver Todos os Mimos no Catálogo",
     "aboutCtaBtn2": "Montar Sacolinha de Presente",
     "headerCartLabel": "Sacolinha de Mimos 🌸",

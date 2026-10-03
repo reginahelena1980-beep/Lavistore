@@ -495,10 +495,9 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                     className="w-9 h-9 text-center bg-white border border-amber-300 rounded-lg text-sm"
                     title="Ícone / Emoji da Vantagem 1"
                   />
-                  <span className="text-xs font-bold text-purple-950">Vantagem 1 (Mimos na Sacolinha)</span>
+                  <span className="text-xs font-bold text-purple-950">Vantagem 1 (Mimos Especiais)</span>
                 </div>
-                {renderFieldEditor('perk1Title', 'Vantagem 1 - Título', 'Título da primeira vantagem.', false, 'Mimos Florais em Cada Sacolinha Amarela')}
-                {renderFieldEditor('perk1Desc', 'Vantagem 1 - Descrição', 'Descrição dos adesivos e brindes.', true, 'Você sempre ganha adesivos das 3 florzinhas, marcadores fofos e mini surpresas.')}
+                {renderFieldEditor('perk1Title', 'Vantagem 1 - Título', 'Título da primeira vantagem.', false, 'Mimos Especiais')}
               </div>
 
               <div className="space-y-3 p-4 bg-amber-50/50 rounded-2xl border border-amber-200">
@@ -510,10 +509,9 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                     className="w-9 h-9 text-center bg-white border border-amber-300 rounded-lg text-sm"
                     title="Ícone / Emoji da Vantagem 2"
                   />
-                  <span className="text-xs font-bold text-purple-950">Vantagem 2 (Cheirinho Floral & Doce)</span>
+                  <span className="text-xs font-bold text-purple-950">Vantagem 2 (Embalagem Exclusiva)</span>
                 </div>
-                {renderFieldEditor('perk2Title', 'Vantagem 2 - Título', 'Título do perfume artesanal.', false, 'Cheirinho Floral & Doce')}
-                {renderFieldEditor('perk2Desc', 'Vantagem 2 - Descrição', 'Descrição da fragrância suave.', true, 'Cada sacolinha amarela é borrifada artesanalmente com nossa fragrância suave de lavanda e baunilha.')}
+                {renderFieldEditor('perk2Title', 'Vantagem 2 - Título', 'Título da embalagem exclusiva.', false, 'Embalagem Exclusiva')}
               </div>
 
               <div className="space-y-3 p-4 bg-amber-50/50 rounded-2xl border border-amber-200">
@@ -525,10 +523,9 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                     className="w-9 h-9 text-center bg-white border border-amber-300 rounded-lg text-sm"
                     title="Ícone / Emoji da Vantagem 3"
                   />
-                  <span className="text-xs font-bold text-purple-950">Vantagem 3 (Frete Grátis)</span>
+                  <span className="text-xs font-bold text-purple-950">Vantagem 3 (Frete Grátis Especial)</span>
                 </div>
                 {renderFieldEditor('perk3Title', 'Vantagem 3 - Título', 'Título de envio gratuito.', false, 'Frete Grátis Especial')}
-                {renderFieldEditor('perk3Desc', 'Vantagem 3 - Descrição', 'Regras de envio e valor mínimo.', true, 'Envio gratuito para todo o Brasil em compras a partir de R$ 149 com rastreamento detalhado.')}
               </div>
 
               <div className="space-y-3 p-4 bg-amber-50/50 rounded-2xl border border-amber-200">
@@ -540,10 +537,9 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
                     className="w-9 h-9 text-center bg-white border border-amber-300 rounded-lg text-sm"
                     title="Ícone / Emoji da Vantagem 4"
                   />
-                  <span className="text-xs font-bold text-purple-950">Vantagem 4 (Feito com Amor)</span>
+                  <span className="text-xs font-bold text-purple-950">Vantagem 4 (Preço máximo: R$ 15,00)</span>
                 </div>
-                {renderFieldEditor('perk4Title', 'Vantagem 4 - Título', 'Título do carinho artesanal.', false, 'Feito com Amor & Afeto')}
-                {renderFieldEditor('perk4Desc', 'Vantagem 4 - Descrição', 'Qualidade de gramatura e papelaria.', true, 'Produtos de papelaria selecionados a dedo com gramatura nobre e sacolinhas amarelas exclusivas.')}
+                {renderFieldEditor('perk4Title', 'Vantagem 4 - Título', 'Título de preço máximo.', false, 'Preço máximo: R$ 15,00')}
               </div>
             </div>
           </div>

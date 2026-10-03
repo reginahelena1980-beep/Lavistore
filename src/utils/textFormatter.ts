@@ -84,10 +84,10 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
     isBold: true
   },
 
-  // Brand perks - limpos para autonomia do ADM
-  perk1Icon: '',
+  // Brand perks oficiais da Lavistore
+  perk1Icon: '🛍️',
   perk1Title: {
-    text: '',
+    text: 'Mimos Especiais',
     fontSize: 'base',
     isBold: true
   },
@@ -96,9 +96,9 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
     fontSize: 'xs',
     isBold: false
   },
-  perk2Icon: '',
+  perk2Icon: '🎀',
   perk2Title: {
-    text: '',
+    text: 'Embalagem Exclusiva',
     fontSize: 'base',
     isBold: true
   },
@@ -107,9 +107,9 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
     fontSize: 'xs',
     isBold: false
   },
-  perk3Icon: '',
+  perk3Icon: '🚚',
   perk3Title: {
-    text: '',
+    text: 'Frete Grátis Especial',
     fontSize: 'base',
     isBold: true
   },
@@ -118,9 +118,9 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
     fontSize: 'xs',
     isBold: false
   },
-  perk4Icon: '',
+  perk4Icon: '🌸',
   perk4Title: {
-    text: '',
+    text: 'Preço máximo: R$ 15,00',
     fontSize: 'base',
     isBold: true
   },

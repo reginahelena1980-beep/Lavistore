@@ -177,7 +177,34 @@ export function mergeHomePageConfigSafely(
     }
   }
 
-  return result as unknown as HomePageConfig;
+  const typedResult = result as unknown as HomePageConfig;
+
+  // Sanitização estrita e garantia das 4 vantagens oficiais da Lavistore (sem descrições)
+  if (typedResult.perk1Title?.text?.includes('Mimos Florais') || !typedResult.perk1Title?.text?.trim()) {
+    typedResult.perk1Title = { text: 'Mimos Especiais', fontSize: 'base', isBold: true };
+    typedResult.perk1Icon = '🛍️';
+  }
+  typedResult.perk1Desc = { text: '', fontSize: 'xs', isBold: false };
+
+  if (typedResult.perk2Title?.text?.includes('Cheirinho Floral') || !typedResult.perk2Title?.text?.trim()) {
+    typedResult.perk2Title = { text: 'Embalagem Exclusiva', fontSize: 'base', isBold: true };
+    typedResult.perk2Icon = '🎀';
+  }
+  typedResult.perk2Desc = { text: '', fontSize: 'xs', isBold: false };
+
+  if (!typedResult.perk3Title?.text?.trim()) {
+    typedResult.perk3Title = { text: 'Frete Grátis Especial', fontSize: 'base', isBold: true };
+    typedResult.perk3Icon = '🚚';
+  }
+  typedResult.perk3Desc = { text: '', fontSize: 'xs', isBold: false };
+
+  if (typedResult.perk4Title?.text?.includes('Feito com Amor') || !typedResult.perk4Title?.text?.trim()) {
+    typedResult.perk4Title = { text: 'Preço máximo: R$ 15,00', fontSize: 'base', isBold: true };
+    typedResult.perk4Icon = '🌸';
+  }
+  typedResult.perk4Desc = { text: '', fontSize: 'xs', isBold: false };
+
+  return typedResult;
 }
 
 /**

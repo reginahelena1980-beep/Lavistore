@@ -511,6 +511,25 @@ app.get('/api/store/data', async (_req, res) => {
         };
       }
 
+      // Garantia soberana das 4 vantagens oficiais da Lavistore (sem descrições)
+      if (finalData.homePageConfig) {
+        finalData.homePageConfig.perk1Icon = '🛍️';
+        finalData.homePageConfig.perk1Title = { text: 'Mimos Especiais', fontSize: 'base', isBold: true };
+        finalData.homePageConfig.perk1Desc = { text: '', fontSize: 'xs', isBold: false };
+
+        finalData.homePageConfig.perk2Icon = '🎀';
+        finalData.homePageConfig.perk2Title = { text: 'Embalagem Exclusiva', fontSize: 'base', isBold: true };
+        finalData.homePageConfig.perk2Desc = { text: '', fontSize: 'xs', isBold: false };
+
+        finalData.homePageConfig.perk3Icon = '🚚';
+        finalData.homePageConfig.perk3Title = { text: 'Frete Grátis Especial', fontSize: 'base', isBold: true };
+        finalData.homePageConfig.perk3Desc = { text: '', fontSize: 'xs', isBold: false };
+
+        finalData.homePageConfig.perk4Icon = '🌸';
+        finalData.homePageConfig.perk4Title = { text: 'Preço máximo: R$ 15,00', fontSize: 'base', isBold: true };
+        finalData.homePageConfig.perk4Desc = { text: '', fontSize: 'xs', isBold: false };
+      }
+
       // Anexa os registros de BI persistidos
       const biContent = safeReadJsonFile(PERSISTENT_BI_FILE) || safeReadJsonFile(BI_DATA_FILE);
       if (Array.isArray(biContent)) {
@@ -628,6 +647,32 @@ app.post('/api/store/sync', async (req, res) => {
     const mergedHomePageConfig = homePageConfig
       ? deepMergeObjects(existingContent.homePageConfig || adminSettings.homePageConfig || {}, homePageConfig)
       : (adminSettings.homePageConfig || existingContent.homePageConfig);
+
+    if (mergedHomePageConfig) {
+      if (mergedHomePageConfig.perk1Title?.text?.includes('Mimos Florais') || !mergedHomePageConfig.perk1Title?.text?.trim()) {
+        mergedHomePageConfig.perk1Title = { text: 'Mimos Especiais', fontSize: 'base', isBold: true };
+        mergedHomePageConfig.perk1Icon = '🛍️';
+      }
+      mergedHomePageConfig.perk1Desc = { text: '', fontSize: 'xs', isBold: false };
+
+      if (mergedHomePageConfig.perk2Title?.text?.includes('Cheirinho Floral') || !mergedHomePageConfig.perk2Title?.text?.trim()) {
+        mergedHomePageConfig.perk2Title = { text: 'Embalagem Exclusiva', fontSize: 'base', isBold: true };
+        mergedHomePageConfig.perk2Icon = '🎀';
+      }
+      mergedHomePageConfig.perk2Desc = { text: '', fontSize: 'xs', isBold: false };
+
+      if (!mergedHomePageConfig.perk3Title?.text?.trim()) {
+        mergedHomePageConfig.perk3Title = { text: 'Frete Grátis Especial', fontSize: 'base', isBold: true };
+        mergedHomePageConfig.perk3Icon = '🚚';
+      }
+      mergedHomePageConfig.perk3Desc = { text: '', fontSize: 'xs', isBold: false };
+
+      if (mergedHomePageConfig.perk4Title?.text?.includes('Feito com Amor') || !mergedHomePageConfig.perk4Title?.text?.trim()) {
+        mergedHomePageConfig.perk4Title = { text: 'Preço máximo: R$ 15,00', fontSize: 'base', isBold: true };
+        mergedHomePageConfig.perk4Icon = '🌸';
+      }
+      mergedHomePageConfig.perk4Desc = { text: '', fontSize: 'xs', isBold: false };
+    }
 
     const mergedFilterBarConfig = filterBarConfig
       ? deepMergeObjects(existingContent.filterBarConfig || adminSettings.filterBarConfig || {}, filterBarConfig)

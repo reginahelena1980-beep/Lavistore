@@ -247,23 +247,23 @@
     },
     "perk1Icon": "🛍️",
     "perk1Title": {
-      "text": "Mimos Florais em Cada Sacolinha Amarela",
+      "text": "Mimos Especiais",
       "fontSize": "base",
       "isBold": true
     },
     "perk1Desc": {
-      "text": "Você sempre ganha adesivos das 3 florzinhas, marcadores fofos e mini surpresas.",
+      "text": "",
       "fontSize": "xs",
       "isBold": false
     },
-    "perk2Icon": "🍯",
+    "perk2Icon": "🎀",
     "perk2Title": {
-      "text": "Cheirinho Floral & Doce",
+      "text": "Embalagem Exclusiva",
       "fontSize": "base",
       "isBold": true
     },
     "perk2Desc": {
-      "text": "Cada sacolinha amarela é borrifada artesanalmente com nossa fragrância suave de lavanda e baunilha.",
+      "text": "",
       "fontSize": "xs",
       "isBold": false
     },
@@ -274,18 +274,18 @@
       "isBold": true
     },
     "perk3Desc": {
-      "text": "Envio gratuito para todo o Brasil em compras a partir de R$ 149 com rastreamento detalhado.",
+      "text": "",
       "fontSize": "xs",
       "isBold": false
     },
     "perk4Icon": "🌸",
     "perk4Title": {
-      "text": "Feito com Amor & Afeto",
+      "text": "Preço máximo: R$ 15,00",
       "fontSize": "base",
       "isBold": true
     },
     "perk4Desc": {
-      "text": "Produtos de papelaria selecionados a dedo com gramatura nobre e sacolinhas amarelas exclusivas.",
+      "text": "",
       "fontSize": "xs",
       "isBold": false
     },
