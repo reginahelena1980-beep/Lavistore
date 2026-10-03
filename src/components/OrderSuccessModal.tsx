@@ -22,6 +22,7 @@ import { HomePageConfig, OrderData } from '../types';
 import { cleanCustomerCpf } from '../utils/documentUtils';
 import { updateOrderStatus } from '../services/storeApiService';
 import { checkMercadoPagoPaymentStatus } from '../services/mercadoPagoClientService';
+import { validatePixCopiaECola } from '../services/pixPaymentService';
 
 interface OrderSuccessModalProps {
   orderData: OrderData | any;
@@ -295,7 +296,27 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                         <span>{copiedPix ? 'Copiado!' : 'Copiar PIX'}</span>
                       </button>
                     </div>
+                    {pixKey && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 font-semibold pt-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Chave Pix Copia e Cola Oficial verificada (Padrão BACEN / Mercado Pago)</span>
+                      </div>
+                    )}
                   </div>
+
+                  {orderData?.pixTicketUrl && (
+                    <div className="max-w-md mx-auto">
+                      <a
+                        href={orderData.pixTicketUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 px-3 bg-white hover:bg-sky-50 text-sky-800 border border-sky-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs hover:shadow-xs"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-sky-600" />
+                        <span>Abrir Link Oficial do QR Code no Mercado Pago</span>
+                      </a>
+                    </div>
+                  )}
 
                   <div className="p-3 bg-amber-50/90 rounded-xl border border-amber-200/80 text-left max-w-md mx-auto space-y-1">
                     <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">

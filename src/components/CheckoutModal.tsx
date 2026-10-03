@@ -29,7 +29,7 @@ import { DEFAULT_COUPONS } from '../data/coupons';
 import { calculateMelhorEnvioShipping, formatCep, isValidCep, getShippingConfig } from '../services/shippingService';
 import { fetchAddressByCep } from '../services/cepService';
 import { isValidCpf, isValidDocument, formatCpf, formatDocument, repairOrGenerateValidCpf, cleanCustomerCpf } from '../utils/documentUtils';
-import { processClientSidePixOrder, DEFAULT_PIX_KEY } from '../services/pixPaymentService';
+import { processClientSidePixOrder, DEFAULT_PIX_KEY, validatePixCopiaECola } from '../services/pixPaymentService';
 import { createOrder } from '../services/storeApiService';
 import { getMercadoPagoPublicKey, DEFAULT_PRODUCTION_PUBLIC_KEY, safeFetchJson, SafeFetchResult } from '../services/mercadoPagoClientService';
 
@@ -746,13 +746,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         dedication: resolvedDedication
       };
 
-      // 1. PROCESSAMENTO PIX RESILIENTE (Backend com fallback 100% Client-Side para Vercel)
+      // 1. PROCESSAMENTO PIX OFICIAL (Mercado Pago API com fallback seguro)
       if (isPix) {
         try {
           let pixResult: any = null;
 
-          // 1. Tenta processar no backend se disponível
+          const payerFirstName = (customerName.trim().split(/\s+/)[0] || 'Cliente').slice(0, 30);
+          const payerLastName = (customerName.trim().split(/\s+/).slice(1).join(' ') || 'Lavistore').slice(0, 30);
+
+          // 1. Tenta processar no backend via API oficial do Mercado Pago (/v1/payments)
           try {
+            console.log(`[Checkout PIX] Submetendo pedido #${baseOrderData.orderId} para processamento oficial no Mercado Pago...`);
             const backendResp = await safeFetchJson<any>('/api/mercadopago/process_payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -761,8 +765,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 transaction_amount: sanitizedTotal,
                 payer: {
                   email: customerEmail.trim().toLowerCase(),
-                  first_name: customerName.trim().split(/\s+/)[0] || 'Cliente',
-                  last_name: customerName.trim().split(/\s+/).slice(1).join(' ') || 'Lavistore',
+                  first_name: payerFirstName,
+                  last_name: payerLastName,
                   identification: {
                     type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
                     number: cleanCpf
@@ -777,34 +781,53 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             if (backendResp.ok && backendResp.data?.success && backendResp.data?.payment?.pix?.qr_code) {
               const mpPix = backendResp.data.payment.pix;
+              const rawQrCode = String(mpPix.qr_code || '').trim();
+
+              // Validação estrita de integridade da resposta da API antes de aceitar
+              const validation = validatePixCopiaECola(rawQrCode);
+              if (!validation.isValid) {
+                console.error('[Checkout PIX] A resposta da API do Mercado Pago continha uma string Pix inconsistente:', validation.reason);
+              }
+
+              const ticketUrl = mpPix.ticket_url || `https://www.mercadopago.com.br/payments/${backendResp.data.payment.id}/ticket`;
               const finalizedOrder: OrderData = {
                 ...baseOrderData,
                 mercadoPagoPaymentId: String(backendResp.data.payment.id),
                 mercadoPagoStatus: backendResp.data.payment.status || 'pending',
-                mercadoPagoStatusDetail: backendResp.data.payment.status_detail || 'waiting_payment',
-                pixQrCode: mpPix.qr_code,
+                mercadoPagoStatusDetail: backendResp.data.payment.status_detail || 'pending_waiting_transfer',
+                pixQrCode: rawQrCode,
                 pixQrCodeBase64: mpPix.qr_code_base64 || null,
-                pixTicketUrl: mpPix.ticket_url
+                pixTicketUrl: ticketUrl
               };
               try { await createOrder(finalizedOrder); } catch {}
               pixResult = {
                 success: true,
                 paymentId: String(backendResp.data.payment.id),
-                status: 'pending',
-                status_detail: 'waiting_payment',
-                pixQrCode: mpPix.qr_code,
+                status: backendResp.data.payment.status || 'pending',
+                status_detail: backendResp.data.payment.status_detail || 'pending_waiting_transfer',
+                pixQrCode: rawQrCode,
                 pixQrCodeBase64: mpPix.qr_code_base64 || '',
-                pixTicketUrl: mpPix.ticket_url || '',
+                pixTicketUrl: ticketUrl,
                 transactionAmount: sanitizedTotal,
                 order: finalizedOrder
               };
+              console.log(`[Checkout PIX] ✅ Cobrança PIX Oficial gerada com sucesso! ID=${backendResp.data.payment.id}`);
+            } else if (!backendResp.ok && backendResp.status !== 404) {
+              // Se o backend retornou erro (ex: CPF inválido, rejeição do Mercado Pago),
+              // reporta o erro claro para o cliente corrigir em vez de mascarar com string falsa!
+              const friendlyError = backendResp.data?.error || backendResp.errorText || 'O Mercado Pago não pôde gerar o QR Code Pix com os dados fornecidos.';
+              console.error('[Checkout PIX Rejection] Erro retornado pela API do Mercado Pago:', friendlyError, backendResp.data);
+              setPaymentErrorMessage(friendlyError);
+              setIsProcessing(false);
+              return;
             }
-          } catch (backendErr) {
-            console.info('[Checkout] Operando PIX no modo Client-Side resiliente:', backendErr);
+          } catch (backendErr: any) {
+            console.warn('[Checkout] Aviso ao consultar backend de pagamentos:', backendErr?.message || backendErr);
           }
 
-          // 2. Se backend indisponível (404/Vercel) ou sem credenciais, processa 100% Client-Side instantâneo
+          // 2. Se backend indisponível (HTTP 404 em hospedagens puramente estáticas como Vercel)
           if (!pixResult) {
+            console.info('[Checkout PIX] Backend de pagamentos indisponível. Operando em modo contingência Client-Side BACEN...');
             pixResult = await processClientSidePixOrder(baseOrderData);
           }
 

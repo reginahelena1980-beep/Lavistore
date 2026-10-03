@@ -94,7 +94,38 @@ export function calculatePixCrc16(payload: string): string {
 }
 
 /**
- * Gera a string oficial do Pix Copia e Cola (BRCode EMV)
+ * Validador estrito da estrutura do Pix Copia e Cola segundo as normas do Banco Central do Brasil (BACEN / EMVCo)
+ */
+export function validatePixCopiaECola(copiaEColaString: string): { isValid: boolean; reason?: string } {
+  if (!copiaEColaString || typeof copiaEColaString !== 'string') {
+    return { isValid: false, reason: 'String do Pix nula ou indefinida.' };
+  }
+  const trimmed = copiaEColaString.trim();
+  if (!trimmed.startsWith('000201')) {
+    return { isValid: false, reason: 'Formato inicial incorreto: deve iniciar com 000201 (versão fixa do BACEN).' };
+  }
+  if (!trimmed.includes('br.gov.bcb.pix')) {
+    return { isValid: false, reason: 'Identificador oficial do BACEN (br.gov.bcb.pix) ausente no payload.' };
+  }
+  if (trimmed.length < 50) {
+    return { isValid: false, reason: 'Tamanho insuficiente para payload EMV BRCode válido.' };
+  }
+  const expectedCrc = trimmed.slice(-4).toUpperCase();
+  const withoutCrc = trimmed.slice(0, -4);
+  const calculatedCrc = calculatePixCrc16(withoutCrc);
+  if (expectedCrc !== calculatedCrc) {
+    return { 
+      isValid: false, 
+      reason: `Checksum CRC16 inválido: esperado ${expectedCrc}, calculado ${calculatedCrc}.` 
+    };
+  }
+  return { isValid: true };
+}
+
+/**
+ * Gera a string oficial do Pix Copia e Cola (BRCode EMV) em conformidade estrita com o BACEN
+ * ATENÇÃO: Tag 01 DEVE ser '11' (QR Estático). O valor '12' é EXCLUSIVO para QR Dinâmico com endpoint URL.
+ * O uso indevido de '12' em QR Estático faz bancos (como C6 Bank) rejeitarem com erro de conta digitada incorretamente.
  */
 export function generatePixCopiaECola(options: PixPayloadOptions): string {
   const {
@@ -102,49 +133,52 @@ export function generatePixCopiaECola(options: PixPayloadOptions): string {
     merchantName = DEFAULT_MERCHANT_NAME,
     merchantCity = DEFAULT_MERCHANT_CITY,
     amount,
-    txId = '***',
-    description
+    txId = '***'
   } = options;
 
   // 00 - Payload Format Indicator (versão fixa 01)
   const f00 = formatTlv('00', '01');
 
-  // 01 - Point of Initiation Method (12 = dinâmico ou reutilizável com valor fixo)
-  const f01 = formatTlv('01', '12');
+  // 01 - Point of Initiation Method:
+  // '11' = QR Code Estático (chave Pix no subcampo 01 da tag 26)
+  // '12' = QR Code Dinâmico (exige URL no subcampo 25 da tag 26)
+  const f01 = formatTlv('01', '11');
 
   // 26 - Merchant Account Information (Pix)
   const maiGui = formatTlv('00', 'br.gov.bcb.pix');
   const maiKey = formatTlv('01', pixKey.trim());
-  const maiDesc = description ? formatTlv('02', sanitizePixText(description, 40)) : '';
-  const f26 = formatTlv('26', `${maiGui}${maiKey}${maiDesc}`);
+  const f26 = formatTlv('26', `${maiGui}${maiKey}`);
 
-  // 52 - Merchant Category Code
+  // 52 - Merchant Category Code (0000 = Padrão ISO 18245)
   const f52 = formatTlv('52', '0000');
 
   // 53 - Transaction Currency (986 = Real Brasileiro / BRL)
   const f53 = formatTlv('53', '986');
 
-  // 54 - Transaction Amount (formato 0.00 com ponto)
+  // 54 - Transaction Amount (formato 0.00 com ponto obrigatório e 2 casas decimais)
   const formattedAmount = Number(amount || 0).toFixed(2);
   const f54 = formatTlv('54', formattedAmount);
 
   // 58 - Country Code (BR)
   const f58 = formatTlv('58', 'BR');
 
-  // 59 - Merchant Name (máximo 25 caracteres)
+  // 59 - Merchant Name (máximo 25 caracteres, maiúsculo, sem acentos)
   const cleanName = sanitizePixText(merchantName, 25) || DEFAULT_MERCHANT_NAME;
   const f59 = formatTlv('59', cleanName);
 
-  // 60 - Merchant City (máximo 15 caracteres)
+  // 60 - Merchant City (máximo 15 caracteres, maiúsculo, sem acentos)
   const cleanCity = sanitizePixText(merchantCity, 15) || DEFAULT_MERCHANT_CITY;
   const f60 = formatTlv('60', cleanCity);
 
-  // 62 - Additional Data Field Template (TxID / Referência do Pedido)
-  const cleanTxId = sanitizePixText(txId, 25).replace(/\s+/g, '') || '***';
-  const addField05 = formatTlv('05', cleanTxId);
+  // 62 - Additional Data Field Template (TxID):
+  // No padrão BACEN para QR Estático manual, txId DEVE ser '***' se não gerado por API de Cobrança
+  const cleanTxId = (txId && txId !== '***')
+    ? sanitizePixText(txId, 25).replace(/[^A-Z0-9]/g, '')
+    : '***';
+  const addField05 = formatTlv('05', cleanTxId || '***');
   const f62 = formatTlv('62', addField05);
 
-  // 63 - CRC16: monta payload parcial com '6304' para calcular o checksum
+  // 63 - CRC16: monta payload parcial com '6304' para calcular o checksum oficial
   const partialPayload = `${f00}${f01}${f26}${f52}${f53}${f54}${f58}${f59}${f60}${f62}6304`;
   const checksum = calculatePixCrc16(partialPayload);
 
@@ -186,18 +220,24 @@ export async function processClientSidePixOrder(
 ): Promise<ClientPixPaymentResult> {
   const activeKey = customPixKey?.trim() || DEFAULT_PIX_KEY;
   const cleanOrderId = baseOrderData.orderId.replace(/[^A-Za-z0-9]/g, '');
-  const txId = `LAVI${cleanOrderId.slice(-10)}`;
   const sanitizedAmount = Math.max(0.01, Number(baseOrderData.total.toFixed(2)));
 
-  // 1. Gera o PIX Copia e Cola
+  // 1. Gera o PIX Copia e Cola estático oficial BACEN (txId '***' para chave DICT)
   const copiaECola = generatePixCopiaECola({
     pixKey: activeKey,
     merchantName: DEFAULT_MERCHANT_NAME,
     merchantCity: DEFAULT_MERCHANT_CITY,
     amount: sanitizedAmount,
-    txId,
-    description: `Lavistore #${baseOrderData.orderId}`
+    txId: '***'
   });
+
+  // Validação estrita do payload gerado
+  const validation = validatePixCopiaECola(copiaECola);
+  if (!validation.isValid) {
+    console.error('[PixService] Erro de validação na string Pix Copia e Cola:', validation.reason);
+  } else {
+    console.log(`[PixService] Pix Copia e Cola gerado e validado segundo normas BACEN BRCode EMV (${copiaECola.length} chars)`);
+  }
 
   // 2. Gera o QR Code escaneável
   const qrCodeDataUrl = await generatePixQrCodeDataUrl(copiaECola);

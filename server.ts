@@ -27,6 +27,8 @@ import {
   saveMercadoPagoCredentials,
   testMercadoPagoConnection,
   createMercadoPagoPreference,
+  createMercadoPagoPixPayment,
+  validatePixCopiaECola,
   DEFAULT_MP_PUBLIC_KEY,
   DEFAULT_MP_ACCESS_TOKEN,
   generatePixCopiaECola,
@@ -3438,148 +3440,46 @@ app.post([
 
       if (isPixPayment) {
         // =========================================================================
-        // PROCESSAMENTO OFICIAL PIX VIA API V1 DO MERCADO PAGO
+        // PROCESSAMENTO OFICIAL PIX VIA API V1 DO MERCADO PAGO (/v1/payments)
         // =========================================================================
-        const pixPayload = {
-          transaction_amount: amountNum,
-          description: `Lavistore • Pedido #${orderData.orderId}`.slice(0, 60),
-          payment_method_id: 'pix',
+        const pixRes = await createMercadoPagoPixPayment({
+          amount: amountNum,
+          orderId: orderData.orderId,
           payer: {
             email: cleanEmail,
-            first_name: firstName,
-            last_name: lastName,
-            identification: {
-              type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
-              number: cleanCpf
-            }
+            firstName,
+            lastName,
+            cpfOrCnpj: cleanCpf
           },
-          external_reference: String(orderData.orderId)
-        };
+          description: `Lavistore Pedido ${orderData.orderId}`,
+          expirationHours: 24
+        });
 
-        const idempotencyKey = `lavistore-pix-${orderData.orderId}-${Date.now()}`;
-        const mpHeaders: Record<string, string> = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-          'X-Idempotency-Key': idempotencyKey,
-          'Accept': 'application/json',
-          'User-Agent': 'Lavistore Kids (estilobeeadm@gmail.com)'
-        };
-
-        const abortController = new AbortController();
-        const timeoutTimer = setTimeout(() => abortController.abort(), 14000);
-
-        try {
-          const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
-            method: 'POST',
-            headers: mpHeaders,
-            body: JSON.stringify(pixPayload),
-            signal: abortController.signal
-          });
-          clearTimeout(timeoutTimer);
-
-          const rawMpText = await mpResponse.text();
-          let mpData: any = null;
-          try {
-            mpData = JSON.parse(rawMpText);
-          } catch {
-            mpData = null;
-          }
-
-          if (!mpResponse.ok) {
-            console.error('[Mercado Pago PIX Rejection] Rejeição na API oficial do Mercado Pago ao criar cobrança PIX:');
-            console.error('[Mercado Pago PIX Rejection] HTTP Status:', mpResponse.status);
-            console.error('[Mercado Pago PIX Rejection] Payload Enviado:', JSON.stringify(pixPayload, null, 2));
-            console.error('[Mercado Pago PIX Rejection] Resposta Bruta (err.response?.data):', mpData || rawMpText);
-            if (mpData?.cause) {
-              console.error('[Mercado Pago PIX Rejection] Causas detalhadas (causes):', JSON.stringify(mpData.cause, null, 2));
-            }
-
-            const rawErrStr = String(mpData?.message || rawMpText || '').toLowerCase();
-            const causeCode = mpData?.cause?.[0]?.code;
-            const isAccountIssue = (
-              rawErrStr.includes('collector') ||
-              rawErrStr.includes('key') ||
-              rawErrStr.includes('account') ||
-              rawErrStr.includes('conta') ||
-              rawErrStr.includes('unauthorized') ||
-              causeCode === 13000 ||
-              causeCode === 2001
-            );
-
-            // Fallback de contingência soberana: se a conta do vendedor estiver sem chave Pix no Mercado Pago ou rejeitar
-            if (isAccountIssue) {
-              console.error('[Mercado Pago PIX] Detectada restrição na conta recebedora do Mercado Pago (ex: "collector without key" ou conta sem chave Pix cadastrada). Ativando geração oficial BACEN de alta fidelidade para não bloquear o cliente...');
-              const storePixKey = creds.pixKey || 'reginahelena1980@gmail.com';
-              const cleanOrderId = String(orderData.orderId).replace(/[^A-Za-z0-9]/g, '');
-              const txId = `LAVI${cleanOrderId.slice(-10)}`;
-              const copiaECola = generatePixCopiaECola({
-                pixKey: storePixKey,
-                merchantName: 'REGINA HELENA FERRAZ',
-                merchantCity: 'GUARULHOS',
-                amount: amountNum,
-                txId,
-                description: `Lavistore #${orderData.orderId}`
-              });
-              const qrCodeDataUrl = await generatePixQrCodeDataUrl(copiaECola);
-              const mockId = Math.floor(1000000000 + Math.random() * 9000000000);
-
-              paymentResult = {
-                id: `MP-PIX-${cleanOrderId || mockId}`,
-                status: 'pending',
-                status_detail: 'waiting_payment',
-                payment_method_id: 'pix',
-                payment_type_id: 'bank_transfer',
-                transaction_amount: amountNum,
-                installments: 1,
-                pix: {
-                  qr_code: copiaECola,
-                  qr_code_base64: qrCodeDataUrl,
-                  ticket_url: `https://www.mercadopago.com.br/payments/${mockId}/ticket`
-                },
-                isResilientFallback: true
-              };
-            } else {
-              let errorMsg = mpData?.message || (mpData?.cause?.[0]?.description) || 'O Mercado Pago não pôde gerar o QR Code PIX com os dados fornecidos.';
-              if (rawErrStr.includes('identification') || causeCode === 2067 || causeCode === 324) {
-                errorMsg = 'CPF do pagador inválido. Por favor, confira os 11 dígitos do seu CPF.';
-              } else if (causeCode === 4037 || rawErrStr.includes('invalid transaction_amount')) {
-                errorMsg = 'Valor do pedido inválido para geração do PIX no Mercado Pago.';
-              }
-              return res.status(mpResponse.status || 400).json({
-                success: false,
-                error: errorMsg,
-                rawError: rawMpText,
-                details: mpData
-              });
-            }
-          } else if (mpData && mpData.id) {
-            paymentResult = {
-              id: String(mpData.id),
-              status: mpData.status || 'pending',
-              status_detail: mpData.status_detail || 'waiting_payment',
-              payment_method_id: 'pix',
-              payment_type_id: 'bank_transfer',
-              transaction_amount: mpData.transaction_amount || amountNum,
-              installments: 1,
-              pix: mpData.point_of_interaction?.transaction_data ? {
-                qr_code: mpData.point_of_interaction.transaction_data.qr_code,
-                qr_code_base64: mpData.point_of_interaction.transaction_data.qr_code_base64,
-                ticket_url: mpData.point_of_interaction.transaction_data.ticket_url
-              } : null,
-              isSimulated: false
-            };
-            console.log(`[Mercado Pago PIX] Cobrança PIX gerada com sucesso na API oficial! ID=${mpData.id}`);
-          }
-        } catch (mpError: any) {
-          clearTimeout(timeoutTimer);
-          console.error('[Mercado Pago PIX] Erro de rede/comunicação ao gerar PIX:', mpError?.message || mpError);
-          return res.status(502).json({
+        if (!pixRes.success || !pixRes.pixQrCode) {
+          console.error('[Mercado Pago PIX] Falha na emissão do PIX Oficial:', pixRes.error);
+          return res.status(400).json({
             success: false,
-            error: mpError?.name === 'AbortError'
-              ? 'Tempo limite de resposta do Mercado Pago excedido ao gerar PIX.'
-              : 'Falha de comunicação com a API do Mercado Pago.'
+            error: pixRes.error || 'Não foi possível gerar a cobrança Pix no Mercado Pago.',
+            details: pixRes.rawDetails
           });
         }
+
+        paymentResult = {
+          id: String(pixRes.paymentId),
+          status: pixRes.status || 'pending',
+          status_detail: pixRes.statusDetail || 'pending_waiting_transfer',
+          payment_method_id: 'pix',
+          payment_type_id: 'bank_transfer',
+          transaction_amount: pixRes.transactionAmount || amountNum,
+          installments: 1,
+          pix: {
+            qr_code: pixRes.pixQrCode,
+            qr_code_base64: pixRes.pixQrCodeBase64,
+            ticket_url: pixRes.pixTicketUrl
+          },
+          isSimulated: false
+        };
+        console.log(`[Mercado Pago PIX] ✅ Pagamento e Copia e Cola configurados para o Pedido #${orderData.orderId}: ID=${pixRes.paymentId}`);
       } else {
         // =========================================================================
         // PROCESSAMENTO CARTÃO DE CRÉDITO (VIA PAYMENT BRICK / TOKEN)

@@ -70,41 +70,92 @@ export interface PixPayloadOptions {
   description?: string;
 }
 
+/**
+ * Validador estrito da estrutura do Pix Copia e Cola segundo as normas do Banco Central do Brasil (BACEN / EMVCo)
+ */
+export function validatePixCopiaECola(copiaEColaString: string): { isValid: boolean; reason?: string } {
+  if (!copiaEColaString || typeof copiaEColaString !== 'string') {
+    return { isValid: false, reason: 'String do Pix nula ou inválida.' };
+  }
+  const trimmed = copiaEColaString.trim();
+  if (!trimmed.startsWith('000201')) {
+    return { isValid: false, reason: 'Formato inicial incorreto: deve iniciar com 000201.' };
+  }
+  if (!trimmed.includes('br.gov.bcb.pix')) {
+    return { isValid: false, reason: 'Identificador do BACEN (br.gov.bcb.pix) ausente no payload.' };
+  }
+  if (trimmed.length < 50) {
+    return { isValid: false, reason: 'Tamanho insuficiente para payload EMV BRCode válido.' };
+  }
+  const expectedCrc = trimmed.slice(-4).toUpperCase();
+  const withoutCrc = trimmed.slice(0, -4);
+  const calculatedCrc = calculatePixCrc16(withoutCrc);
+  if (expectedCrc !== calculatedCrc) {
+    return { 
+      isValid: false, 
+      reason: `Checksum CRC16 inválido: esperado ${expectedCrc}, calculado ${calculatedCrc}.` 
+    };
+  }
+  return { isValid: true };
+}
+
+/**
+ * Gera a string oficial do Pix Copia e Cola (BRCode EMV) 100% em conformidade com as normas do BACEN
+ * ATENÇÃO: Tag 01 DEVE ser '11' (QR Estático). O valor '12' é EXCLUSIVO para QR Dinâmico com endpoint URL.
+ * O uso de '12' com chave DICT causa rejeição no C6 Bank e outros bancos com erro de conta digitada incorretamente.
+ */
 export function generatePixCopiaECola(options: PixPayloadOptions): string {
   const {
     pixKey,
     merchantName = 'REGINA HELENA FERRAZ',
     merchantCity = 'GUARULHOS',
     amount,
-    txId = '***',
-    description
+    txId = '***'
   } = options;
 
+  // 00 - Payload Format Indicator (versão fixa 01)
   const f00 = formatTlv('00', '01');
-  const f01 = formatTlv('01', '12');
 
+  // 01 - Point of Initiation Method:
+  // '11' = QR Code Estático (chave Pix no subcampo 01 da tag 26)
+  // '12' = QR Code Dinâmico (exige URL no subcampo 25 da tag 26)
+  const f01 = formatTlv('01', '11');
+
+  // 26 - Merchant Account Information (Pix)
   const maiGui = formatTlv('00', 'br.gov.bcb.pix');
   const maiKey = formatTlv('01', pixKey.trim());
-  const maiDesc = description ? formatTlv('02', sanitizePixText(description, 40)) : '';
-  const f26 = formatTlv('26', `${maiGui}${maiKey}${maiDesc}`);
+  const f26 = formatTlv('26', `${maiGui}${maiKey}`);
 
+  // 52 - Merchant Category Code (0000 = Padrão ISO 18245)
   const f52 = formatTlv('52', '0000');
+
+  // 53 - Transaction Currency (986 = Real Brasileiro / BRL)
   const f53 = formatTlv('53', '986');
 
+  // 54 - Transaction Amount (formato 0.00 com ponto obrigatório e 2 casas decimais)
   const formattedAmount = Number(amount || 0).toFixed(2);
   const f54 = formatTlv('54', formattedAmount);
 
+  // 58 - Country Code (BR)
   const f58 = formatTlv('58', 'BR');
+
+  // 59 - Merchant Name (máximo 25 caracteres, maiúsculo, sem acentos)
   const cleanName = sanitizePixText(merchantName, 25) || 'REGINA HELENA FERRAZ';
   const f59 = formatTlv('59', cleanName);
 
+  // 60 - Merchant City (máximo 15 caracteres, maiúsculo, sem acentos)
   const cleanCity = sanitizePixText(merchantCity, 15) || 'GUARULHOS';
   const f60 = formatTlv('60', cleanCity);
 
-  const cleanTxId = sanitizePixText(txId, 25).replace(/\s+/g, '') || '***';
-  const addField05 = formatTlv('05', cleanTxId);
+  // 62 - Additional Data Field Template (TxID):
+  // No padrão BACEN para QR Estático manual, txId DEVE ser '***' se não gerado por API de Cobrança
+  const cleanTxId = (txId && txId !== '***')
+    ? sanitizePixText(txId, 25).replace(/[^A-Z0-9]/g, '')
+    : '***';
+  const addField05 = formatTlv('05', cleanTxId || '***');
   const f62 = formatTlv('62', addField05);
 
+  // 63 - CRC16: monta payload parcial com '6304' para calcular o checksum oficial
   const partialPayload = `${f00}${f01}${f26}${f52}${f53}${f54}${f58}${f59}${f60}${f62}6304`;
   const checksum = calculatePixCrc16(partialPayload);
 
@@ -505,6 +556,224 @@ export async function createMercadoPagoPreference(options: CreatePreferenceOptio
     };
   } catch (err: any) {
     clearTimeout(timeoutId);
+    return {
+      success: false,
+      error: err?.name === 'AbortError'
+        ? 'Tempo limite de conexão excedido ao comunicar com o Mercado Pago.'
+        : (err?.message || 'Falha na comunicação com o Mercado Pago.')
+    };
+  }
+}
+
+/**
+ * Interfaces com tipagem estrita para requisição e resposta do PIX Mercado Pago
+ */
+export interface CreatePixPaymentOptions {
+  amount: number;
+  orderId: string | number;
+  payer: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    cpfOrCnpj: string;
+  };
+  description?: string;
+  expirationHours?: number;
+}
+
+export interface MercadoPagoPixTransactionData {
+  qr_code: string;
+  qr_code_base64?: string | null;
+  ticket_url?: string;
+  bank_info?: {
+    collector?: {
+      account_holder_name?: string;
+    };
+  };
+}
+
+export interface CreatePixPaymentResult {
+  success: boolean;
+  paymentId?: string;
+  status?: string;
+  statusDetail?: string;
+  pixQrCode?: string;
+  pixQrCodeBase64?: string;
+  pixTicketUrl?: string;
+  transactionAmount?: number;
+  error?: string;
+  rawDetails?: any;
+}
+
+/**
+ * Cria uma cobrança Pix oficial na API v1 do Mercado Pago (/v1/payments)
+ * com validação estrita de payload, identificação fiscal e extração do point_of_interaction.transaction_data
+ */
+export async function createMercadoPagoPixPayment(options: CreatePixPaymentOptions): Promise<CreatePixPaymentResult> {
+  const creds = getMercadoPagoCredentials();
+  const token = creds.accessToken;
+
+  if (!token || token.length < 10) {
+    return {
+      success: false,
+      error: 'Access Token do Mercado Pago não configurado.'
+    };
+  }
+
+  // 1. Validação estrita do valor monetário com duas casas decimais
+  const amountNumber = Math.round(Number(options.amount || 0) * 100) / 100;
+  if (isNaN(amountNumber) || amountNumber <= 0) {
+    return {
+      success: false,
+      error: 'O valor da cobrança Pix deve ser maior que zero (R$ 0,00).'
+    };
+  }
+
+  // 2. Validação e higienização estrita do CPF/CNPJ do pagador
+  const cleanCpf = cleanCustomerCpf(options.payer.cpfOrCnpj);
+  if (!cleanCpf || (cleanCpf.length !== 11 && cleanCpf.length !== 14)) {
+    return {
+      success: false,
+      error: 'O CPF do pagador é obrigatório (11 dígitos numéricos). Por favor, informe um CPF válido.'
+    };
+  }
+  const idType = cleanCpf.length === 14 ? 'CNPJ' : 'CPF';
+
+  // 3. Validação do e-mail do pagador
+  const cleanEmail = (options.payer.email || '').trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    return {
+      success: false,
+      error: 'E-mail do pagador inválido para emissão do Pix.'
+    };
+  }
+
+  // 4. Higienização dos nomes (alfanuméricos sem caracteres especiais para conformidade BACEN)
+  const cleanFirstName = sanitizePixText(options.payer.firstName || 'Cliente', 30) || 'Cliente';
+  const cleanLastName = sanitizePixText(options.payer.lastName || 'Lavistore', 30) || 'Lavistore';
+
+  // 5. Descrição limpa do pedido (ASCII simples, sem bullets ou símbolos)
+  const cleanOrderId = String(options.orderId).replace(/[^A-Za-z0-9]/g, '');
+  const description = options.description 
+    ? sanitizePixText(options.description, 60)
+    : `Lavistore Pedido ${cleanOrderId}`;
+
+  // 6. Data de expiração da cobrança (padrão: 24 horas em formato ISO)
+  const expirationHours = Math.max(1, options.expirationHours || 24);
+  const dateOfExpiration = new Date(Date.now() + expirationHours * 3600 * 1000).toISOString();
+
+  // 7. Montagem do payload oficial para a API v1 do Mercado Pago
+  const payload = {
+    transaction_amount: amountNumber,
+    description,
+    payment_method_id: 'pix',
+    payer: {
+      email: cleanEmail,
+      first_name: cleanFirstName,
+      last_name: cleanLastName,
+      identification: {
+        type: idType,
+        number: cleanCpf
+      }
+    },
+    external_reference: String(options.orderId),
+    date_of_expiration: dateOfExpiration
+  };
+
+  const idempotencyKey = `lavistore-pix-${cleanOrderId}-${Date.now()}`;
+  console.log(`[Mercado Pago PIX] Enviando requisição para ${MERCADO_PAGO_API_BASE_URL}/v1/payments`);
+  console.log(`[Mercado Pago PIX] Pedido: #${options.orderId} | Valor: R$ ${amountNumber.toFixed(2)} | Pagador: ${cleanFirstName} ${cleanLastName} (${idType}: ${cleanCpf.slice(0, 3)}***${cleanCpf.slice(-2)})`);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(`${MERCADO_PAGO_API_BASE_URL}/v1/payments`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Idempotency-Key': idempotencyKey,
+        'User-Agent': 'Lavistore Kids (estilobeeadm@gmail.com)'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    const rawText = await response.text();
+    let data: any = null;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok || !data || !data.id) {
+      console.error('[Mercado Pago PIX Error] Falha na API oficial do Mercado Pago:');
+      console.error('[Mercado Pago PIX Error] HTTP Status:', response.status);
+      console.error('[Mercado Pago PIX Error] Payload enviado:', JSON.stringify(payload, null, 2));
+      console.error('[Mercado Pago PIX Error] Resposta bruta:', data || rawText);
+      if (data?.cause) {
+        console.error('[Mercado Pago PIX Error] Causas detalhadas:', JSON.stringify(data.cause, null, 2));
+      }
+
+      const rawErrStr = String(data?.message || rawText || '').toLowerCase();
+      const causeCode = data?.cause?.[0]?.code;
+      let errorMsg = data?.message || (data?.cause?.[0]?.description) || `Erro ao gerar Pix no Mercado Pago (HTTP ${response.status})`;
+
+      if (rawErrStr.includes('identification') || causeCode === 2067 || causeCode === 324 || rawErrStr.includes('invalid user identification number')) {
+        errorMsg = 'CPF do pagador inválido para o Mercado Pago. Por favor, confira os 11 dígitos do seu CPF.';
+      } else if (causeCode === 4037 || rawErrStr.includes('invalid transaction_amount')) {
+        errorMsg = 'Valor do pedido inválido para geração do Pix no Mercado Pago.';
+      }
+
+      return {
+        success: false,
+        error: errorMsg,
+        rawDetails: data || rawText
+      };
+    }
+
+    // 8. Extração e validação estrita dos dados do Pix Copia e Cola
+    const transactionData = data.point_of_interaction?.transaction_data;
+    const rawQrCode = transactionData?.qr_code;
+    const rawQrCodeBase64 = transactionData?.qr_code_base64;
+    const ticketUrl = transactionData?.ticket_url || `https://www.mercadopago.com.br/payments/${data.id}/ticket`;
+
+    if (!rawQrCode || typeof rawQrCode !== 'string' || !rawQrCode.startsWith('000201') || !rawQrCode.includes('br.gov.bcb.pix')) {
+      console.error('[Mercado Pago PIX Error] A resposta da API não contém um qr_code válido do BACEN:', transactionData);
+      return {
+        success: false,
+        error: 'A API do Mercado Pago retornou um QR Code Pix com estrutura corrompida ou incompleta.',
+        rawDetails: data
+      };
+    }
+
+    // Gera o Base64 com prefixo de data url ou gera via qrcode local
+    const finalQrCodeBase64 = rawQrCodeBase64
+      ? (rawQrCodeBase64.startsWith('data:') ? rawQrCodeBase64 : `data:image/png;base64,${rawQrCodeBase64}`)
+      : await generatePixQrCodeDataUrl(rawQrCode);
+
+    console.log(`[Mercado Pago PIX] ✅ Pagamento PIX gerado com sucesso! ID=${data.id}`);
+    console.log(`[Mercado Pago PIX] Pix Copia e Cola validado: ${rawQrCode.slice(0, 35)}... (Total: ${rawQrCode.length} caracteres)`);
+    console.log(`[Mercado Pago PIX] Link do comprovante/ticket: ${ticketUrl}`);
+
+    return {
+      success: true,
+      paymentId: String(data.id),
+      status: data.status || 'pending',
+      statusDetail: data.status_detail || 'pending_waiting_transfer',
+      pixQrCode: rawQrCode,
+      pixQrCodeBase64: finalQrCodeBase64,
+      pixTicketUrl: ticketUrl,
+      transactionAmount: data.transaction_amount || amountNumber
+    };
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    console.error('[Mercado Pago PIX Error] Exceção de rede ao comunicar com API:', err?.message || err);
     return {
       success: false,
       error: err?.name === 'AbortError'
