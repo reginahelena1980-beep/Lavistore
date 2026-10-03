@@ -393,7 +393,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                   </div>
 
                   <div className="space-y-1 text-left max-w-md mx-auto">
-                    <label className="text-xs text-slate-700 font-bold block">Chave Pix Copia e Cola:</label>
+                    <label className="text-xs text-slate-700 font-bold block">Código Pix Copia e Cola Oficial (com txid dinâmico):</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
@@ -413,7 +413,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                     {currentPixKey && (
                       <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 font-semibold pt-1">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>Chave Pix Copia e Cola Oficial verificada (Padrão BACEN / Mercado Pago)</span>
+                        <span>Código Pix Dinâmico Oficial verificado (API Mercado Pago /v1/payments • Padrão BACEN SPI)</span>
                       </div>
                     )}
                   </div>

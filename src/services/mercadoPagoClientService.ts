@@ -255,6 +255,7 @@ export interface RegeneratePixResult {
   transactionAmount?: number;
   dateOfExpiration?: string;
   expirationMinutes?: number;
+  point_of_interaction?: any;
   error?: string;
 }
 
@@ -279,8 +280,18 @@ export async function regenerateMercadoPagoPix(options: RegeneratePixOptions): P
       })
     });
 
-    if (res.ok && res.data?.success && res.data.pixQrCode) {
-      return res.data;
+    if (res.ok && res.data?.success) {
+      const poiQr = res.data.point_of_interaction?.transaction_data?.qr_code || res.data.pixQrCode;
+      const poiBase64 = res.data.point_of_interaction?.transaction_data?.qr_code_base64 || res.data.pixQrCodeBase64;
+      const poiTicket = res.data.point_of_interaction?.transaction_data?.ticket_url || res.data.pixTicketUrl;
+      if (poiQr) {
+        return {
+          ...res.data,
+          pixQrCode: poiQr,
+          pixQrCodeBase64: poiBase64,
+          pixTicketUrl: poiTicket
+        };
+      }
     }
 
     if (!res.ok && res.status !== 404) {

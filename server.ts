@@ -3380,45 +3380,40 @@ app.post([
       isOwnerTestSimulation = false
     } = req.body;
 
-    if (!orderData || !orderData.orderId) {
-      return res.status(400).json({ success: false, error: 'Dados do pedido ausentes ou inválidos.' });
-    }
-
     const rawMethod = String(payment_method_id || '').toLowerCase();
     const isPixPayment = rawMethod === 'pix' || rawMethod === 'bank_transfer' || (!token && rawMethod !== 'credit_card');
     const resolvedMethodId = isPixPayment ? 'pix' : (payment_method_id || 'visa');
 
-    const amountNum = Math.round(Number(transaction_amount || orderData.total || 0) * 100) / 100;
+    const resolvedOrderId = String(
+      orderData?.orderId ||
+      req.body.external_reference ||
+      req.body.orderId ||
+      `LAVI-${Date.now()}`
+    );
+
+    const amountNum = Math.round(Number(transaction_amount || orderData?.total || 0) * 100) / 100;
     if (amountNum <= 0) {
       return res.status(400).json({ success: false, error: 'O valor do pedido deve ser maior que zero (R$ 0,00).' });
     }
 
     const creds = getMercadoPagoCredentials();
     const accessToken = creds.accessToken?.trim();
-    const rawCpf = String(payer?.identification?.number || orderData.customerCpf || '').trim();
-    const baseCleanCpf = cleanCustomerCpf(rawCpf);
+    const rawCpf = String(payer?.identification?.number || orderData?.customerCpf || '').trim();
+    const cleanCpf = cleanCustomerCpf(rawCpf);
 
-    if (isPixPayment && (!baseCleanCpf || baseCleanCpf.length < 11)) {
+    if (isPixPayment && (!cleanCpf || cleanCpf.length < 11)) {
       return res.status(400).json({
         success: false,
-        error: 'O CPF do pagador é obrigatório (11 dígitos). Por favor, informe um CPF válido.'
+        error: 'O CPF do pagador é obrigatório (11 dígitos numéricos limpos via cleanCustomerCpf). Por favor, informe um CPF válido.'
       });
     }
 
-    // Valida e repara CPF para prevenir rejeição 2067 no Mercado Pago ou rejeição por mesma titularidade no SPI
-    let cleanCpf = baseCleanCpf;
-    if (cleanCpf === '29051956819') {
-      cleanCpf = '52998224725';
-    } else if (!isValidDocumentServer(cleanCpf)) {
-      cleanCpf = repairOrGenerateValidCpfServer(cleanCpf);
-    }
-
-    let cleanEmail = String(payer?.email || orderData.customerEmail || 'cliente@lavistore.com.br').trim().toLowerCase();
+    let cleanEmail = String(payer?.email || orderData?.customerEmail || 'cliente@lavistore.com.br').trim().toLowerCase();
     if (cleanEmail === 'reginahelena1980@gmail.com') {
       cleanEmail = 'comprador.lavistore@gmail.com';
     }
 
-    const rawFullName = String(orderData.customerName || payer?.first_name || 'Cliente Lavistore').trim();
+    const rawFullName = String(orderData?.customerName || `${payer?.first_name || ''} ${payer?.last_name || ''}`.trim() || 'Cliente Lavistore').trim();
     const nameParts = rawFullName.split(/\s+/).filter(Boolean);
     const firstName = (payer?.first_name?.trim() || nameParts[0] || 'Cliente').slice(0, 30);
     const lastName = (payer?.last_name?.trim() || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Lavistore')).slice(0, 30);
@@ -3427,10 +3422,11 @@ app.post([
     const isSelfPayment = (cleanCpf === '29051956819' && cleanEmail === 'reginahelena1980@gmail.com');
 
     let paymentResult: any = null;
+    let livePixRes: any = null;
 
     // Se o lojista solicitou explicitamente a conclusão como Pedido de Teste (Simulação de Lojista sem débito em cartão)
     if (isOwnerTestSimulation) {
-      console.log(`[Mercado Pago] Concluindo pedido #${orderData.orderId} em Modo de Teste do Lojista (Simulação sem débito).`);
+      console.log(`[Mercado Pago] Concluindo pedido #${resolvedOrderId} em Modo de Teste do Lojista (Simulação sem débito).`);
       const mockTestId = Math.floor(1000000000 + Math.random() * 9000000000);
       paymentResult = {
         id: `TEST-${mockTestId}`,
@@ -3452,28 +3448,29 @@ app.post([
         isSimulated: true
       };
     } else if (accessToken && accessToken.length > 10) {
-      console.log(`[Mercado Pago] Enviando pagamento para API oficial: Método=${resolvedMethodId}, Valor=R$ ${amountNum.toFixed(2)}`);
+      console.log(`[Mercado Pago] Enviando pagamento para API oficial (/v1/payments): Método=${resolvedMethodId}, Valor=R$ ${amountNum.toFixed(2)}, Pedido=#${resolvedOrderId}`);
 
       if (isPixPayment) {
         // =========================================================================
         // PROCESSAMENTO OFICIAL PIX VIA API V1 DO MERCADO PAGO (/v1/payments)
         // =========================================================================
-        const expirationMinutes = Math.max(35, Number(req.body.expirationMinutes || 45));
         const pixRes = await createMercadoPagoPixPayment({
           amount: amountNum,
-          orderId: orderData.orderId,
+          orderId: resolvedOrderId,
           payer: {
             email: cleanEmail,
             firstName,
             lastName,
             cpfOrCnpj: cleanCpf
           },
-          description: `Lavistore Pedido #${orderData.orderId}`,
-          expirationMinutes
+          description: req.body.description || `Lavistore Pedido #${resolvedOrderId}`,
+          expirationMinutes: Number(req.body.expirationMinutes) || 1440
         });
 
+        livePixRes = pixRes;
+
         if (!pixRes.success || !pixRes.pixQrCode) {
-          console.error('[Mercado Pago PIX] Falha na emissão do PIX Oficial:', pixRes.error);
+          console.error('[Mercado Pago PIX] Falha na emissão do PIX Oficial (/v1/payments):', pixRes.error);
           return res.status(400).json({
             success: false,
             error: pixRes.error || 'Não foi possível gerar a cobrança Pix no Mercado Pago.',
@@ -3494,11 +3491,18 @@ app.post([
             qr_code_base64: pixRes.pixQrCodeBase64,
             ticket_url: pixRes.pixTicketUrl,
             date_of_expiration: pixRes.dateOfExpiration,
-            expiration_minutes: pixRes.expirationMinutes || expirationMinutes
+            expiration_minutes: pixRes.expirationMinutes || 1440
+          },
+          point_of_interaction: pixRes.point_of_interaction || {
+            transaction_data: {
+              qr_code: pixRes.pixQrCode,
+              qr_code_base64: pixRes.pixQrCodeBase64,
+              ticket_url: pixRes.pixTicketUrl
+            }
           },
           isSimulated: false
         };
-        console.log(`[Mercado Pago PIX] ✅ Pagamento e Copia e Cola configurados para o Pedido #${orderData.orderId}: ID=${pixRes.paymentId}`);
+        console.log(`[Mercado Pago PIX] ✅ Pagamento Dinâmico BACEN gerado para Pedido #${resolvedOrderId}: ID=${pixRes.paymentId}`);
       } else {
         // =========================================================================
         // PROCESSAMENTO CARTÃO DE CRÉDITO (VIA PAYMENT BRICK / TOKEN)
@@ -3814,6 +3818,16 @@ app.post([
       success: true,
       payment: paymentResult,
       order: finalizedOrder,
+      point_of_interaction: livePixRes?.point_of_interaction || paymentResult?.point_of_interaction || (paymentResult?.pix ? {
+        transaction_data: {
+          qr_code: paymentResult.pix.qr_code,
+          qr_code_base64: paymentResult.pix.qr_code_base64,
+          ticket_url: paymentResult.pix.ticket_url
+        }
+      } : undefined),
+      pixQrCode: paymentResult?.pix?.qr_code || livePixRes?.pixQrCode,
+      pixQrCodeBase64: paymentResult?.pix?.qr_code_base64 || livePixRes?.pixQrCodeBase64,
+      pixTicketUrl: paymentResult?.pix?.ticket_url || livePixRes?.pixTicketUrl,
       notification: emailNotificationResult
     });
 
@@ -3910,6 +3924,13 @@ app.post([
       paymentId: pixRes.paymentId,
       status: pixRes.status,
       statusDetail: pixRes.statusDetail,
+      point_of_interaction: pixRes.point_of_interaction || {
+        transaction_data: {
+          qr_code: pixRes.pixQrCode,
+          qr_code_base64: pixRes.pixQrCodeBase64,
+          ticket_url: pixRes.pixTicketUrl
+        }
+      },
       pixQrCode: pixRes.pixQrCode,
       pixQrCodeBase64: pixRes.pixQrCodeBase64,
       pixTicketUrl: pixRes.pixTicketUrl,

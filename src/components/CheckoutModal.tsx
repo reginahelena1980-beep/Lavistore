@@ -29,7 +29,7 @@ import { DEFAULT_COUPONS } from '../data/coupons';
 import { calculateMelhorEnvioShipping, formatCep, isValidCep, getShippingConfig } from '../services/shippingService';
 import { fetchAddressByCep } from '../services/cepService';
 import { isValidCpf, isValidDocument, formatCpf, formatDocument, repairOrGenerateValidCpf, cleanCustomerCpf } from '../utils/documentUtils';
-import { processClientSidePixOrder, DEFAULT_PIX_KEY, validatePixCopiaECola } from '../services/pixPaymentService';
+import { processClientSidePixOrder, validatePixCopiaECola } from '../services/pixPaymentService';
 import { createOrder } from '../services/storeApiService';
 import { getMercadoPagoPublicKey, DEFAULT_PRODUCTION_PUBLIC_KEY, safeFetchJson, SafeFetchResult } from '../services/mercadoPagoClientService';
 
@@ -756,14 +756,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           // 1. Tenta processar no backend via API oficial do Mercado Pago (/v1/payments)
           try {
-            console.log(`[Checkout PIX] Submetendo pedido #${baseOrderData.orderId} para processamento oficial no Mercado Pago...`);
+            console.log(`[Checkout PIX] Submetendo pedido #${baseOrderData.orderId} para processamento dinâmico na API do Mercado Pago (/v1/payments)...`);
             const backendResp = await safeFetchJson<any>('/api/mercadopago/process_payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 payment_method_id: 'pix',
                 transaction_amount: sanitizedTotal,
-                expirationMinutes: 30,
+                description: `Lavistore Pedido #${baseOrderData.orderId}`,
+                external_reference: String(baseOrderData.orderId),
+                expirationMinutes: 1440,
                 payer: {
                   email: customerEmail.trim().toLowerCase(),
                   first_name: payerFirstName,
@@ -780,43 +782,61 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               })
             });
 
-            if (backendResp.ok && backendResp.data?.success && backendResp.data?.payment?.pix?.qr_code) {
-              const mpPix = backendResp.data.payment.pix;
-              const rawQrCode = String(mpPix.qr_code || '').trim();
+            const poiTrans = backendResp.data?.point_of_interaction?.transaction_data;
+            const mpPix = backendResp.data?.payment?.pix || {};
+            const rawQrCode = String(
+              poiTrans?.qr_code ||
+              mpPix?.qr_code ||
+              backendResp.data?.pixQrCode ||
+              backendResp.data?.order?.pixQrCode ||
+              ''
+            ).trim();
+
+            if (backendResp.ok && backendResp.data?.success && rawQrCode) {
+              const rawQrBase64 = 
+                poiTrans?.qr_code_base64 ||
+                mpPix?.qr_code_base64 ||
+                backendResp.data?.pixQrCodeBase64 ||
+                backendResp.data?.order?.pixQrCodeBase64 ||
+                null;
+              const ticketUrl = 
+                poiTrans?.ticket_url ||
+                mpPix?.ticket_url ||
+                backendResp.data?.pixTicketUrl ||
+                `https://www.mercadopago.com.br/payments/${backendResp.data?.payment?.id || backendResp.data?.paymentId}/ticket`;
+              const expDate = mpPix?.date_of_expiration || backendResp.data?.payment?.pix?.date_of_expiration || poiTrans?.date_of_expiration;
 
               // Validação estrita de integridade da resposta da API antes de aceitar
               const validation = validatePixCopiaECola(rawQrCode);
               if (!validation.isValid) {
-                console.error('[Checkout PIX] A resposta da API do Mercado Pago continha uma string Pix inconsistente:', validation.reason);
+                console.warn('[Checkout PIX] Validação BACEN:', validation.reason);
               }
 
-              const ticketUrl = mpPix.ticket_url || `https://www.mercadopago.com.br/payments/${backendResp.data.payment.id}/ticket`;
-              const expDate = mpPix.date_of_expiration || backendResp.data.payment.pix?.date_of_expiration;
               const finalizedOrder: OrderData = {
                 ...baseOrderData,
-                mercadoPagoPaymentId: String(backendResp.data.payment.id),
-                mercadoPagoStatus: backendResp.data.payment.status || 'pending',
-                mercadoPagoStatusDetail: backendResp.data.payment.status_detail || 'pending_waiting_transfer',
+                mercadoPagoPaymentId: String(backendResp.data.payment?.id || backendResp.data.paymentId),
+                mercadoPagoStatus: backendResp.data.payment?.status || 'pending',
+                mercadoPagoStatusDetail: backendResp.data.payment?.status_detail || 'pending_waiting_transfer',
                 pixQrCode: rawQrCode,
-                pixQrCodeBase64: mpPix.qr_code_base64 || null,
+                pixQrCodeBase64: rawQrBase64,
                 pixTicketUrl: ticketUrl,
                 pixDateOfExpiration: expDate,
                 pixExpiresAt: expDate,
-                pixExpirationMinutes: mpPix.expiration_minutes || 30
+                pixExpirationMinutes: mpPix?.expiration_minutes || 30
               };
               try { await createOrder(finalizedOrder); } catch {}
               pixResult = {
                 success: true,
-                paymentId: String(backendResp.data.payment.id),
-                status: backendResp.data.payment.status || 'pending',
-                status_detail: backendResp.data.payment.status_detail || 'pending_waiting_transfer',
+                paymentId: String(backendResp.data.payment?.id || backendResp.data.paymentId),
+                status: backendResp.data.payment?.status || 'pending',
+                status_detail: backendResp.data.payment?.status_detail || 'pending_waiting_transfer',
                 pixQrCode: rawQrCode,
-                pixQrCodeBase64: mpPix.qr_code_base64 || '',
+                pixQrCodeBase64: rawQrBase64 || '',
                 pixTicketUrl: ticketUrl,
                 transactionAmount: sanitizedTotal,
                 order: finalizedOrder
               };
-              console.log(`[Checkout PIX] ✅ Cobrança PIX Oficial gerada com sucesso! ID=${backendResp.data.payment.id}`);
+              console.log(`[Checkout PIX] ✅ Cobrança PIX Oficial gerada com sucesso! ID=${finalizedOrder.mercadoPagoPaymentId}`);
             } else if (!backendResp.ok && backendResp.status !== 404) {
               // Se o backend retornou erro (ex: CPF inválido, rejeição do Mercado Pago),
               // reporta o erro claro para o cliente corrigir em vez de mascarar com string falsa!

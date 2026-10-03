@@ -25,6 +25,9 @@ import { cleanCustomerCpf, isValidDocument, formatDocument, repairOrGenerateVali
 
 export { cleanCustomerCpf };
 
+// Chave estática legada desativada (Mercado Pago opera 100% dinâmico via /v1/payments)
+export const DEFAULT_PIX_KEY = '';
+
 // Token de contingência de produção (usado exclusivamente caso o proxy do backend esteja inacessível)
 export const DEFAULT_PRODUCTION_ACCESS_TOKEN = 'APP_USR-2284468817819275-090511-d5a3cce116abc10a686c588cd9c0b04d-153059854';
 export const MERCADO_PAGO_API_URL = 'https://api.mercadopago.com';
@@ -121,16 +124,11 @@ export async function createDynamicMercadoPagoPixPayment(
   const cleanOrderId = String(baseOrderData.orderId || `LAVI-${Date.now()}`).replace(/[^A-Za-z0-9]/g, '');
   const sanitizedAmount = Math.max(0.01, Number(Number(baseOrderData.total || 0).toFixed(2)));
 
-  // 1. Sanitização e validação estrita do CPF do pagador
+  // 1. Sanitização e validação estrita do CPF do pagador via cleanCustomerCpf
   const rawCpf = cleanCustomerCpf(baseOrderData.customerCpf);
   let cleanCpf = rawCpf;
   if (!cleanCpf || cleanCpf.length < 11) {
     cleanCpf = '12345678909';
-  }
-
-  // Previne rejeição por Módulo 11 (código 2067) ou rejeição por mesma titularidade na conta recebedora
-  if (cleanCpf === '29051956819') {
-    cleanCpf = '52998224725';
   } else if (!isValidDocument(cleanCpf)) {
     cleanCpf = repairOrGenerateValidCpf(cleanCpf);
   }
@@ -151,7 +149,7 @@ export async function createDynamicMercadoPagoPixPayment(
   const lastName = sanitizePixText(nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Lavistore', 30) || 'Lavistore';
 
   // 3. Montagem do payload oficial exigido pela API /v1/payments do Mercado Pago
-  const expMinutes = Math.max(35, Math.min(1440, expirationMinutes));
+  const expMinutes = Math.max(35, Math.min(1440, expirationMinutes || 1440));
   const expDate = new Date(Date.now() + expMinutes * 60 * 1000).toISOString();
   const description = `Lavistore Pedido #${cleanOrderId}`;
 
@@ -195,16 +193,19 @@ export async function createDynamicMercadoPagoPixPayment(
 
     if (backendResp.ok) {
       const respData = await backendResp.json();
-      if (respData?.payment?.pix?.qr_code || respData?.pixQrCode || respData?.order?.pixQrCode) {
-        const pixObj = respData.payment?.pix || respData.pix || respData;
+      const poiTrans = respData?.point_of_interaction?.transaction_data;
+      const pixObj = respData?.payment?.pix || respData?.pix || respData;
+
+      const dynamicQr = poiTrans?.qr_code || pixObj?.qr_code || respData?.pixQrCode || respData?.order?.pixQrCode;
+      if (dynamicQr) {
         paymentData = {
           id: String(respData.payment?.id || respData.paymentId || respData.order?.mercadoPagoPaymentId),
-          status: respData.payment?.status || 'pending',
-          status_detail: respData.payment?.status_detail || 'pending_waiting_transfer',
-          qr_code: pixObj.qr_code || respData.pixQrCode || respData.order?.pixQrCode,
-          qr_code_base64: pixObj.qr_code_base64 || respData.pixQrCodeBase64,
-          ticket_url: pixObj.ticket_url || respData.pixTicketUrl,
-          date_of_expiration: pixObj.date_of_expiration || expDate
+          status: respData.payment?.status || respData.status || 'pending',
+          status_detail: respData.payment?.status_detail || respData.statusDetail || 'pending_waiting_transfer',
+          qr_code: dynamicQr,
+          qr_code_base64: poiTrans?.qr_code_base64 || pixObj?.qr_code_base64 || respData.pixQrCodeBase64,
+          ticket_url: poiTrans?.ticket_url || pixObj?.ticket_url || respData.pixTicketUrl,
+          date_of_expiration: pixObj?.date_of_expiration || expDate
         };
         console.log(`[PixService] ✅ Cobrança Pix recebida com sucesso via backend Express! ID=${paymentData.id}`);
       }
