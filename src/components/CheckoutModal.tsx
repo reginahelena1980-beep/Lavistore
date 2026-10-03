@@ -746,114 +746,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         dedication: resolvedDedication
       };
 
-      // 1. PROCESSAMENTO PIX OFICIAL (Mercado Pago API com fallback seguro)
+      // 1. PROCESSAMENTO PIX OFICIAL (Mercado Pago API com geração direta e contingência segura)
       if (isPix) {
         try {
-          let pixResult: any = null;
+          console.log(`[Checkout PIX] 🚀 Iniciando processamento do Pix para Pedido #${baseOrderData.orderId} (R$ ${sanitizedTotal.toFixed(2)})...`);
 
-          const payerFirstName = (customerName.trim().split(/\s+/)[0] || 'Cliente').slice(0, 30);
-          const payerLastName = (customerName.trim().split(/\s+/).slice(1).join(' ') || 'Lavistore').slice(0, 30);
+          // Chama a função assíncrona oficial de processamento Pix
+          // Trata tanto o endpoint backend (/api/mercadopago/process_payment) quanto contingência direta no ambiente estático
+          const pixResult = await processClientSidePixOrder(baseOrderData);
 
-          // 1. Tenta processar no backend via API oficial do Mercado Pago (/v1/payments)
-          try {
-            console.log(`[Checkout PIX] Submetendo pedido #${baseOrderData.orderId} para processamento dinâmico na API do Mercado Pago (/v1/payments)...`);
-            const backendResp = await safeFetchJson<any>('/api/mercadopago/process_payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                payment_method_id: 'pix',
-                transaction_amount: sanitizedTotal,
-                description: `Lavistore Pedido #${baseOrderData.orderId}`,
-                external_reference: String(baseOrderData.orderId),
-                expirationMinutes: 1440,
-                payer: {
-                  email: customerEmail.trim().toLowerCase(),
-                  first_name: payerFirstName,
-                  last_name: payerLastName,
-                  identification: {
-                    type: cleanCpf.length === 14 ? 'CNPJ' : 'CPF',
-                    number: cleanCpf
-                  }
-                },
-                orderData: {
-                  ...baseOrderData,
-                  total: sanitizedTotal
-                }
-              })
+          if (!pixResult || !pixResult.pixQrCode) {
+            const errDetail = pixResult?.error || 'Não foi possível gerar a cobrança Pix no Mercado Pago.';
+            console.error('[Checkout PIX] Resposta sem QR Code válido retornado:', {
+              orderId: baseOrderData.orderId,
+              transactionAmount: sanitizedTotal,
+              pixResult
             });
-
-            const poiTrans = backendResp.data?.point_of_interaction?.transaction_data;
-            const mpPix = backendResp.data?.payment?.pix || {};
-            const rawQrCode = String(
-              poiTrans?.qr_code ||
-              mpPix?.qr_code ||
-              backendResp.data?.pixQrCode ||
-              backendResp.data?.order?.pixQrCode ||
-              ''
-            ).trim();
-
-            if (backendResp.ok && backendResp.data?.success && rawQrCode) {
-              const rawQrBase64 = 
-                poiTrans?.qr_code_base64 ||
-                mpPix?.qr_code_base64 ||
-                backendResp.data?.pixQrCodeBase64 ||
-                backendResp.data?.order?.pixQrCodeBase64 ||
-                null;
-              const ticketUrl = 
-                poiTrans?.ticket_url ||
-                mpPix?.ticket_url ||
-                backendResp.data?.pixTicketUrl ||
-                `https://www.mercadopago.com.br/payments/${backendResp.data?.payment?.id || backendResp.data?.paymentId}/ticket`;
-              const expDate = mpPix?.date_of_expiration || backendResp.data?.payment?.pix?.date_of_expiration || poiTrans?.date_of_expiration;
-
-              // Validação estrita de integridade da resposta da API antes de aceitar
-              const validation = validatePixCopiaECola(rawQrCode);
-              if (!validation.isValid) {
-                console.warn('[Checkout PIX] Validação BACEN:', validation.reason);
-              }
-
-              const finalizedOrder: OrderData = {
-                ...baseOrderData,
-                mercadoPagoPaymentId: String(backendResp.data.payment?.id || backendResp.data.paymentId),
-                mercadoPagoStatus: backendResp.data.payment?.status || 'pending',
-                mercadoPagoStatusDetail: backendResp.data.payment?.status_detail || 'pending_waiting_transfer',
-                pixQrCode: rawQrCode,
-                pixQrCodeBase64: rawQrBase64,
-                pixTicketUrl: ticketUrl,
-                pixDateOfExpiration: expDate,
-                pixExpiresAt: expDate,
-                pixExpirationMinutes: mpPix?.expiration_minutes || 30
-              };
-              try { await createOrder(finalizedOrder); } catch {}
-              pixResult = {
-                success: true,
-                paymentId: String(backendResp.data.payment?.id || backendResp.data.paymentId),
-                status: backendResp.data.payment?.status || 'pending',
-                status_detail: backendResp.data.payment?.status_detail || 'pending_waiting_transfer',
-                pixQrCode: rawQrCode,
-                pixQrCodeBase64: rawQrBase64 || '',
-                pixTicketUrl: ticketUrl,
-                transactionAmount: sanitizedTotal,
-                order: finalizedOrder
-              };
-              console.log(`[Checkout PIX] ✅ Cobrança PIX Oficial gerada com sucesso! ID=${finalizedOrder.mercadoPagoPaymentId}`);
-            } else if (!backendResp.ok && backendResp.status !== 404) {
-              // Se o backend retornou erro (ex: CPF inválido, rejeição do Mercado Pago),
-              // reporta o erro claro para o cliente corrigir em vez de mascarar com string falsa!
-              const friendlyError = backendResp.data?.error || backendResp.errorText || 'O Mercado Pago não pôde gerar o QR Code Pix com os dados fornecidos.';
-              console.error('[Checkout PIX Rejection] Erro retornado pela API do Mercado Pago:', friendlyError, backendResp.data);
-              setPaymentErrorMessage(friendlyError);
-              setIsProcessing(false);
-              return;
-            }
-          } catch (backendErr: any) {
-            console.warn('[Checkout] Aviso ao consultar backend de pagamentos:', backendErr?.message || backendErr);
-          }
-
-          // 2. Se backend indisponível (HTTP 404 em hospedagens puramente estáticas como Vercel)
-          if (!pixResult) {
-            console.info('[Checkout PIX] Backend de pagamentos indisponível. Operando em modo contingência Client-Side BACEN...');
-            pixResult = await processClientSidePixOrder(baseOrderData);
+            throw new Error(errDetail);
           }
 
           setIsProcessing(false);
@@ -866,11 +775,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             colors: ['#C084FC', '#F472B6', '#FBCFE8', '#DDD6FE', '#FDE047']
           });
 
+          console.log(`[Checkout PIX] ✅ Pedido #${baseOrderData.orderId} concluído com sucesso via Pix! ID=${pixResult.paymentId}`);
           onOrderSuccess(pixResult.order);
           return;
         } catch (pixErr: any) {
-          console.error('[Checkout] Erro ao gerar PIX:', pixErr);
-          setPaymentErrorMessage(pixErr?.message || 'Erro ao gerar o código PIX. Por favor, tente novamente.');
+          // Bloco try/catch com console.error detalhado para identificação precisa da falha
+          console.error('[Checkout PIX Error] Exceção detalhada na geração do Pix:', {
+            orderId: baseOrderData.orderId,
+            transaction_amount: sanitizedTotal,
+            cleanCustomerCpf: cleanedCpf,
+            customerEmail: baseOrderData.customerEmail,
+            errorName: pixErr?.name || 'PixPaymentError',
+            errorMessage: pixErr?.message || String(pixErr),
+            stack: pixErr?.stack
+          });
+
+          const displayMsg = (pixErr?.message && !pixErr.message.includes('fetch'))
+            ? pixErr.message
+            : 'Erro ao gerar o código PIX. Por favor, confira seus dados e tente novamente.';
+
+          setPaymentErrorMessage(displayMsg);
           setIsProcessing(false);
           return;
         }
