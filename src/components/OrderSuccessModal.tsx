@@ -297,6 +297,16 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                     </div>
                   </div>
 
+                  <div className="p-3 bg-amber-50/90 rounded-xl border border-amber-200/80 text-left max-w-md mx-auto space-y-1">
+                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Pagamento Centralizado e Seguro via Mercado Pago</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Abra o aplicativo do seu banco, escolha <strong>Pagar com Pix</strong>, aponte a câmera para o QR Code acima ou cole o código Copia e Cola. O Mercado Pago processa e confirma seu pedido automaticamente.
+                    </p>
+                  </div>
+
                   {isStoreOwner && (
                     <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200 text-left text-xs text-purple-950 space-y-2 mt-2">
                       <div className="font-bold flex items-center justify-between text-purple-900">

@@ -53,7 +53,6 @@ export const MercadoPagoManager: React.FC = () => {
   const [editAccessToken, setEditAccessToken] = useState('');
   const [editClientId, setEditClientId] = useState('');
   const [editClientSecret, setEditClientSecret] = useState('');
-  const [editPixKey, setEditPixKey] = useState('reginahelena1980@gmail.com');
   const [showSecretInForm, setShowSecretInForm] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
@@ -155,8 +154,7 @@ export const MercadoPagoManager: React.FC = () => {
     try {
       const payload: any = {
         publicKey: editPublicKey.trim(),
-        clientId: editClientId.trim(),
-        pixKey: editPixKey.trim()
+        clientId: editClientId.trim()
       };
       if (editAccessToken.trim()) {
         payload.accessToken = editAccessToken.trim();
@@ -509,22 +507,6 @@ export const MercadoPagoManager: React.FC = () => {
                   className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 />
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Chave Pix Direta da Loja (E-mail, CPF, CNPJ ou Telefone)
-                </label>
-                <input
-                  type="text"
-                  value={editPixKey}
-                  onChange={(e) => setEditPixKey(e.target.value)}
-                  placeholder="reginahelena1980@gmail.com ou 29051956819"
-                  className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                />
-                <span className="text-[10px] text-slate-500 block mt-1">
-                  Chave utilizada para gerar QR Code estático ou de contingência direta BACEN.
-                </span>
-              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
@@ -560,9 +542,9 @@ export const MercadoPagoManager: React.FC = () => {
             </div>
 
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-slate-500 block text-[11px]">Chave PIX da Loja:</span>
-              <span className="font-mono text-slate-800 font-bold block truncate mt-0.5" title={data?.pixKey || 'reginahelena1980@gmail.com'}>
-                {data?.pixKey || 'reginahelena1980@gmail.com'}
+              <span className="text-slate-500 block text-[11px]">PIX Oficial:</span>
+              <span className="text-emerald-700 font-bold block mt-0.5 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Centralizado no Mercado Pago
               </span>
             </div>
 
