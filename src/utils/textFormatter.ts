@@ -132,7 +132,7 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
 
   // Catalog
   catalogTitle: {
-    text: 'Nossos Mimos Encantados ✨',
+    text: 'Nossos Mimos ✨',
     fontSize: '2xl',
     isBold: true
   },
