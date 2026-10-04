@@ -256,7 +256,6 @@ const handleChangePasswordSubmit = async (e: React.FormEvent) => {
     }
   };
 
-  // Redefinir Senha Sem a Senha Antiga (via Código ou Chave Mestra)
 // Redefinir Senha Sem a Senha Antiga (via Código ou Chave Mestra)
 const handleResetPasswordSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
