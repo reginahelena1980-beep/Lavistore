@@ -257,103 +257,95 @@ const handleChangePasswordSubmit = async (e: React.FormEvent) => {
   };
 
   // Redefinir Senha Sem a Senha Antiga (via Código ou Chave Mestra)
-  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRecoveryError(null);
-    setRecoverySuccess(null);
+// Redefinir Senha Sem a Senha Antiga (via Código ou Chave Mestra)
+const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setRecoveryError(null);
+  setRecoverySuccess(null);
 
-    const newPass = recoveryNewPassword.trim();
-    const confirmPass = recoveryConfirmPassword.trim();
+  const newPass = recoveryNewPassword.trim();
+  const confirmPass = recoveryConfirmPassword.trim();
 
-    if (!newPass || newPass.length < 4) {
-      setRecoveryError('A nova senha deve possuir pelo menos 4 caracteres.');
-      return;
-    }
+  if (!newPass || newPass.length < 4) {
+    setRecoveryError('A nova senha deve possuir pelo menos 4 caracteres.');
+    return;
+  }
 
-    if (newPass !== confirmPass) {
-      setRecoveryError('A confirmação da nova senha não coincide com a senha digitada.');
-      return;
-    }
+  if (newPass !== confirmPass) {
+    setRecoveryError(
+      'A confirmação da nova senha não coincide com a senha digitada.'
+    );
+    return;
+  }
 
-    if (recoveryMethod === 'email' && !verificationCode.trim()) {
-      setRecoveryError('Por favor, digite o código de 6 dígitos recebido.');
-      return;
-    }
+  if (recoveryMethod === 'email' && !verificationCode.trim()) {
+    setRecoveryError('Por favor, digite o código de 6 dígitos recebido.');
+    return;
+  }
 
-    if (recoveryMethod === 'master_key' && !masterRecoveryKey.trim()) {
-      setRecoveryError('Por favor, digite a Chave Mestra de Emergência.');
-      return;
-    }
+  if (recoveryMethod === 'master_key' && !masterRecoveryKey.trim()) {
+    setRecoveryError('Por favor, digite a Chave Mestra de Emergência.');
+    return;
+  }
 
-    setIsResettingPassword(true);
+  setIsResettingPassword(true);
 
-    try {
-      let serverSuccess = false;
-      try {
-        const res = await fetch('/api/admin/reset-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            verificationCode: recoveryMethod === 'email' ? verificationCode.trim() : undefined,
-            masterRecoveryKey: recoveryMethod === 'master_key' ? masterRecoveryKey.trim() : undefined,
-            newPassword: newPass
-          })
-        });
+  try {
+    const res = await fetch('/api/admin/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        verificationCode:
+          recoveryMethod === 'email'
+            ? verificationCode.trim()
+            : undefined,
 
-        const data = await res.json();
+        masterRecoveryKey:
+          recoveryMethod === 'master_key'
+            ? masterRecoveryKey.trim()
+            : undefined,
 
-        if (res.ok && data.success) {
-          serverSuccess = true;
-        } else if (data.error) {
-          setRecoveryError(data.error);
-          setIsResettingPassword(false);
-          return;
-        }
-      } catch {
-        // Modo contingência offline
-      }
+        newPassword: newPass
+      })
+    });
 
-      // Se falhou no backend por ausência de conexão, aceitar a chave padrão ou código de contingência
-      if (!serverSuccess && recoveryMethod === 'master_key' && masterRecoveryKey.trim().toUpperCase() !== 'LAVISTORE-RECOVERY-2026') {
-        setRecoveryError('Chave Mestra inválida. Verifique e tente novamente.');
-        setIsResettingPassword(false);
-        return;
-      }
+    const data = await res.json();
 
-      // Purga proativa de localStorage legado
-      if (typeof window !== 'undefined' && window.localStorage) {
-        try {
-          window.localStorage.removeItem('lavistore_admin_password');
-          window.localStorage.removeItem('lavistore_admin_password_changed');
-        } catch {}
-      }
-
-      // Salvar nova senha na memória da sessão e no Firestore
-      safeSetItem('lavistore_admin_password', newPass);
-      safeSetItem('lavistore_admin_password_changed', 'true');
-      setIsDefaultPasswordOnServer(false);
-
-      try {
-        await saveStoreConfigToFirestore({
-          adminPassword: newPass,
-          adminPasswordChanged: true,
-          adminPasswordChangedAt: new Date().toISOString()
-        } as any);
-      } catch (fsErr) {
-        console.warn('[AdminLogin] Aviso ao sincronizar nova senha no Firestore:', fsErr);
-      }
-
-      setRecoverySuccess('🎉 Nova senha redefinida com sucesso! Acessando painel de gerência...');
-
-      setTimeout(() => {
-        setIsResettingPassword(false);
-        onLoginSuccess();
-      }, 1300);
-    } catch (err: any) {
+    if (!res.ok || !data.success) {
+      setRecoveryError(
+        data.error || 'Não foi possível redefinir a senha.'
+      );
       setIsResettingPassword(false);
-      setRecoveryError('Ocorreu um erro ao redefinir a senha. Tente novamente.');
+      return;
     }
-  };
+
+    // Remove qualquer credencial administrativa legada do navegador.
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem('lavistore_admin_password');
+        window.localStorage.removeItem('lavistore_admin_password_changed');
+      } catch {}
+    }
+
+    setIsDefaultPasswordOnServer(false);
+
+    setRecoverySuccess(
+      '🎉 Nova senha redefinida com sucesso! Acessando painel de gerência...'
+    );
+
+    setTimeout(() => {
+      setIsResettingPassword(false);
+      onLoginSuccess();
+    }, 1300);
+  } catch (error) {
+    console.error('[AdminLogin] Erro ao redefinir senha:', error);
+
+    setIsResettingPassword(false);
+    setRecoveryError(
+      'Não foi possível redefinir a senha. Tente novamente.'
+    );
+  }
+};
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 font-['Comfortaa'] bg-gradient-to-b from-[#FDF4F6] via-[#FAF5FF] to-[#F0FDF4] text-purple-950">
