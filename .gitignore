@@ -11,3 +11,5 @@ coverage/
 persistent_data/
 .dev.*
 *.local
+
+.vercel/
