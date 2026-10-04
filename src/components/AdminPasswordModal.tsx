@@ -171,102 +171,43 @@ const handleSubmit = async (e: React.FormEvent) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setErrorMessage(null);
-  setSuccessMessage(null);
+{/* Senha Atual */}
+<div className="space-y-1.5">
+  <label className="text-xs font-bold text-purple-950">
+    Senha Atual
+  </label>
 
-  const current = currentPassword.trim();
-  const newPass = newPassword.trim();
-  const confirmPass = confirmPassword.trim();
+  <div className="relative">
+    <input
+      id="input-current-password"
+      type={showCurrent ? 'text' : 'password'}
+      required
+      value={currentPassword}
+      onChange={(e) => {
+        setCurrentPassword(e.target.value);
+        if (errorMessage) setErrorMessage(null);
+      }}
+      placeholder="Digite sua senha atual"
+      className="w-full px-3 py-2 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-medium text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:bg-white transition-all pr-9"
+    />
 
-  if (!current) {
-    setErrorMessage('Por favor, informe a senha atual.');
-    return;
-  }
+    <button
+      type="button"
+      onClick={() => setShowCurrent(!showCurrent)}
+      className="absolute right-2.5 top-2.5 text-purple-400 hover:text-purple-700 cursor-pointer"
+    >
+      {showCurrent
+        ? <EyeOff className="w-3.5 h-3.5" />
+        : <Eye className="w-3.5 h-3.5" />
+      }
+    </button>
+  </div>
 
-  if (!newPass || newPass.length < 8) {
-    setErrorMessage('A nova senha deve ter pelo menos 8 caracteres.');
-    return;
-  }
-
-  if (newPass !== confirmPass) {
-    setErrorMessage(
-      'A confirmação da senha não coincide com a nova senha.'
-    );
-    return;
-  }
-
-  setIsLoading(true);
-
-  try {
-    const res = await fetch('/api/admin/change-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        currentPassword: current,
-        newPassword: newPass
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      setErrorMessage(
-        data.error || 'Não foi possível alterar a senha.'
-      );
-      setIsLoading(false);
-      return;
-    }
-
-    // Remove somente resíduos de versões antigas.
-    // A nova senha nunca é armazenada no navegador.
-    if (
-      typeof window !== 'undefined' &&
-      window.localStorage
-    ) {
-      try {
-        window.localStorage.removeItem(
-          'lavistore_admin_password'
-        );
-        window.localStorage.removeItem(
-          'lavistore_admin_password_changed'
-        );
-      } catch {}
-    }
-
-    setSuccessMessage(
-      'Senha de gerência atualizada com sucesso! 🎉'
-    );
-
-    if (onSuccess) {
-      onSuccess(
-        'Senha de gerência atualizada com sucesso!'
-      );
-    }
-
-    setTimeout(() => {
-      setIsLoading(false);
-      onClose();
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setSuccessMessage(null);
-    }, 1500);
-  } catch (error) {
-    console.error(
-      '[AdminPassword] Erro ao alterar senha:',
-      error
-    );
-
-    setErrorMessage(
-      'Não foi possível alterar a senha. Tente novamente.'
-    );
-    setIsLoading(false);
-  }
-};
+  <p className="text-[11px] text-slate-500">
+    Se você não lembrar a senha atual, use a opção
+    “Esqueci a senha” na tela de login para recuperar o acesso por e-mail.
+  </p>
+</div>
           {/* Nova Senha */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-purple-950">
