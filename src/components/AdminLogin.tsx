@@ -141,96 +141,84 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   }
 };
 
-  // Change Password Submit (Primeiro Acesso ou Alteração com Senha Antiga)
-  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setChangeError(null);
-    setChangeSuccess(null);
+// Change Password Submit (Primeiro Acesso / Alteração com senha antiga)
+const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setChangeError(null);
+  setChangeSuccess(null);
 
-    const current = currentPassword.trim();
-    const newPass = newPassword.trim();
-    const confirmPass = confirmPassword.trim();
+  const current = currentPassword.trim();
+  const newPass = newPassword.trim();
+  const confirmPass = confirmPassword.trim();
 
-    if (!current) {
-      setChangeError('Por favor, digite a senha atual (padrão inicial: 1234). Se não lembrar, clique em "Esqueci a senha".');
-      return;
-    }
+  if (!current) {
+    setChangeError(
+      'Por favor, digite a senha atual. Se não lembrar, clique em "Esqueci a senha".'
+    );
+    return;
+  }
 
-    if (!newPass || newPass.length < 4) {
-      setChangeError('A nova senha deve possuir pelo menos 4 caracteres.');
-      return;
-    }
+  if (!newPass || newPass.length < 4) {
+    setChangeError('A nova senha deve possuir pelo menos 4 caracteres.');
+    return;
+  }
 
-    if (newPass !== confirmPass) {
-      setChangeError('A confirmação da senha não coincide com a nova senha digitada.');
-      return;
-    }
+  if (newPass !== confirmPass) {
+    setChangeError(
+      'A confirmação da senha não coincide com a nova senha digitada.'
+    );
+    return;
+  }
 
-    setIsChangingPassword(true);
+  setIsChangingPassword(true);
 
-    try {
-      // 1. Gravar no servidor / store_state.json
-      let serverSuccess = false;
-      try {
-        const res = await fetch('/api/admin/change-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currentPassword: current, newPassword: newPass })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          serverSuccess = true;
-        } else if (data.error) {
-          setChangeError(data.error);
-          setIsChangingPassword(false);
-          return;
-        }
-      } catch {
-        // Continua para gravação local
-      }
+  try {
+    const res = await fetch('/api/admin/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentPassword: current,
+        newPassword: newPass
+      })
+    });
 
-      // 2. Validação local caso o servidor não tenha respondido
-      const savedPass = safeGetItem('lavistore_admin_password') || '1234';
-      if (!serverSuccess && current !== savedPass && current !== '1234' && current !== 'admin') {
-        setChangeError('A senha atual informada está incorreta. Se esqueceu a senha, clique na opção "Esqueci a senha".');
-        setIsChangingPassword(false);
-        return;
-      }
+    const data = await res.json();
 
-      // Purga proativa de localStorage legado
-      if (typeof window !== 'undefined' && window.localStorage) {
-        try {
-          window.localStorage.removeItem('lavistore_admin_password');
-          window.localStorage.removeItem('lavistore_admin_password_changed');
-        } catch {}
-      }
-
-      // 3. Salvar na memória volátil da sessão e de forma soberana no Firestore
-      safeSetItem('lavistore_admin_password', newPass);
-      safeSetItem('lavistore_admin_password_changed', 'true');
-      setIsDefaultPasswordOnServer(false);
-
-      try {
-        await saveStoreConfigToFirestore({
-          adminPassword: newPass,
-          adminPasswordChanged: true,
-          adminPasswordChangedAt: new Date().toISOString()
-        } as any);
-      } catch (fsErr) {
-        console.warn('[AdminLogin] Aviso ao sincronizar senha no Firestore:', fsErr);
-      }
-
-      setChangeSuccess('Nova senha de gerência cadastrada com sucesso! Entrando no painel...');
-
-      setTimeout(() => {
-        setIsChangingPassword(false);
-        onLoginSuccess();
-      }, 1200);
-    } catch {
+    if (!res.ok || !data.success) {
+      setChangeError(
+        data.error || 'Não foi possível alterar a senha de gerência.'
+      );
       setIsChangingPassword(false);
-      setChangeError('Ocorreu um erro ao salvar a nova senha. Tente novamente.');
+      return;
     }
-  };
+
+    // Remove qualquer credencial legada eventualmente armazenada no navegador.
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem('lavistore_admin_password');
+        window.localStorage.removeItem('lavistore_admin_password_changed');
+      } catch {}
+    }
+
+    setIsDefaultPasswordOnServer(false);
+
+    setChangeSuccess(
+      'Nova senha de gerência cadastrada com sucesso! Entrando no painel...'
+    );
+
+    setTimeout(() => {
+      setIsChangingPassword(false);
+      onLoginSuccess();
+    }, 1200);
+  } catch (error) {
+    console.error('[AdminLogin] Erro ao alterar senha:', error);
+
+    setIsChangingPassword(false);
+    setChangeError(
+      'Não foi possível alterar a senha. Verifique sua conexão e tente novamente.'
+    );
+  }
+};
 
   // Solicitar Código de Verificação por E-mail (Recuperação sem senha antiga)
   const handleRequestRecoveryCode = async (e?: React.FormEvent) => {
