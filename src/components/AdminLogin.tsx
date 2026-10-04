@@ -96,62 +96,50 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   }, []);
 
   // Standard Login Submit
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-    setIsLoading(true);
+ const handleLoginSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setErrorMessage(null);
+  setIsLoading(true);
 
-    // Purga proativa de localStorage legado
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        window.localStorage.removeItem('lavistore_admin_password');
-        window.localStorage.removeItem('lavistore_admin_password_changed');
-      } catch {}
-    }
+  const entered = password.trim();
 
-    const entered = password.trim();
+  if (!entered) {
+    setIsLoading(false);
+    setErrorMessage('Digite a senha de gerência.');
+    return;
+  }
 
-    try {
-      // 1. Tentar validação via API backend
-      let isValidOnServer = false;
-      try {
-        const res = await fetch('/api/admin/verify-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: entered })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          isValidOnServer = true;
-        }
-      } catch {
-        // Fallback local
-      }
+  try {
+    const res = await fetch('/api/admin/verify-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: entered })
+    });
 
-      // 2. Validação local de contingência em memória
-      const savedPass = safeGetItem('lavistore_admin_password') || '1234';
-      const isLocalValid = entered === savedPass || (savedPass === '1234' && (entered === '1234' || entered === 'admin'));
+    const data = await res.json();
 
-      if (isValidOnServer || isLocalValid) {
-        setIsLoading(false);
-
-        // Se o usuário entrou com a senha padrão '1234' e ainda não cadastrou uma nova, oferecer a troca
-        const hasChanged = safeGetItem('lavistore_admin_password_changed') === 'true';
-        if (entered === '1234' && (!hasChanged || isDefaultPasswordOnServer)) {
-          setShowFirstAccessPrompt(true);
-          return;
-        }
-
-        onLoginSuccess();
-      } else {
-        setIsLoading(false);
-        setErrorMessage('Senha de gerência incorreta.');
-      }
-    } catch {
+    if (!res.ok || !data.success) {
       setIsLoading(false);
-      setErrorMessage('Erro ao autenticar. Verifique sua senha e tente novamente.');
+      setErrorMessage('Senha de gerência incorreta.');
+      return;
     }
-  };
+
+    setIsLoading(false);
+
+    if (data.requiresPasswordChange === true) {
+      setShowFirstAccessPrompt(true);
+      return;
+    }
+
+    onLoginSuccess();
+  } catch (error) {
+    console.error('[AdminLogin] Falha ao validar acesso administrativo:', error);
+    setIsLoading(false);
+    setErrorMessage(
+      'Não foi possível validar o acesso ao painel. Tente novamente em alguns instantes.'
+    );
+  }
+};
 
   // Change Password Submit (Primeiro Acesso ou Alteração com Senha Antiga)
   const handleChangePasswordSubmit = async (e: React.FormEvent) => {
