@@ -206,10 +206,9 @@ function initializePersistentStorage() {
         ribbonOptions: Array.isArray(source.ribbonOptions) ? source.ribbonOptions : [],
         categories: Array.isArray(source.categories) ? source.categories : [],
         filterBarConfig: source.filterBarConfig || {},
-        adminPassword: source.adminPassword || '1234',
+        adminPasswordHash: source.adminPasswordHash || undefined,
         adminPasswordChanged: source.adminPasswordChanged || false,
-        adminPasswordChangedAt: source.adminPasswordChangedAt || undefined
-      };
+        adminPasswordChangedAt: source.adminPasswordChangedAt || undefined      };
       safeWriteJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE, existingAdminSettings);
       console.log(`[Storage] Configurações administrativas inicializadas (isLockedByAdmin=${isGenuineAdmin})`);
     } else {
