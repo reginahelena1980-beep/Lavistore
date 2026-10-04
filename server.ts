@@ -702,7 +702,6 @@ app.post('/api/store/sync', async (req, res) => {
       updatedAt: now,
       lastAdminSavedAt: now,
       isLockedByAdmin: true,
-      adminPassword: existingContent.adminPassword || adminSettings.adminPassword || '1234',
       adminPasswordChanged: existingContent.adminPasswordChanged ?? adminSettings.adminPasswordChanged ?? false,
       adminPasswordChangedAt: existingContent.adminPasswordChangedAt || adminSettings.adminPasswordChangedAt || undefined,
       products: mergedProducts,
@@ -719,7 +718,6 @@ app.post('/api/store/sync', async (req, res) => {
     const adminSettingsToSave = {
       lastAdminSavedAt: now,
       isLockedByAdmin: true,
-      adminPassword: payloadToSave.adminPassword,
       adminPasswordChanged: payloadToSave.adminPasswordChanged,
       adminPasswordChangedAt: payloadToSave.adminPasswordChangedAt,
       homePageConfig: mergedHomePageConfig,
