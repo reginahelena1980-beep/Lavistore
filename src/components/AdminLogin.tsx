@@ -15,8 +15,6 @@ import {
   Key
 } from 'lucide-react';
 import { LavistoreLogo } from './LavistoreLogo';
-import { saveStoreConfigToFirestore } from '../services/firestoreConfigService';
-import { safeSetItem, safeGetItem } from '../utils/storage';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
@@ -86,10 +84,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
             }
           }
         }
-      } catch (err) {
-        // Fallback to memory check (Zero LocalStorage)
-        const hasChanged = safeGetItem('lavistore_admin_password_changed') === 'true';
-        setIsDefaultPasswordOnServer(!hasChanged);
+     } catch (err) {
+        console.error(
+          '[AdminLogin] Não foi possível consultar o status da senha no servidor:',
+          err
+        );
+
+        // Falha fechada: não usamos mais informações de senha armazenadas no navegador.
+        setIsDefaultPasswordOnServer(false);
       }
     };
     checkStatus();
