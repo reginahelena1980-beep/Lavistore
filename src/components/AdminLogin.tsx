@@ -63,12 +63,23 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   const [showFirstAccessPrompt, setShowFirstAccessPrompt] = useState(false);
   const [isDefaultPasswordOnServer, setIsDefaultPasswordOnServer] = useState<boolean>(true);
 
-  // Check password status on mount
+  // Check password status and active session on mount
   useEffect(() => {
+    let isMounted = true;
     const checkStatus = async () => {
       try {
-        const res = await fetch('/api/admin/password-status');
-        if (res.ok) {
+        // Verifica se o administrador já possui sessão ativa e válida via cookie HttpOnly
+        const sessionRes = await fetch('/api/admin/session', { credentials: 'same-origin' });
+        if (sessionRes.ok) {
+          const sessionData = await sessionRes.json();
+          if (sessionData && sessionData.authenticated === true && isMounted) {
+            onLoginSuccess();
+            return;
+          }
+        }
+
+        const res = await fetch('/api/admin/password-status', { credentials: 'same-origin' });
+        if (res.ok && isMounted) {
           const data = await res.json();
           if (data.success) {
             setIsDefaultPasswordOnServer(data.isDefaultPassword);
@@ -87,11 +98,16 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         );
 
         // Falha fechada: não usamos mais informações de senha armazenadas no navegador.
-        setIsDefaultPasswordOnServer(false);
+        if (isMounted) {
+          setIsDefaultPasswordOnServer(false);
+        }
       }
     };
     checkStatus();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [onLoginSuccess]);
 
   // Standard Login Submit
  const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -111,6 +127,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
     const res = await fetch('/api/admin/verify-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ password: entered })
     });
 

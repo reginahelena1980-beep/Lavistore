@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -930,6 +931,210 @@ function verifyAdminPasswordHash(
   }
 }
 
+/**
+ * =====================================================================
+ * GESTÃO DE SESSÃO ADMINISTRATIVA STATELESS (SEALED VIA HMAC-SHA256)
+ * =====================================================================
+ * Sessão stateless assinada criptograficamente via HMAC-SHA256.
+ * Compatível com ambientes serverless/Vercel (não armazena nada em memória/banco).
+ * O token fica exclusivamente em cookie HttpOnly, SameSite=Lax, Path=/, Secure em prod.
+ */
+const ADMIN_SESSION_COOKIE_NAME = 'lavistore_admin_session';
+const ADMIN_SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 horas de validade
+
+interface AdminSessionPayload {
+  role: 'admin';
+  iat: number;
+  exp: number;
+}
+
+/**
+ * Obtém a chave secreta de assinatura da sessão a partir da variável de ambiente ADMIN_SESSION_SECRET.
+ * Regra de Segurança: NUNCA possui fallback hardcoded. Se não estiver configurado, retorna null
+ * provocando falha segura em qualquer operação dependente de sessão.
+ */
+function getAdminSessionSecret(): string | null {
+  const secret = process.env.ADMIN_SESSION_SECRET?.trim();
+  if (!secret || secret.length === 0) {
+    return null;
+  }
+  return secret;
+}
+
+/**
+ * Cria e assina criptograficamente uma sessão administrativa stateless com HMAC-SHA256.
+ * Retorna null se ADMIN_SESSION_SECRET não estiver configurado.
+ */
+function createSignedAdminSession(): string | null {
+  const secret = getAdminSessionSecret();
+  if (!secret) {
+    console.error('[Admin Session] ADMIN_SESSION_SECRET não configurado no ambiente.');
+    return null;
+  }
+
+  const now = Date.now();
+  const payload: AdminSessionPayload = {
+    role: 'admin',
+    iat: now,
+    exp: now + ADMIN_SESSION_DURATION_MS
+  };
+
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(payloadB64)
+    .digest('base64url');
+
+  return `${payloadB64}.${signature}`;
+}
+
+/**
+ * Valida a sessão administrativa:
+ * 1. Verifica integridade estrutural (payload.assinatura)
+ * 2. Recalcula o HMAC-SHA256 com a chave do ambiente
+ * 3. Compara assinaturas com crypto.timingSafeEqual (proteção contra timing attacks)
+ * 4. Valida JSON do payload e campos obrigatórios
+ * 5. Verifica se o tempo de expiração já transcorreu
+ */
+function verifyAdminSession(token: string): { valid: boolean; payload: AdminSessionPayload | null } {
+  if (!token || typeof token !== 'string') {
+    return { valid: false, payload: null };
+  }
+
+  const secret = getAdminSessionSecret();
+  if (!secret) {
+    // Falha fechada: sem o secret no servidor, nenhuma sessão pode ser validada
+    return { valid: false, payload: null };
+  }
+
+  const parts = token.split('.');
+  if (parts.length !== 2) {
+    return { valid: false, payload: null };
+  }
+
+  const [payloadB64, signature] = parts;
+  if (!payloadB64 || !signature) {
+    return { valid: false, payload: null };
+  }
+
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payloadB64)
+    .digest('base64url');
+
+  const sigBuf = Buffer.from(signature);
+  const expectedBuf = Buffer.from(expectedSignature);
+
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+    return { valid: false, payload: null };
+  }
+
+  try {
+    const rawPayload = Buffer.from(payloadB64, 'base64url').toString('utf-8');
+    const parsed = JSON.parse(rawPayload);
+
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      parsed.role !== 'admin' ||
+      typeof parsed.iat !== 'number' ||
+      typeof parsed.exp !== 'number'
+    ) {
+      return { valid: false, payload: null };
+    }
+
+    if (Date.now() > parsed.exp) {
+      return { valid: false, payload: null };
+    }
+
+    return { valid: true, payload: parsed };
+  } catch {
+    return { valid: false, payload: null };
+  }
+}
+
+/**
+ * Parser seguro de cookies HTTP a partir do cabeçalho da requisição.
+ */
+function parseCookies(cookieHeader?: string): Record<string, string> {
+  const list: Record<string, string> = {};
+  if (!cookieHeader) return list;
+  cookieHeader.split(';').forEach(cookie => {
+    const parts = cookie.split('=');
+    const key = parts.shift()?.trim();
+    if (key) {
+      const val = parts.join('=').trim();
+      try {
+        list[key] = decodeURIComponent(val);
+      } catch {
+        list[key] = val;
+      }
+    }
+  });
+  return list;
+}
+
+/**
+ * Recupera o token de sessão administrativa a partir do cookie HTTP seguro.
+ */
+function getAdminSessionFromRequest(req: express.Request): string | null {
+  const cookies = parseCookies(req.headers.cookie);
+  return cookies[ADMIN_SESSION_COOKIE_NAME] || null;
+}
+
+/**
+ * Configura o cookie HTTP seguro com a sessão administrativa.
+ * Propriedades: HttpOnly, SameSite=Lax, Path=/, Secure em produção, com expiração definida.
+ */
+function setAdminSessionCookie(res: express.Response, token: string) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.cookie(ADMIN_SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    secure: isProduction,
+    maxAge: ADMIN_SESSION_DURATION_MS
+  });
+}
+
+/**
+ * Remove/expira o cookie de sessão administrativa do cliente.
+ */
+function clearAdminSessionCookie(res: express.Response) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.clearCookie(ADMIN_SESSION_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    secure: isProduction
+  });
+}
+
+/**
+ * Middleware requireAdminSession reutilizável para rotas protegidas.
+ * (NÃO aplicado às demais rotas nesta etapa, conforme especificação).
+ */
+function requireAdminSession(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const token = getAdminSessionFromRequest(req);
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      error: 'Acesso não autorizado. Sessão administrativa necessária.'
+    });
+  }
+
+  const { valid, payload } = verifyAdminSession(token);
+  if (!valid || !payload) {
+    return res.status(401).json({
+      success: false,
+      error: 'Sessão administrativa inválida ou expirada.'
+    });
+  }
+
+  (req as any).adminSession = payload;
+  next();
+}
+
 function readAdminCredentialData(): any {
   const sources = [
     PERSISTENT_ADMIN_SETTINGS_FILE,
@@ -1475,6 +1680,7 @@ app.post('/api/admin/reset-password', (req, res) => {
 
 /**
  * POST /api/admin/verify-password
+ * Valida a senha administrativa e, se correta, cria a sessão administrativa stateless via cookie seguro.
  */
 app.post('/api/admin/verify-password', (req, res) => {
   try {
@@ -1501,6 +1707,18 @@ app.post('/api/admin/verify-password', (req, res) => {
       });
     }
 
+    // Geração de sessão stateless criptograficamente assinada via HMAC-SHA256
+    const sessionToken = createSignedAdminSession();
+    if (!sessionToken) {
+      return res.status(500).json({
+        success: false,
+        error: 'Erro de configuração do servidor: ADMIN_SESSION_SECRET não está definido.'
+      });
+    }
+
+    // Configura o cookie HttpOnly seguro
+    setAdminSessionCookie(res, sessionToken);
+
     return res.json({
       success: true,
       requiresPasswordChange:
@@ -1516,6 +1734,54 @@ app.post('/api/admin/verify-password', (req, res) => {
       success: false,
       error:
         'Erro ao validar senha.'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/session
+ * Permite ao frontend verificar se existe uma sessão administrativa válida ativa.
+ * Retorna { success: true, authenticated: true } ou { success: true, authenticated: false }
+ * Nunca revela tokens, segredos ou dados sensíveis.
+ */
+app.get('/api/admin/session', (req, res) => {
+  try {
+    const token = getAdminSessionFromRequest(req);
+    if (!token) {
+      return res.json({
+        success: true,
+        authenticated: false
+      });
+    }
+
+    const { valid } = verifyAdminSession(token);
+    return res.json({
+      success: true,
+      authenticated: valid
+    });
+  } catch {
+    return res.json({
+      success: true,
+      authenticated: false
+    });
+  }
+});
+
+/**
+ * POST /api/admin/logout
+ * Invalida a sessão administrativa removendo e expirando o cookie HttpOnly seguro.
+ */
+app.post('/api/admin/logout', (_req, res) => {
+  try {
+    clearAdminSessionCookie(res);
+    return res.json({
+      success: true,
+      message: 'Sessão administrativa encerrada com sucesso.'
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: 'Erro ao encerrar sessão administrativa.'
     });
   }
 });
