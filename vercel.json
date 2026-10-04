@@ -8,6 +8,10 @@
     {
       "source": "/api/mercadopago/payment_status/:id",
       "destination": "/api/mercadopago/payment_status/[id].js"
+    },
+    {
+      "source": "/((?!api/|api$).*)",
+      "destination": "/index.html"
     }
   ]
 }
