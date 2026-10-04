@@ -160,8 +160,8 @@ const handleChangePasswordSubmit = async (e: React.FormEvent) => {
     return;
   }
 
-  if (!newPass || newPass.length < 4) {
-    setChangeError('A nova senha deve possuir pelo menos 4 caracteres.');
+  if (!newPass || newPass.length < 8) {
+    setChangeError('A nova senha deve possuir pelo menos 8 caracteres.');
     return;
   }
 
