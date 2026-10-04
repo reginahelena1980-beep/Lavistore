@@ -208,7 +208,8 @@ function initializePersistentStorage() {
         filterBarConfig: source.filterBarConfig || {},
         adminPasswordHash: source.adminPasswordHash || undefined,
         adminPasswordChanged: source.adminPasswordChanged || false,
-        adminPasswordChangedAt: source.adminPasswordChangedAt || undefined      };
+        adminPasswordChangedAt: source.adminPasswordChangedAt || undefined
+      };
       safeWriteJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE, existingAdminSettings);
       console.log(`[Storage] Configurações administrativas inicializadas (isLockedByAdmin=${isGenuineAdmin})`);
     } else {
