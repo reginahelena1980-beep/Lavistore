@@ -657,7 +657,7 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
                               setRecoveryNewPassword(e.target.value);
                               if (recoveryError) setRecoveryError(null);
                             }}
-                            placeholder="Crie sua nova senha (mínimo 4 caracteres)"
+                            placeholder="Crie sua nova senha (mínimo 8 caracteres)"
                             className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all pr-10"
                           />
                           <button
@@ -815,7 +815,7 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
                       setNewPassword(e.target.value);
                       if (changeError) setChangeError(null);
                     }}
-                    placeholder="Crie sua nova senha (mínimo 4 dígitos)"
+                    placeholder="Crie sua nova senha (mínimo 8 dígitos)"
                     className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all pr-10"
                   />
                   <button
