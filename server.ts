@@ -1712,7 +1712,7 @@ app.post('/api/admin/verify-password', (req, res) => {
     if (!sessionToken) {
       return res.status(500).json({
         success: false,
-        error: 'Erro de configuração do servidor: ADMIN_SESSION_SECRET não está definido.'
+        error: 'Não foi possível iniciar a sessão administrativa.'
       });
     }
 
