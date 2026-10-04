@@ -11,8 +11,7 @@ import {
   AlertCircle, 
   Mail, 
   HelpCircle, 
-  Send, 
-  Key
+  Send
 } from 'lucide-react';
 import { LavistoreLogo } from './LavistoreLogo';
 
@@ -46,14 +45,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Forgot password state (Recuperação sem senha antiga)
-  const [recoveryMethod, setRecoveryMethod] = useState<'email' | 'master_key'>('email');
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [maskedRecoveryEmail, setMaskedRecoveryEmail] = useState('lav***@gmail.com');
   const [isStoreEmailConfigured, setIsStoreEmailConfigured] = useState(true);
   const [recoveryStep, setRecoveryStep] = useState<'request' | 'verify'>('request');
   const [verificationCode, setVerificationCode] = useState('');
-  const [devCodeAvailable, setDevCodeAvailable] = useState<string | null>(null);
-  const [masterRecoveryKey, setMasterRecoveryKey] = useState('');
   const [recoveryNewPassword, setRecoveryNewPassword] = useState('');
   const [recoveryConfirmPassword, setRecoveryConfirmPassword] = useState('');
   const [showRecoveryNew, setShowRecoveryNew] = useState(false);
@@ -240,10 +236,6 @@ const handleChangePasswordSubmit = async (e: React.FormEvent) => {
 
       if (res.ok && data.success) {
         setRecoverySuccess(data.message || 'Código gerado com sucesso!');
-        if (data.devCode) {
-          setDevCodeAvailable(data.devCode);
-          setVerificationCode(data.devCode); // Auto-preenche para conveniência
-        }
         if (data.emailMasked) {
           setMaskedRecoveryEmail(data.emailMasked);
         }
@@ -258,7 +250,7 @@ const handleChangePasswordSubmit = async (e: React.FormEvent) => {
     }
   };
 
-// Redefinir Senha Sem a Senha Antiga (via Código ou Chave Mestra)
+// Redefinir Senha Sem a Senha Antiga via Código por E-mail
 const handleResetPasswordSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setRecoveryError(null);
@@ -267,8 +259,8 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
   const newPass = recoveryNewPassword.trim();
   const confirmPass = recoveryConfirmPassword.trim();
 
-  if (!newPass || newPass.length < 4) {
-    setRecoveryError('A nova senha deve possuir pelo menos 4 caracteres.');
+  if (!newPass || newPass.length < 8) {
+    setRecoveryError('A nova senha deve possuir pelo menos 8 caracteres.');
     return;
   }
 
@@ -279,13 +271,8 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     return;
   }
 
-  if (recoveryMethod === 'email' && !verificationCode.trim()) {
+  if (!verificationCode.trim()) {
     setRecoveryError('Por favor, digite o código de 6 dígitos recebido.');
-    return;
-  }
-
-  if (recoveryMethod === 'master_key' && !masterRecoveryKey.trim()) {
-    setRecoveryError('Por favor, digite a Chave Mestra de Emergência.');
     return;
   }
 
@@ -296,16 +283,7 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        verificationCode:
-          recoveryMethod === 'email'
-            ? verificationCode.trim()
-            : undefined,
-
-        masterRecoveryKey:
-          recoveryMethod === 'master_key'
-            ? masterRecoveryKey.trim()
-            : undefined,
-
+        verificationCode: verificationCode.trim(),
         newPassword: newPass
       })
     });
@@ -320,7 +298,6 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
       return;
     }
 
-    // Remove qualquer credencial administrativa legada do navegador.
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         window.localStorage.removeItem('lavistore_admin_password');
@@ -347,7 +324,6 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     );
   }
 };
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 font-['Comfortaa'] bg-gradient-to-b from-[#FDF4F6] via-[#FAF5FF] to-[#F0FDF4] text-purple-950">
       
@@ -593,57 +569,9 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
                 </p>
               </div>
 
-              {/* Method Switch: E-mail vs Master Key */}
-              <div className="flex items-center justify-center gap-4 text-xs font-bold pt-1 border-b border-purple-100 pb-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRecoveryMethod('email');
-                    setRecoveryError(null);
-                  }}
-                  className={`flex items-center gap-1.5 pb-1 border-b-2 transition-all cursor-pointer ${
-                    recoveryMethod === 'email'
-                      ? 'border-purple-800 text-purple-950 font-extrabold'
-                      : 'border-transparent text-purple-500 hover:text-purple-800'
-                  }`}
-                >
-                  <Mail className="w-3.5 h-3.5" />
-                  <span>Código por E-mail</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRecoveryMethod('master_key');
-                    setRecoveryError(null);
-                  }}
-                  className={`flex items-center gap-1.5 pb-1 border-b-2 transition-all cursor-pointer ${
-                    recoveryMethod === 'master_key'
-                      ? 'border-purple-800 text-purple-950 font-extrabold'
-                      : 'border-transparent text-purple-500 hover:text-purple-800'
-                  }`}
-                >
-                  <Key className="w-3.5 h-3.5" />
-                  <span>Chave Mestra de Emergência</span>
-                </button>
-              </div>
-
-              {recoverySuccess && (
-                <div className="p-3.5 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-xs text-emerald-900 font-bold flex items-center gap-2 animate-in fade-in">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>{recoverySuccess}</span>
-                </div>
-              )}
-
-              {recoveryError && (
-                <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs text-rose-900 font-bold flex items-center gap-2 animate-in fade-in">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>{recoveryError}</span>
-                </div>
-              )}
-
-              {/* METHOD 1: EMAIL VERIFICATION */}
-              {recoveryMethod === 'email' && (
+              {/* EMAIL VERIFICATION */}
                 <>
+
                   {recoveryStep === 'request' ? (
                     <form onSubmit={handleRequestRecoveryCode} className="space-y-4">
                       <div className="space-y-1.5">
@@ -685,23 +613,6 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
                   ) : (
                     <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
                       
-                      {/* DEV / PREVIEW HELPER BADGE */}
-                      {devCodeAvailable && (
-                        <div className="p-3 bg-amber-100/80 border-2 border-amber-300 rounded-2xl text-xs text-amber-950 font-bold flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-                            <span>Código Gerado: <strong className="font-mono text-sm tracking-widest text-purple-950">{devCodeAvailable}</strong></span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setVerificationCode(devCodeAvailable)}
-                            className="text-[11px] bg-amber-200 hover:bg-amber-300 text-amber-900 px-2.5 py-1 rounded-lg border border-amber-400 font-bold cursor-pointer"
-                          >
-                            Preencher
-                          </button>
-                        </div>
-                      )}
-
                       {/* Código de 6 dígitos */}
                       <div className="space-y-1.5">
                         <label className="text-xs font-bold text-purple-950 flex items-center justify-between">
@@ -800,110 +711,7 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
                     </form>
                   )}
                 </>
-              )}
-
-              {/* METHOD 2: MASTER RECOVERY KEY */}
-              {recoveryMethod === 'master_key' && (
-                <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-purple-950 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Key className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Chave Mestra de Emergência</span>
-                      </span>
-                    </label>
-                    <input
-                      id="input-master-recovery-key"
-                      type="text"
-                      required
-                      value={masterRecoveryKey}
-                      onChange={(e) => {
-                        setMasterRecoveryKey(e.target.value);
-                        if (recoveryError) setRecoveryError(null);
-                      }}
-                      placeholder="LAVISTORE-RECOVERY-2026"
-                      className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all font-mono"
-                    />
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
-                      <span>Chave mestra padrão da loja: <strong>LAVISTORE-RECOVERY-2026</strong></span>
-                      <button
-                        type="button"
-                        onClick={() => setMasterRecoveryKey('LAVISTORE-RECOVERY-2026')}
-                        className="text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer"
-                      >
-                        Usar Padrão
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Nova Senha */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-purple-950">
-                      Nova Senha de Gerência
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="input-master-new-password"
-                        type={showRecoveryNew ? 'text' : 'password'}
-                        required
-                        minLength={4}
-                        value={recoveryNewPassword}
-                        onChange={(e) => {
-                          setRecoveryNewPassword(e.target.value);
-                          if (recoveryError) setRecoveryError(null);
-                        }}
-                        placeholder="Crie sua nova senha (mínimo 4 caracteres)"
-                        className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRecoveryNew(!showRecoveryNew)}
-                        className="absolute right-3 top-3 text-purple-400 hover:text-purple-700 cursor-pointer"
-                      >
-                        {showRecoveryNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Confirmar Nova Senha */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-purple-950">
-                      Confirmar Nova Senha
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="input-master-confirm-password"
-                        type={showRecoveryConfirm ? 'text' : 'password'}
-                        required
-                        value={recoveryConfirmPassword}
-                        onChange={(e) => {
-                          setRecoveryConfirmPassword(e.target.value);
-                          if (recoveryError) setRecoveryError(null);
-                        }}
-                        placeholder="Repita a nova senha"
-                        className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRecoveryConfirm(!showRecoveryConfirm)}
-                        className="absolute right-3 top-3 text-purple-400 hover:text-purple-700 cursor-pointer"
-                      >
-                        {showRecoveryConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    id="btn-confirm-master-reset"
-                    type="submit"
-                    disabled={isResettingPassword}
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-900 via-purple-950 to-pink-900 hover:opacity-95 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                  >
-                    <Check className="w-4 h-4 text-emerald-300" />
-                    <span>{isResettingPassword ? 'Gravando...' : 'Redefinir com Chave Mestra e Entrar'}</span>
-                  </button>
-                </form>
-              )}
+            
 
               <div className="pt-2 text-center">
                 <button
