@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, KeyRound, Eye, EyeOff, Check, X, ShieldCheck, AlertCircle, Sparkles } from 'lucide-react';
-import { saveStoreConfigToFirestore } from '../services/firestoreConfigService';
-import { safeSetItem } from '../utils/storage';
+import { Lock, KeyRound, Eye, EyeOff, Check, X, ShieldCheck, AlertCircle } from 'lucide-react';
 
 interface AdminPasswordModalProps {
   isOpen: boolean;
@@ -17,7 +15,6 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [forgotCurrent, setForgotCurrent] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -27,95 +24,102 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-    setSuccessMessage(null);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setErrorMessage(null);
+  setSuccessMessage(null);
 
-    if (!forgotCurrent && !currentPassword.trim()) {
-      setErrorMessage('Por favor, informe a senha atual (padrão: 1234) ou clique em "Não lembro a senha atual".');
-      return;
-    }
+  const current = currentPassword.trim();
+  const newPass = newPassword.trim();
+  const confirmPass = confirmPassword.trim();
 
-    if (!newPassword.trim() || newPassword.length < 4) {
-      setErrorMessage('A nova senha deve ter pelo menos 4 caracteres.');
-      return;
-    }
+  if (!current) {
+    setErrorMessage('Por favor, informe a senha atual.');
+    return;
+  }
 
-    if (newPassword !== confirmPassword) {
-      setErrorMessage('A confirmação da senha não coincide com a nova senha.');
-      return;
-    }
+  if (!newPass || newPass.length < 8) {
+    setErrorMessage('A nova senha deve ter pelo menos 8 caracteres.');
+    return;
+  }
 
-    setIsLoading(true);
+  if (newPass !== confirmPass) {
+    setErrorMessage(
+      'A confirmação da senha não coincide com a nova senha.'
+    );
+    return;
+  }
 
-    try {
-      // 1. Salvar no backend
-      let serverSuccess = false;
-      try {
-        const res = await fetch('/api/admin/change-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            currentPassword: forgotCurrent ? undefined : currentPassword.trim(), 
-            newPassword: newPassword.trim(),
-            isDirectReset: forgotCurrent
-          })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          serverSuccess = true;
-        } else if (data.error) {
-          setErrorMessage(data.error);
-          setIsLoading(false);
-          return;
-        }
-      } catch (netErr) {
-        console.warn('[AdminPassword] Backend offline, usando validação local:', netErr);
-      }
+  setIsLoading(true);
 
-      // Purga proativa de localStorage legado
-      if (typeof window !== 'undefined' && window.localStorage) {
-        try {
-          window.localStorage.removeItem('lavistore_admin_password');
-          window.localStorage.removeItem('lavistore_admin_password_changed');
-        } catch {}
-      }
+  try {
+    const res = await fetch('/api/admin/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        currentPassword: current,
+        newPassword: newPass
+      })
+    });
 
-      // Salva na memória volátil da sessão
-      safeSetItem('lavistore_admin_password', newPassword.trim());
-      safeSetItem('lavistore_admin_password_changed', 'true');
+    const data = await res.json();
 
-      // Salva de forma soberana no Firebase Firestore
-      try {
-        await saveStoreConfigToFirestore({
-          adminPassword: newPassword.trim(),
-          adminPasswordChanged: true,
-          adminPasswordChangedAt: new Date().toISOString()
-        } as any);
-      } catch (fsErr) {
-        console.warn('[AdminPassword] Aviso ao gravar senha no Firestore:', fsErr);
-      }
-
-      setSuccessMessage('Senha de gerência atualizada com sucesso! 🎉');
-      if (onSuccess) {
-        onSuccess('Senha de gerência atualizada com sucesso!');
-      }
-
-      setTimeout(() => {
-        setIsLoading(false);
-        onClose();
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-        setForgotCurrent(false);
-        setSuccessMessage(null);
-      }, 1500);
-    } catch {
-      setErrorMessage('Erro ao alterar senha. Tente novamente.');
+    if (!res.ok || !data.success) {
+      setErrorMessage(
+        data.error || 'Não foi possível alterar a senha.'
+      );
       setIsLoading(false);
+      return;
     }
-  };
+
+    // Remove somente resíduos de versões antigas.
+    // A nova senha nunca é armazenada no navegador.
+    if (
+      typeof window !== 'undefined' &&
+      window.localStorage
+    ) {
+      try {
+        window.localStorage.removeItem(
+          'lavistore_admin_password'
+        );
+        window.localStorage.removeItem(
+          'lavistore_admin_password_changed'
+        );
+      } catch {}
+    }
+
+    setSuccessMessage(
+      'Senha de gerência atualizada com sucesso! 🎉'
+    );
+
+    if (onSuccess) {
+      onSuccess(
+        'Senha de gerência atualizada com sucesso!'
+      );
+    }
+
+    setTimeout(() => {
+      setIsLoading(false);
+      onClose();
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setSuccessMessage(null);
+    }, 1500);
+  } catch (error) {
+    console.error(
+      '[AdminPassword] Erro ao alterar senha:',
+      error
+    );
+
+    setErrorMessage(
+      'Não foi possível alterar a senha. Tente novamente.'
+    );
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-xs animate-in fade-in font-['Comfortaa']">
@@ -167,67 +171,102 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           
-          {/* Senha Atual / Alternância para quem esqueceu */}
-          {!forgotCurrent ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-purple-950">
-                  Senha Atual
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForgotCurrent(true);
-                    if (errorMessage) setErrorMessage(null);
-                  }}
-                  className="text-[11px] text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer"
-                >
-                  Não lembro a senha atual
-                </button>
-              </div>
-              <div className="relative">
-                <input
-                  id="input-current-password"
-                  type={showCurrent ? 'text' : 'password'}
-                  required={!forgotCurrent}
-                  value={currentPassword}
-                  onChange={(e) => {
-                    setCurrentPassword(e.target.value);
-                    if (errorMessage) setErrorMessage(null);
-                  }}
-                  placeholder="Digite a senha atual (ou 1234)"
-                  className="w-full px-3 py-2 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-medium text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:bg-white transition-all pr-9"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrent(!showCurrent)}
-                  className="absolute right-2.5 top-2.5 text-purple-400 hover:text-purple-700 cursor-pointer"
-                >
-                  {showCurrent ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-2xl text-xs text-amber-950 font-medium space-y-1 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                  <Sparkles className="w-4 h-4 text-amber-600" />
-                  <span>Redefinição Direta</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setForgotCurrent(false)}
-                  className="text-[11px] text-purple-800 hover:text-purple-950 font-bold underline cursor-pointer"
-                >
-                  Lembrei da senha
-                </button>
-              </div>
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                Como você já está com a sessão de gerência aberta no painel, pode cadastrar sua nova senha diretamente sem precisar informar a antiga!
-              </p>
-            </div>
-          )}
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setErrorMessage(null);
+  setSuccessMessage(null);
 
+  const current = currentPassword.trim();
+  const newPass = newPassword.trim();
+  const confirmPass = confirmPassword.trim();
+
+  if (!current) {
+    setErrorMessage('Por favor, informe a senha atual.');
+    return;
+  }
+
+  if (!newPass || newPass.length < 8) {
+    setErrorMessage('A nova senha deve ter pelo menos 8 caracteres.');
+    return;
+  }
+
+  if (newPass !== confirmPass) {
+    setErrorMessage(
+      'A confirmação da senha não coincide com a nova senha.'
+    );
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const res = await fetch('/api/admin/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        currentPassword: current,
+        newPassword: newPass
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      setErrorMessage(
+        data.error || 'Não foi possível alterar a senha.'
+      );
+      setIsLoading(false);
+      return;
+    }
+
+    // Remove somente resíduos de versões antigas.
+    // A nova senha nunca é armazenada no navegador.
+    if (
+      typeof window !== 'undefined' &&
+      window.localStorage
+    ) {
+      try {
+        window.localStorage.removeItem(
+          'lavistore_admin_password'
+        );
+        window.localStorage.removeItem(
+          'lavistore_admin_password_changed'
+        );
+      } catch {}
+    }
+
+    setSuccessMessage(
+      'Senha de gerência atualizada com sucesso! 🎉'
+    );
+
+    if (onSuccess) {
+      onSuccess(
+        'Senha de gerência atualizada com sucesso!'
+      );
+    }
+
+    setTimeout(() => {
+      setIsLoading(false);
+      onClose();
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setSuccessMessage(null);
+    }, 1500);
+  } catch (error) {
+    console.error(
+      '[AdminPassword] Erro ao alterar senha:',
+      error
+    );
+
+    setErrorMessage(
+      'Não foi possível alterar a senha. Tente novamente.'
+    );
+    setIsLoading(false);
+  }
+};
           {/* Nova Senha */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-purple-950">
@@ -238,13 +277,13 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
                 id="input-new-password"
                 type={showNew ? 'text' : 'password'}
                 required
-                minLength={4}
+                minLength={8}
                 value={newPassword}
                 onChange={(e) => {
                   setNewPassword(e.target.value);
                   if (errorMessage) setErrorMessage(null);
                 }}
-                placeholder="Crie uma nova senha (mínimo 4 caracteres)"
+                placeholder="Crie uma nova senha (mínimo 8 caracteres)"
                 className="w-full px-3 py-2 bg-purple-50/40 border border-purple-200 rounded-xl text-xs font-medium text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:bg-white transition-all pr-9"
               />
               <button
