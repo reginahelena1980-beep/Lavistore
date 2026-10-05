@@ -63,7 +63,7 @@ export const ReturnPolicyModal: React.FC<ReturnPolicyModalProps> = ({
         aria-modal="true"
         aria-labelledby="return-policy-title"
       >
-        {/* Header Floral Amigável */}
+        {/* Header Amigável */}
         <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 p-5 sm:p-6 text-white relative shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1.5">

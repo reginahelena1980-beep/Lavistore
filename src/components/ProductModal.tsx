@@ -8,7 +8,6 @@ import {
   Check, 
   ShieldCheck, 
   Sparkles, 
-  Flower2, 
   Share2,
   Ruler,
   Palette,
@@ -212,7 +211,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               />
               {product.tag && (
                 <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs text-purple-900 text-xs font-bold px-3 py-1 rounded-full shadow-xs border border-purple-100 flex items-center gap-1.5">
-                  <Flower2 className="w-3.5 h-3.5 text-pink-500 fill-pink-300" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-300" />
                   <span>{product.tag}</span>
                 </span>
               )}
@@ -239,7 +238,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             <div className="bg-purple-50/70 rounded-2xl p-3.5 border border-purple-100 space-y-2 text-xs text-purple-900">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                <span className="font-semibold">Embalagem especial perfumada.</span>
+                <span className="font-semibold">Embalagens exclusivas com carinho em cada mimo.</span>
               </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
@@ -813,7 +812,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <textarea
                   required
                   rows={3}
-                  placeholder="Conte o que achou da delicadeza do mimo, acabamento, cheirinho..."
+                  placeholder="Conte o que achou da delicadeza do mimo, embalagem, acabamento..."
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-purple-200 text-xs text-purple-950 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-hidden font-medium resize-none"

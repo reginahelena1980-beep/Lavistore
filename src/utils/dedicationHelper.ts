@@ -136,7 +136,7 @@ export function extractDedicationFromOrder(order: OrderData): OrderDedicationInf
 }
 
 /**
- * Abre a janela de impressão com o cartãozinho floral de presente formatado em tamanho 10x15cm.
+ * Abre a janela de impressão com o cartãozinho de presente formatado em tamanho 10x15cm.
  */
 export function openDedicationPrintWindow(dedication: OrderDedicationInfo): void {
   const printWindow = window.open('', '_blank', 'width=750,height=800');
@@ -345,7 +345,7 @@ export function openDedicationPrintWindow(dedication: OrderDedicationInfo): void
       <body>
         <div class="instructions">
           <button class="btn-print" onclick="window.print()">🖨️ Imprimir Cartãozinho de Dedicatória</button>
-          <p>Dica: Imprima em papel cartão ou papel fotográfico fosco, recorte na linha pontilhada e borrife o cheirinho antes de colocar no pacote!</p>
+          <p>Dica: Imprima em papel cartão ou papel fotográfico fosco e recorte na linha pontilhada antes de colocar no pacote!</p>
         </div>
 
         <div class="card-wrapper">

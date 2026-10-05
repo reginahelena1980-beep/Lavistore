@@ -6,7 +6,6 @@ import {
   Plus, 
   Trash2, 
   ShoppingBag, 
-  Flower2, 
   Heart,
   Ruler,
   CheckCircle2
@@ -282,7 +281,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
         `Cartão com mensagem dedicada incluído`
       ],
       stock: 50,
-      isFloralSpecial: true,
+      isFloralSpecial: false,
       tag: 'Sacolinha Amarela 🛍️'
     };
 
@@ -317,7 +316,7 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
             Monte sua Sacolinha Amarela de Presente
           </h2>
           <p className="font-['Comfortaa'] text-sm sm:text-base text-slate-600 font-medium">
-            Escolha o modelo da sacolinha amarela, selecione os mimos favoritos com os tamanhos ideais, a fita de cetim e uma dedicatória perfumada. Você ganha <strong className="text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">10% OFF</strong> no combo!
+            Escolha o modelo da sacolinha amarela, selecione os mimos favoritos com os tamanhos ideais, a fita de cetim e uma dedicatória especial. Você ganha <strong className="text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">10% OFF</strong> no combo!
           </p>
         </div>
 
@@ -688,9 +687,9 @@ export const CustomKitBuilder: React.FC<CustomKitBuilderProps> = ({
               <div className="space-y-5 animate-in fade-in">
                 <div>
                   <h3 className="font-['Mali'] text-lg sm:text-xl font-bold text-purple-950">
-                    Passo 4: Cartãozinho de Dedicatória com Cheirinho
+                    Passo 4: Cartãozinho de Dedicatória Especial
                   </h3>
-                  <p className="text-xs text-slate-500">Personalize a mensagem que irá impressa no cartão floral com caligrafia</p>
+                  <p className="text-xs text-slate-500">Personalize a mensagem que irá impressa no cartão de presente com caligrafia</p>
                 </div>
 
                 {/* Quick Templates */}

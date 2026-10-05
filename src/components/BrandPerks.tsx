@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flower2, Sparkles, Heart, Truck, ShoppingBag, Edit3 } from 'lucide-react';
+import { Sparkles, Heart, Truck, ShoppingBag, Edit3 } from 'lucide-react';
 import { HomePageConfig } from '../types';
 import { getFontSizeClass, getFontWeightClass } from '../utils/textFormatter';
 
@@ -36,7 +36,16 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
 
   // Sanitização estrita contra textos legados em memória ou caches
   const sanitizeTitle = (val: string | undefined, defaultTitle: string) => {
-    if (!val || val.includes('Mimos Florais') || val.includes('Cheirinho Floral') || val.includes('Feito com Amor')) {
+    if (!val) return defaultTitle;
+    const lower = val.toLowerCase();
+    if (
+      lower.includes('cheirinho') ||
+      lower.includes('perfum') ||
+      lower.includes('fragr') ||
+      lower.includes('aroma') ||
+      lower.includes('mimos florais') ||
+      lower.includes('feito com amor')
+    ) {
       return defaultTitle;
     }
     return val.trim() || defaultTitle;
@@ -86,7 +95,7 @@ export const BrandPerks: React.FC<BrandPerksProps> = ({
       icon: config?.perk4Icon ? (
         <span className="text-xl leading-none">{config.perk4Icon}</span>
       ) : (
-        <span className="text-xl leading-none">🌸</span>
+        <span className="text-xl leading-none">🏷️</span>
       ),
       bgIcon: 'bg-orange-100/90 text-orange-900 border-orange-200',
       titleKey: 'perk4Title' as keyof HomePageConfig,

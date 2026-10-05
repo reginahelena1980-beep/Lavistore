@@ -325,7 +325,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         image: heroConfig.image || defaultHeroImg,
         badge: heroConfig.badge || "Presentes Criativos & Mimos com Amor 🌸",
         title: heroConfig.title || "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-        subtitle: heroConfig.subtitle || "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+        subtitle: heroConfig.subtitle || "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, embalagens exclusivas e papelaria fofa que transformam pequenos momentos em pura alegria.",
         imageFit: heroConfig.imageFit || 'cover',
         imageScale: heroConfig.imageScale || 100,
         imagePosition: heroConfig.imagePosition || 'center',
@@ -399,7 +399,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       image: defaultHeroImg,
       badge: "Presentes Criativos & Mimos com Amor 🌸",
       title: "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-      subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+      subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, embalagens exclusivas e papelaria fofa que transformam pequenos momentos em pura alegria.",
       imageFit: 'cover',
       imageScale: 100,
       imagePosition: 'center',
@@ -565,7 +565,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     },
     cards: {
       title: 'Cartões & Dedicatórias de Presente 💌',
-      subtitle: 'Visualize todas as dedicatórias escritas nos pedidos e imprima os cartõezinhos perfumados (10x15cm)',
+      subtitle: 'Visualize todas as dedicatórias escritas nos pedidos e imprima os cartõezinhos de presente (10x15cm)',
       icon: <PenTool className="w-4 h-4 text-pink-500" />
     },
     bi: {

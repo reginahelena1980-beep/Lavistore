@@ -9,7 +9,6 @@ import {
   Truck, 
   Tag, 
   ArrowRight, 
-  Flower2,
   Sparkles,
   Loader2,
   Check,
@@ -217,7 +216,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             {items.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
                 <div className="w-20 h-20 rounded-full bg-purple-50 flex items-center justify-center text-pink-400 border border-purple-100">
-                  <Flower2 className="w-10 h-10 fill-pink-100 text-pink-400" />
+                  <ShoppingBag className="w-10 h-10 text-pink-400" />
                 </div>
                 <div className="space-y-1">
                   <h4 className="font-['Playfair_Display'] text-lg font-bold text-purple-950">Sua sacola está vazia</h4>

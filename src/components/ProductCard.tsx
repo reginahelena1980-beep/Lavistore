@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, Star, ShoppingBag, Eye, Flower2, Sparkles } from 'lucide-react';
+import { Heart, Star, ShoppingBag, Eye, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 
 interface ProductCardProps {
@@ -106,7 +106,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </span>
           ) : product.tag ? (
             <span className="bg-white/95 backdrop-blur-xs text-purple-950 text-[8px] sm:text-xs font-bold px-2.5 py-1 rounded-full shadow-xs border border-amber-200/80 flex items-center gap-1">
-              <Flower2 className="w-3 h-3 text-pink-500 fill-pink-300" />
+              <Sparkles className="w-3 h-3 text-amber-500 fill-amber-300" />
               <span>{product.tag}</span>
             </span>
           ) : null}

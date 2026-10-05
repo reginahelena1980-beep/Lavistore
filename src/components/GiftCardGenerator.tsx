@@ -17,7 +17,7 @@ export const GiftCardGenerator: React.FC = () => {
   const [occasion, setOccasion] = useState('Aniversário');
   const [themeStyle, setThemeStyle] = useState<'sakura' | 'lavender' | 'tulip' | 'daisy'>('lavender');
   const [cardMessage, setCardMessage] = useState(
-    'Que o seu dia seja repleto de flores, sorrisos sinceros e toda a doçura que você espalha pelo mundo. Você é uma pessoa muito especial!'
+    'Que o seu dia seja repleto de alegria, sorrisos sinceros e toda a doçura que você espalha pelo mundo. Você é uma pessoa muito especial!'
   );
   const [isCopied, setIsCopied] = useState(false);
 
@@ -116,7 +116,7 @@ export const GiftCardGenerator: React.FC = () => {
                           : 'border-purple-100 bg-purple-50/50 text-slate-600'
                       }`}
                     >
-                      {t === 'lavender' ? 'Lilás' : t === 'sakura' ? 'Rosa' : t === 'tulip' ? 'Tulipa' : 'Floral'}
+                      {t === 'lavender' ? 'Lilás' : t === 'sakura' ? 'Rosa' : t === 'tulip' ? 'Tulipa' : 'Delicado'}
                     </button>
                   ))}
                 </div>

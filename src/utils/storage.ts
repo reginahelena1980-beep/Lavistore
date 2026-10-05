@@ -175,7 +175,7 @@ export function deserializeCart(savedJson: string | null, catalogProducts: Produ
           reviewCount: 1,
           images: item.fallback.imageUrl ? [item.fallback.imageUrl] : ['https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80'],
           description: 'Mimo artesanal Lavistore',
-          features: ['Embalagem perfumada com amor'],
+          features: ['Embalagem especial com amor'],
           stock: 10
         };
 

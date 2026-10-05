@@ -134,7 +134,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     reviewCount: 0,
     images: ['https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80'],
     description: '',
-    features: ['Acabamento especial com toque aveludado', 'Embalado para presente com cheirinho doce'],
+    features: ['Acabamento especial com toque aveludado', 'Embalado para presente com laço especial'],
     tag: 'Novidade ✨',
     dimensions: '',
     imageFit: 'cover',
@@ -350,7 +350,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
         features: [
           useSizes ? `Variações disponíveis na planilha: ${siblings.map(s => s.tamCor).join(', ')}` : `Tam/Cor: ${foundBi.tamCor || 'Único'}`,
           'Item selecionado com carinho pela Lavistore',
-          'Embalado com todo o cuidado e cheirinho doce especial',
+          'Embalado com todo o cuidado e laço especial',
           'Pronta entrega com estoque real sincronizado'
         ],
         tag: foundBi.vitrineTag || 'Novidade ✨',
@@ -402,7 +402,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
           reviewCount: 0,
           images: ['https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80'],
           description: 'Mimo especial e cheio de carinho para encantar o seu dia ou presentear quem você ama.',
-          features: ['Design exclusivo Lavistore', 'Embalado com cheirinho doce especial'],
+          features: ['Design exclusivo Lavistore', 'Embalado com laço de cetim especial'],
           tag: 'Novidade ✨',
           dimensions: '',
           imageFit: 'cover',
@@ -585,7 +585,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     });
   };
 
-  const handleApplyColorPreset = (preset: 'pasteis' | 'basicas' | 'florais' | 'candy') => {
+  const handleApplyColorPreset = (preset: 'pasteis' | 'basicas' | 'florais' | 'candy' | 'delicadas') => {
     let newColors: ProductColorVariant[] = [];
     if (preset === 'pasteis') {
       newColors = [
@@ -602,7 +602,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
         { id: `col-${Date.now()}-3`, name: 'Nude / Kraft', hex: '#E5D5C5', bgClass: 'bg-amber-200' },
         { id: `col-${Date.now()}-4`, name: 'Dourado / Mostarda', hex: '#FACC15', bgClass: 'bg-amber-400' },
       ];
-    } else if (preset === 'florais') {
+    } else if (preset === 'florais' || preset === 'delicadas') {
       newColors = [
         { id: `col-${Date.now()}-1`, name: 'Jardim Rosé', hex: '#F472B6', bgClass: 'bg-pink-300', imageUrl: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400&q=80' },
         { id: `col-${Date.now()}-2`, name: 'Lavanda Silvestre', hex: '#C084FC', bgClass: 'bg-purple-300', imageUrl: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=400&q=80' },
@@ -1961,10 +1961,10 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleApplyColorPreset('florais')}
+                    onClick={() => handleApplyColorPreset('delicadas')}
                     className="px-2.5 py-1 rounded-lg bg-purple-100/80 hover:bg-purple-200 text-purple-950 text-[11px] font-bold transition-colors border border-purple-200"
                   >
-                    🌺 Estampas Florais (com Fotos)
+                    🎨 Estampas Delicadas (com Fotos)
                   </button>
                   <button
                     type="button"
@@ -2057,7 +2057,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                           required
                           value={col.name || ''}
                           onChange={(e) => handleUpdateColorVariant(col.id, 'name', e.target.value)}
-                          placeholder="Ex: Lilás Lavanda, Floral Margaridas, Rosa Bebê"
+                          placeholder="Ex: Lilás Suave, Amarelo Solar, Rosa Bebê"
                           className="w-full px-3 py-2 bg-purple-50/40 border-2 border-purple-200 rounded-xl font-bold text-xs text-purple-950 focus:outline-none focus:ring-2 focus:ring-pink-400"
                         />
                       </div>
@@ -2169,7 +2169,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
                       handleAddFeature();
                     }
                   }}
-                  placeholder="Ex: Embalado para presente com cheirinho doce • Toque aveludado..."
+                  placeholder="Ex: Embalado para presente com laço especial • Toque aveludado..."
                   className="flex-1 px-3.5 py-2 bg-white border-2 border-pink-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-pink-400"
                 />
                 <button

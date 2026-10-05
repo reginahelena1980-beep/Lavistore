@@ -28,7 +28,7 @@ export const ResetHeroModal: React.FC<ResetHeroModalProps> = ({
         </div>
 
         <p className="text-xs text-slate-600 leading-relaxed font-normal">
-          Deseja restaurar a foto do trio de florzinhas e textos padrões da capa da página inicial?
+          Deseja restaurar a foto oficial e textos padrões da capa da página inicial?
         </p>
 
         <div className="flex items-center justify-end gap-2 pt-2">

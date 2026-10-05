@@ -324,7 +324,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
     const dedicationHtml = dedication ? `
       <div style="border: 2px dashed #f43f5e; border-radius: 12px; padding: 16px; margin-top: 25px; background: #fff1f2; position: relative; page-break-inside: avoid;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px dashed #fbcfe8; padding-bottom: 8px; margin-bottom: 12px;">
-          <span style="font-size: 13px; font-weight: bold; color: #9f1239; text-transform: uppercase; letter-spacing: 0.5px;">✂️ Recortar Cartão de Dedicatória com Cheirinho</span>
+          <span style="font-size: 13px; font-weight: bold; color: #9f1239; text-transform: uppercase; letter-spacing: 0.5px;">✂️ Recortar Cartão de Dedicatória Especial</span>
           <span style="font-size: 11px; color: #be185d; font-weight: bold;">Pedido #${order.orderId} ${dedication.ribbon ? `• Fita: ${dedication.ribbon}` : ''}</span>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px;">
@@ -336,7 +336,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #9d174d; margin-top: 6px;">
           <span>🌸 Lavistore Kids • Feito com amor</span>
-          <span>✨ Borrifar essência doce artesanal</span>
+          <span>✨ Embalado com carinho</span>
         </div>
       </div>
     ` : '';
@@ -1046,7 +1046,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
                             </div>
                             <div>
                               <h4 className="font-['Mali'] text-base font-bold text-pink-950 flex items-center gap-2">
-                                <span>Cartão de Dedicatória com Cheirinho 🌸</span>
+                                <span>Cartão de Dedicatória Especial 💌</span>
                               </h4>
                               <p className="text-xs text-pink-800">
                                 Mensagem personalizada enviada para acompanhar a embalagem de presente.
@@ -1059,7 +1059,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
                               type="button"
                               onClick={() => openDedicationPrintWindow(dedication)}
                               className="px-4 py-2 bg-gradient-to-r from-pink-600 via-rose-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer active:scale-95"
-                              title="Abre a janela de impressão com o cartãozinho floral 10x15cm pronto para corte"
+                              title="Abre a janela de impressão com o cartãozinho 10x15cm pronto para corte"
                             >
                               <Printer className="w-4 h-4 text-white" />
                               <span>🖨️ Imprimir Cartão de Dedicatória (10x15cm)</span>
@@ -1097,7 +1097,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
                               {dedication.ribbon && <span>🎀 Fita: <strong>{dedication.ribbon}</strong></span>}
                               {dedication.bag && <span>🛍️ <strong>{dedication.bag}</strong></span>}
                             </div>
-                            <span className="text-slate-500 font-medium">✨ Pronto para imprimir, recortar e perfumar</span>
+                            <span className="text-slate-500 font-medium">✨ Pronto para imprimir e recortar</span>
                           </div>
                         </div>
                       </div>
@@ -1129,7 +1129,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
                               type="button"
                               onClick={() => openDedicationPrintWindow(dedication)}
                               className="px-3.5 py-1.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
-                              title="Imprimir Cartão de Dedicatória com Cheirinho (10x15cm)"
+                              title="Imprimir Cartão de Dedicatória (10x15cm)"
                             >
                               <Printer className="w-3.5 h-3.5 text-pink-200" />
                               <span>Imprimir Dedicatória</span>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, CheckCircle, Heart, Flower2, Sparkles, MessageCircleHeart, Edit3 } from 'lucide-react';
+import { Star, CheckCircle, Heart, Sparkles, MessageCircleHeart, Edit3 } from 'lucide-react';
 import { CUSTOMER_REVIEWS } from '../data/reviews';
 import { HomePageConfig, CustomerReview } from '../types';
 import { getFontSizeClass, getFontWeightClass } from '../utils/textFormatter';

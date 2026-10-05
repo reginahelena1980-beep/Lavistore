@@ -541,7 +541,7 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
                   type="text"
                   value={bagName}
                   onChange={(e) => setBagName(e.target.value)}
-                  placeholder="Ex: Sacolinha Amarela Floral Trio Lavistore"
+                  placeholder="Ex: Sacolinha Amarela Trio Lavistore"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-400 text-purple-950 font-medium"
                 />
               </div>
@@ -593,7 +593,7 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
                   rows={2}
                   value={bagDescription}
                   onChange={(e) => setBagDescription(e.target.value)}
-                  placeholder="Ex: Sacolinha especial em papel encorpado com alça macia e seda floral perfumada..."
+                  placeholder="Ex: Sacolinha especial em papel encorpado com alça macia e papel de seda..."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-400 text-purple-950 font-medium"
                 />
               </div>

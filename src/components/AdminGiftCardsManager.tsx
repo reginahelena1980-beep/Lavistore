@@ -8,7 +8,6 @@ import {
   Search, 
   ShoppingBag, 
   Heart, 
-  Flower2, 
   Gift, 
   ExternalLink,
   Plus,
@@ -139,7 +138,7 @@ export const AdminGiftCardsManager: React.FC<AdminGiftCardsManagerProps> = ({ on
               Cartões de Dedicatórias & Presentes 💌
             </h2>
             <p className="text-xs sm:text-sm text-pink-100 max-w-xl">
-              Aqui você visualiza todas as dedicatórias escritas pelos clientes nos pedidos e imprime cartõezinhos perfeitos (tamanho 10x15cm) para borrifar cheirinho e colocar dentro dos pacotes!
+              Aqui você visualiza todas as dedicatórias escritas pelos clientes nos pedidos e imprime cartõezinhos perfeitos (tamanho 10x15cm) para colocar dentro dos pacotes com muito carinho!
             </p>
           </div>
 
@@ -439,7 +438,7 @@ export const AdminGiftCardsManager: React.FC<AdminGiftCardsManagerProps> = ({ on
               {/* Theme & Ribbon */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-purple-950 block mb-1">Estilo Floral:</label>
+                  <label className="text-xs font-bold text-purple-950 block mb-1">Estilo do Cartão:</label>
                   <select
                     value={customTheme}
                     onChange={(e: any) => setCustomTheme(e.target.value)}

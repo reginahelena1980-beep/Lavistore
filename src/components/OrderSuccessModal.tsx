@@ -5,7 +5,6 @@ import {
   Check, 
   QrCode, 
   Sparkles, 
-  Flower2, 
   Gift, 
   Truck, 
   Heart,
@@ -527,8 +526,8 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
               <p className="text-slate-600 text-[11px]">Pagamento e detalhes recebidos</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-amber-300 shadow-2xs">
-              <span className="text-amber-800 font-bold block mb-0.5 animate-pulse">🌸 2. Embalagem Doce</span>
-              <p className="text-slate-600 text-[11px]">Papel de seda, perfume e mimos</p>
+              <span className="text-amber-800 font-bold block mb-0.5 animate-pulse">🎁 2. Embalagem Especial</span>
+              <p className="text-slate-600 text-[11px]">Papel de seda, laço de cetim e mimos</p>
             </div>
             <div className="bg-white p-3 rounded-xl border border-amber-100 shadow-2xs opacity-75">
               <span className="text-slate-500 font-bold block mb-0.5">🚚 3. Envio Express</span>

@@ -7,7 +7,7 @@ import {
   Barcode, 
   ShieldCheck, 
   Truck, 
-  Flower2, 
+  ShoppingBag, 
   Sparkles, 
   Copy, 
   ArrowRight,
@@ -1067,7 +1067,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md px-6 py-4 border-b border-purple-100 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center justify-center shadow-md shadow-pink-200">
-              <Flower2 className="w-5 h-5" />
+              <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-['Playfair_Display'] font-bold text-lg text-purple-950">Finalizar Compra</h3>
@@ -1771,7 +1771,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           </span>
                         </h5>
                         <p className="text-[10px] text-slate-500">
-                          Impresso pela loja em cartãozinho perfumado 10x15cm
+                          Impresso pela loja em cartãozinho especial 10x15cm
                         </p>
                       </div>
                     </div>
@@ -1828,9 +1828,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-1.5 text-[10px] text-pink-700 bg-pink-100/60 p-2 rounded-xl">
-                        <span>🌸</span>
+                        <span>💌</span>
                         <span>
-                          Sua mensagem será impressa com caligrafia charmosa no cartão floral de presente da Lavistore.
+                          Sua mensagem será impressa com caligrafia charmosa no cartão de presente da Lavistore.
                         </span>
                       </div>
                     </div>
@@ -2007,7 +2007,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 className="w-full py-3.5 bg-gradient-to-r from-pink-500 via-rose-500 to-pink-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-pink-500/30 flex items-center justify-center gap-2 transition-transform active:scale-98 disabled:opacity-50 cursor-pointer"
               >
                 {isProcessing ? (
-                  <span>Preparando seu pacotinho perfumado... 🌸</span>
+                  <span>Preparando seu pacotinho de mimos... ✨</span>
                 ) : isGiftCoupon ? (
                   <>
                     <Gift className="w-5 h-5 text-amber-300" />
@@ -2015,7 +2015,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </>
                 ) : (
                   <>
-                    <Flower2 className="w-4 h-4" />
+                    <ShoppingBag className="w-4 h-4" />
                     <span>Confirmar e Finalizar Pedido</span>
                   </>
                 )}

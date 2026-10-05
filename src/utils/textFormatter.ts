@@ -118,7 +118,7 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
     fontSize: 'xs',
     isBold: false
   },
-  perk4Icon: '🌸',
+  perk4Icon: '🏷️',
   perk4Title: {
     text: 'Preço máximo: R$ 15,00',
     fontSize: 'base',
@@ -176,7 +176,7 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
     isBold: true
   },
   reviewsSubtitle: {
-    text: 'Mais de 1.200 pedidos entregues com amor, papel de seda e o cheirinho inesquecível da Lavistore.',
+    text: 'Mais de 1.200 pedidos entregues com amor, papel de seda e o carinho inesquecível da Lavistore.',
     fontSize: 'base',
     isBold: false
   },
@@ -189,17 +189,17 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
     isBold: true
   },
   newsletterTitle: {
-    text: 'Ganhe 10% OFF na sua primeira compra! 🌸',
+    text: 'Ganhe 10% OFF na sua primeira compra! ✨',
     fontSize: '2xl',
     isBold: true
   },
   newsletterSubtitle: {
-    text: 'Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.',
+    text: 'Cadastre seu e-mail para receber novidades e mimos exclusivos.',
     fontSize: 'sm',
     isBold: false
   },
   newsletterDesc: {
-    text: 'Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.',
+    text: 'Cadastre seu e-mail para receber novidades e mimos exclusivos.',
     fontSize: 'sm',
     isBold: false
   },
@@ -238,7 +238,7 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   // About Page ("Sobre Nós")
   aboutHeroSlogan: 'A Lavistore nasce para fazer o mundo mais afetuoso, doce e colorido!',
   aboutHeroQuote: 'Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!',
-  aboutHeroDescription: 'Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore — desde o traço desenhado à mão do nosso trio de florzinhas com centrinho amarelo ensolarado até o cheirinho doce borrifado nas caixas e sacolinhas amarelas — foi criado para espalhar sorrisos e momentos inesquecíveis!',
+  aboutHeroDescription: 'Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore — desde o traço desenhado à mão do nosso trio de florzinhas com centrinho amarelo ensolarado até as nossas caixas e sacolinhas amarelas exclusivas com laço de cetim — foi criado para espalhar sorrisos e momentos inesquecíveis!',
   aboutTrioTitle: 'O Significado do Nosso Trio de Flores',
   aboutTrioSubtitle: 'Inspiradas em traços livres de criança, cada florzinha traz uma energia especial de cuidado e carinho.',
   aboutFlower1Title: 'Flor Violeta',
@@ -250,6 +250,20 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   aboutFlower3Title: 'Flor Rosa',
   aboutFlower3Subtitle: 'Afeto & Doçura',
   aboutFlower3Desc: 'Simboliza o amor colocado em cada laço e a sensação acolhedora de um abraço carinhoso.',
+  aboutPillarsTitle: 'Nossos 4 Toques de Afeto em Cada Envio',
+  aboutPillarsSubtitle: 'Detalhes pensados com carinho para encantar quem você ama',
+  aboutPillar1Icon: '🛍️',
+  aboutPillar1Title: 'Mimos Especiais',
+  aboutPillar1Desc: 'Mimos e papelaria fofa selecionados com amor para alegrar o seu dia a dia.',
+  aboutPillar2Icon: '🎀',
+  aboutPillar2Title: 'Sacolinhas Amarelas',
+  aboutPillar2Desc: 'Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para encantar antes mesmo de abrir.',
+  aboutPillar3Icon: '💌',
+  aboutPillar3Title: 'Dedicatórias',
+  aboutPillar3Desc: 'Cartinhas afetivas e bilhetinhos personalizados para emocionar e marcar memórias para sempre.',
+  aboutPillar4Icon: '🏷️',
+  aboutPillar4Title: 'Preço Máximo: R$ 15,00',
+  aboutPillar4Desc: 'Mimos e presentes criativos acessíveis para surpreender quem você ama sem pesar no bolso.',
   aboutSolarTag: 'O Miolo Amarelo Solar ☀️',
   aboutSolarTitle: 'Traços Infantis Feitos com Amor & Energia Solar',
   aboutSolarDesc: 'O estilo de desenho de criança com sorrisinhos meigos e o miolo amarelo brilhante celebram a pureza, a imaginação e a alegria genuína. Cada sacolinha amarela carrega esse raio de sol até você!',

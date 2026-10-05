@@ -461,15 +461,15 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             <div className="space-y-4">
               {renderFieldEditor('heroBadge', 'Selo do Topo', 'Pequeno texto no topo com a paleta de 4 cores.', false, 'Presentes Criativos & Mimos com Amor 🌸')}
               {renderFieldEditor('heroTitle', 'Título Principal do Banner', 'Grande chamada de impacto para acolher a cliente.', true, 'Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!')}
-              {renderFieldEditor('heroSubtitle', 'Subtítulo Explicativo', 'Parágrafo acolhedor que conta sobre a essência da Lavistore.', true, 'A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido!')}
+              {renderFieldEditor('heroSubtitle', 'Subtítulo Explicativo', 'Parágrafo acolhedor que conta sobre a história e propósito da Lavistore.', true, 'A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido!')}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {renderFieldEditor('heroBtnPrimary', 'Botão Principal (Gradiente)', 'Texto do botão de explorar lançamentos.', false, 'Explorar Lançamentos Florais')}
+                {renderFieldEditor('heroBtnPrimary', 'Botão Principal (Gradiente)', 'Texto do botão de explorar lançamentos.', false, 'Explorar Nossos Mimos')}
                 {renderFieldEditor('heroBtnSecondary', 'Botão Secundário (Amarelo)', 'Texto do botão de kit / sacolinha.', false, 'Monte sua Sacolinha de Presente')}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {renderFieldEditor('heroTrust1', 'Destaque 1 (Cheirinho)', 'Frase de confiança 1 no rodapé do banner.', false, 'Embalagens Exclusivas')}
+                {renderFieldEditor('heroTrust1', 'Destaque 1 (Embalagens)', 'Frase de confiança 1 no rodapé do banner.', false, 'Embalagens Exclusivas')}
                 {renderFieldEditor('heroTrust2', 'Destaque 2 (Brinde)', 'Frase de confiança 2 no rodapé do banner.', false, 'Mimos Especiais')}
                 {renderFieldEditor('heroTrust3', 'Destaque 3 (Artesanal)', 'Frase de confiança 3 no rodapé do banner.', false, 'Toque de Carinho')}
               </div>
@@ -588,7 +588,7 @@ export const HomeTextManager: React.FC<HomeTextManagerProps> = ({
             <div className="space-y-4">
               {renderFieldEditor('newsletterBadge', 'Selo do Clube', 'Selo superior da caixa da newsletter.', false, 'Clube de Mimos Lavistore')}
               {renderFieldEditor('newsletterTitle', 'Título do Desconto da Newsletter', 'Oferta de 10% OFF no primeiro pedido.', false, 'Ganhe 10% OFF na sua primeira compra! 🌸')}
-              {renderFieldEditor('newsletterDesc', 'Descrição da Newsletter', 'Frase convidando a cadastrar o e-mail para mimos.', true, 'Cadastre seu e-mail para receber lançamentos florais e mimos exclusivos.')}
+              {renderFieldEditor('newsletterDesc', 'Descrição da Newsletter', 'Frase convidando a cadastrar o e-mail para mimos.', true, 'Cadastre seu e-mail para receber novidades e mimos exclusivos.')}
             </div>
           </div>
         )}

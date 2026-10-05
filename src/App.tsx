@@ -1307,7 +1307,7 @@ export default function App() {
                       image: defaultHeroImg,
                       badge: "Presentes Criativos & Mimos com Amor 🌸",
                       title: "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-                      subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, cheirinho doce artesanal e papelaria fofa que transformam pequenos momentos em pura alegria.",
+                      subtitle: "A Lavistore nasce da vontade de empreender e fazer um mundo mais divertido e colorido! Unimos presentes criativos, embalagens exclusivas e papelaria fofa que transformam pequenos momentos em pura alegria.",
                       imageFit: 'cover' as const,
                       imageScale: 100,
                       imagePosition: 'center' as const,
@@ -1479,7 +1479,7 @@ export default function App() {
                 {/* Catalog Subtitle */}
                 {selectedCategory === 'todos' ? (
                   <p className={`font-['Comfortaa'] text-slate-600 ${getFontSizeClass(homePageConfig.catalogSubtitle?.fontSize, 'xs')} ${getFontWeightClass(homePageConfig.catalogSubtitle?.isBold, false)}`}>
-                    {homePageConfig.catalogSubtitle?.text || 'Mimos artesanais e cheirinho doce que transformam pequenos momentos em pura magia.'}
+                    {homePageConfig.catalogSubtitle?.text || 'Mimos especiais e embalagens exclusivas que transformam pequenos momentos em pura magia.'}
                   </p>
                 ) : (
                   categories.find(c => c.id === selectedCategory)?.description ? (
@@ -1546,7 +1546,7 @@ export default function App() {
                   </h3>
 
                   <p className={`font-['Comfortaa'] text-purple-900 max-w-lg leading-relaxed ${getFontSizeClass(homePageConfig.promoDescription?.fontSize, 'xs')} ${getFontWeightClass(homePageConfig.promoDescription?.isBold, false)}`}>
-                    {homePageConfig.promoDescription?.text || 'Nossas sacolinhas amarelas exclusivas com laço de cetim, mimos favoritos selecionados, cheirinho doce artesanal e dedicatória para encantar!'}
+                    {homePageConfig.promoDescription?.text || 'Nossas sacolinhas amarelas exclusivas com laço de cetim, mimos favoritos selecionados, dedicatória especial e muito carinho para encantar!'}
                   </p>
                 </div>
 
@@ -1641,7 +1641,7 @@ export default function App() {
                   </div>
 
                   <p className="font-['Comfortaa'] text-sm sm:text-base text-slate-700 leading-relaxed max-w-2xl mx-auto font-medium">
-                    {homePageConfig.aboutStoryText || 'Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore — desde o traço desenhado à mão do nosso trio de florzinhas com centrinho amarelo ensolarado até o cheirinho doce borrifado nas caixas e sacolinhas amarelas — foi criado para espalhar sorrisos e momentos inesquecíveis!'}
+                    {homePageConfig.aboutStoryText || 'Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore — desde o traço desenhado à mão do nosso trio de florzinhas com centrinho amarelo ensolarado até as nossas caixas e sacolinhas amarelas exclusivas com laço de cetim — foi criado para espalhar sorrisos e momentos inesquecíveis!'}
                   </p>
                 </div>
               </div>
@@ -1761,7 +1761,7 @@ export default function App() {
                   </div>
 
                   <p className="text-xs sm:text-[13px] text-slate-700 font-['Comfortaa'] leading-relaxed font-medium">
-                    {homePageConfig.aboutFlower3Desc || 'Simboliza o amor colocado em cada laço de fita, a fragrância doce borrifada nas caixas e a sensação acolhedora de um abraço carinhoso.'}
+                    {homePageConfig.aboutFlower3Desc || 'Simboliza o amor colocado em cada laço de fita e a sensação acolhedora de um abraço carinhoso.'}
                   </p>
 
                   <div className="pt-2.5 flex items-center justify-between text-[11px] text-purple-950 font-bold border-t border-amber-100">
@@ -1812,20 +1812,20 @@ export default function App() {
                     {homePageConfig.aboutPillarsTitle || 'Nossos 4 Toques de Afeto em Cada Envio'}
                   </h3>
                   <p className="text-xs text-slate-600 font-['Comfortaa']">
-                    {homePageConfig.aboutPillarsSubtitle || 'Detalhes pensados com carinho para encantar todos os sentidos'}
+                    {homePageConfig.aboutPillarsSubtitle || 'Detalhes pensados com carinho para encantar quem você ama'}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   <div className="p-5 bg-white/90 backdrop-blur-md rounded-3xl border-2 border-amber-200/80 shadow-sm hover:shadow-xl hover:border-amber-400 transition-all space-y-2">
                     <div className="w-10 h-10 rounded-2xl bg-amber-100/90 text-amber-900 border border-amber-300 flex items-center justify-center font-bold text-base shadow-2xs">
-                      {homePageConfig.aboutPillar1Icon || '🍯'}
+                      {homePageConfig.aboutPillar1Icon || '🛍️'}
                     </div>
                     <h4 className="font-['Mali'] font-bold text-purple-950 text-base">
-                      {homePageConfig.aboutPillar1Title || 'Cheirinho Artesanal'}
+                      {homePageConfig.aboutPillar1Title || 'Mimos Especiais'}
                     </h4>
                     <p className="text-xs text-slate-600 font-['Comfortaa'] leading-relaxed font-medium">
-                      {homePageConfig.aboutPillar1Desc || 'Fragrância suave e doce com notas de baunilha e lavanda borrifada com carinho antes do envio.'}
+                      {homePageConfig.aboutPillar1Desc || 'Mimos e papelaria fofa selecionados com amor para alegrar o seu dia a dia.'}
                     </p>
                   </div>
 
@@ -1855,13 +1855,13 @@ export default function App() {
 
                   <div className="p-5 bg-white/90 backdrop-blur-md rounded-3xl border-2 border-amber-200/80 shadow-sm hover:shadow-xl hover:border-amber-400 transition-all space-y-2">
                     <div className="w-10 h-10 rounded-2xl bg-cyan-100/90 text-cyan-900 border border-cyan-300 flex items-center justify-center font-bold text-base shadow-2xs">
-                      {homePageConfig.aboutPillar4Icon || '🌸'}
+                      {homePageConfig.aboutPillar4Icon || '🏷️'}
                     </div>
                     <h4 className="font-['Mali'] font-bold text-purple-950 text-base">
-                      {homePageConfig.aboutPillar4Title || 'Surpresas Florais'}
+                      {homePageConfig.aboutPillar4Title || 'Preço Máximo: R$ 15,00'}
                     </h4>
                     <p className="text-xs text-slate-600 font-['Comfortaa'] leading-relaxed font-medium">
-                      {homePageConfig.aboutPillar4Desc || 'Adesivos colecionáveis das 3 florzinhas, marcadores de página e mimos extras em cada pedido.'}
+                      {homePageConfig.aboutPillar4Desc || 'Mimos e presentes criativos acessíveis para surpreender quem você ama sem pesar no bolso.'}
                     </p>
                   </div>
                 </div>

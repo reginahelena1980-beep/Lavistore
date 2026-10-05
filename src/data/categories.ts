@@ -52,9 +52,9 @@ export const CATEGORIES: Category[] = (storeState && Array.isArray(storeState.ca
   },
   {
     id: 'washi-adesivos',
-    name: 'Washi Tapes Botânicas',
+    name: 'Washi Tapes Decorativas',
     icon: '🎀',
-    description: 'Fitas japonesas, cartelas florais e blocos translúcidos',
+    description: 'Fitas japonesas, cartelas decorativas e blocos translúcidos',
     showInFooter: true,
     showInFilter: true,
   },
@@ -62,7 +62,7 @@ export const CATEGORIES: Category[] = (storeState && Array.isArray(storeState.ca
     id: 'presentes-kits',
     name: 'Caixas de Presente Prontas',
     icon: '🎁',
-    description: 'Kits prontos, caixas aromáticas e presentes afetivos',
+    description: 'Kits prontos, caixas de presentes e mimos afetivos',
     badge: 'Popular',
     showInFooter: true,
     showInFilter: true,
@@ -97,7 +97,7 @@ export const BAG_TYPES: BagType[] = [
   },
   {
     id: 'bag-amarela-floral',
-    name: 'Sacolinha Amarela Floral Trio Lavistore',
+    name: 'Sacolinha Amarela Trio Lavistore',
     price: 18.90,
     color: '#FEF08A',
     bgClass: 'from-yellow-100 to-amber-200 border-yellow-300',
@@ -110,7 +110,7 @@ export const BAG_TYPES: BagType[] = [
     price: 16.90,
     color: '#FDE047',
     bgClass: 'from-amber-50 to-yellow-100 border-amber-300',
-    description: 'Sacolinha amarela em kraft reforçado, com papel de seda floral e cheirinho doce artesanal.',
+    description: 'Sacolinha amarela em kraft reforçado, com papel de seda especial e laço artesanal.',
     image: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=400&q=80'
   },
   {
@@ -119,7 +119,7 @@ export const BAG_TYPES: BagType[] = [
     price: 19.90,
     color: '#EAB308',
     bgClass: 'from-yellow-200 to-amber-300 border-yellow-400',
-    description: 'Sacolinha amarela premium com visor para destacar os mimos florais escolhidos com amor.',
+    description: 'Sacolinha amarela premium com visor para destacar os mimos escolhidos com amor.',
     image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80'
   }
 ];
@@ -137,7 +137,7 @@ export const RIBBON_OPTIONS: RibbonOption[] = [
 export const CARD_TEMPLATES = [
   {
     theme: 'Aniversário Encantado 🎂',
-    text: 'Que o seu novo ciclo floresça com tanta beleza, doçura e momentos inesquecíveis quanto este presente! Parabéns com todo meu carinho.'
+    text: 'Que o seu novo ciclo seja repleto de beleza, doçura e momentos inesquecíveis quanto este presente! Parabéns com todo meu carinho.'
   },
   {
     theme: 'Amizade & Afeto 🌸',

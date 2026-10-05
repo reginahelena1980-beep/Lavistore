@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Heart, ShoppingBag, Trash2, Flower2 } from 'lucide-react';
+import { X, Heart, ShoppingBag, Trash2 } from 'lucide-react';
 import { Product } from '../types';
 
 interface FavoritesDrawerProps {
@@ -56,7 +56,7 @@ export const FavoritesDrawer: React.FC<FavoritesDrawerProps> = ({
             {favorites.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
                 <div className="w-16 h-16 rounded-full bg-pink-50 flex items-center justify-center text-pink-400">
-                  <Flower2 className="w-8 h-8 fill-pink-100 text-pink-400" />
+                  <Heart className="w-8 h-8 fill-pink-100 text-pink-400" />
                 </div>
                 <h4 className="font-['Playfair_Display'] text-lg font-bold text-purple-950">Lista de Desejos Vazia</h4>
                 <p className="text-xs text-slate-500 max-w-xs">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageCircle, X, Send, Flower2, ExternalLink } from 'lucide-react';
+import { MessageCircle, X, Send, ExternalLink } from 'lucide-react';
 import { HomePageConfig } from '../types';
 import { formatWhatsAppLink } from '../utils/textFormatter';
 
@@ -65,7 +65,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ config }) =>
             <div className="flex items-center gap-2.5">
               <div className="relative">
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border border-white/40">
-                  <Flower2 className="w-6 h-6 text-white" />
+                  <MessageCircle className="w-5 h-5 text-white" />
                 </div>
                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-purple-600 rounded-full" />
               </div>

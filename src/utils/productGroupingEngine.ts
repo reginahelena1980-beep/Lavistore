@@ -166,7 +166,7 @@ export function createParentProductFromBiRecords(
       existingProduct?.features || [
         `Variações disponíveis: ${siblingRecords.map(s => s.tamCor).join(', ')}`,
         'Item selecionado com carinho pela equipe Lavistore',
-        'Embalado para presente com cheirinho doce especial',
+        'Embalado para presente com carinho especial',
         'Pronta entrega com estoque real sincronizado'
       ],
     tag: productOverrides?.tag || existingProduct?.tag || primaryRecord.vitrineTag || 'Favorito ✨',

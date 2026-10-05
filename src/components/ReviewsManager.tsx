@@ -310,7 +310,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                 value={configData.reviewsSubtitle?.text || ''}
                 onChange={(e) => updateConfigField('reviewsSubtitle', { text: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                placeholder="Ex: Mais de 1.200 pedidos entregues com amor, papel de seda e o cheirinho inesquecível da Lavistore."
+                placeholder="Ex: Mais de 1.200 pedidos entregues com amor, papel de seda e o carinho inesquecível da Lavistore."
               />
             </div>
 
