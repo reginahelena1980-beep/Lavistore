@@ -38,6 +38,14 @@
       "destination": "/api/admin/reset-password.js"
     },
     {
+      "source": "/api/shipping/calculate",
+      "destination": "/api/shipping/calculate.js"
+    },
+    {
+      "source": "/api/shipping/config",
+      "destination": "/api/shipping/config.js"
+    },
+    {
       "source": "/((?!api/|api$).*)",
       "destination": "/index.html"
     }
