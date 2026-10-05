@@ -4636,7 +4636,7 @@ function getMercadoPagoCredentials() {
   };
 }
 
-// api/mercadopago/payment_status/[id].ts
+// serverless-src/mercadopago/payment_status/[id].ts
 async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Origin", "*");

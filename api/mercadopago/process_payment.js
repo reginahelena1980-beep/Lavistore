@@ -5256,7 +5256,7 @@ async function processMercadoPagoPayment(reqBody, headers) {
   };
 }
 
-// api/mercadopago/process_payment.ts
+// serverless-src/mercadopago/process_payment.ts
 async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Origin", "*");

@@ -10,6 +10,34 @@
       "destination": "/api/mercadopago/payment_status/[id].js"
     },
     {
+      "source": "/api/admin/session",
+      "destination": "/api/admin/session.js"
+    },
+    {
+      "source": "/api/admin/verify-password",
+      "destination": "/api/admin/verify-password.js"
+    },
+    {
+      "source": "/api/admin/logout",
+      "destination": "/api/admin/logout.js"
+    },
+    {
+      "source": "/api/admin/password-status",
+      "destination": "/api/admin/password-status.js"
+    },
+    {
+      "source": "/api/admin/change-password",
+      "destination": "/api/admin/change-password.js"
+    },
+    {
+      "source": "/api/admin/request-password-reset",
+      "destination": "/api/admin/request-password-reset.js"
+    },
+    {
+      "source": "/api/admin/reset-password",
+      "destination": "/api/admin/reset-password.js"
+    },
+    {
       "source": "/((?!api/|api$).*)",
       "destination": "/index.html"
     }
