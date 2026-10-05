@@ -42,9 +42,9 @@ service cloud.firestore {
       allow write: if true;
     }
 
-    // Regra padrão de contingência
+    // Regra padrão de contingência (fail-closed)
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
