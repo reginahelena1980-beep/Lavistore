@@ -172,8 +172,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                                paymentMethod.includes('Mercado Pago') ||
                                Boolean(currentPixKey);
 
-  const isStoreOwner = (orderData?.customerEmail?.toLowerCase().trim() === 'reginahelena1980@gmail.com') || 
-                       (cleanCustomerCpf(orderData?.customerCpf) === '29051956819');
 
   const handleCopyPix = () => {
     if (!currentPixKey) return;
@@ -428,7 +426,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                     {currentPixKey && (
                       <div className="flex items-center gap-1.5 text-[10px] text-emerald-800 font-semibold pt-1">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>Código Pix Dinâmico Oficial verificado (API Mercado Pago /v1/payments • Padrão BACEN SPI)</span>
+                        <span>Código Pix Oficial verificado</span>
                       </div>
                     )}
                   </div>
@@ -506,41 +504,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
                     </ul>
                   </div>
 
-                  {isStoreOwner && (
-                    <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200 text-left text-xs text-purple-950 space-y-2 mt-2">
-                      <div className="font-bold flex items-center justify-between text-purple-900">
-                        <span className="flex items-center gap-1.5">
-                          <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
-                          <span>Área de Validação do Lojista:</span>
-                        </span>
-                        <span className="text-[10px] bg-purple-200 text-purple-900 font-bold px-2 py-0.5 rounded-full">
-                          Modo Produção Ativo
-                        </span>
-                      </div>
-                      <p className="text-[11px] leading-relaxed text-slate-600">
-                        O QR Code oficial acima está ativo e pronto para receber pagamentos de qualquer cliente. Para testar o fluxo de aprovação sem debitar de sua conta bancária (já que o Banco Central bloqueia transferências para o mesmo CPF da loja), clique no botão abaixo para aprovar imediatamente o pedido:
-                      </p>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          setPixPaymentStatus('approved');
-                          confetti({
-                            particleCount: 100,
-                            spread: 70,
-                            origin: { y: 0.6 },
-                            colors: ['#10B981', '#34D399', '#6EE7B7', '#F472B6']
-                          });
-                          try {
-                            await updateOrderStatus(orderData.orderId, 'pago');
-                          } catch {}
-                        }}
-                        className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm hover:shadow active:scale-95"
-                      >
-                        <Check className="w-4 h-4" />
-                        <span>Aprovar Pagamento no Sistema (Teste do Lojista)</span>
-                      </button>
-                    </div>
-                  )}
 
                   <span className="text-[10px] text-slate-500 block pt-1">
                     ⚡ Esta tela detecta e confirma seu PIX automaticamente em poucos segundos após a transferência no seu banco.

@@ -665,13 +665,13 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
-          {/* Botão para limpar pedidos de teste */}
+          {/* Botão para limpar histórico de pedidos */}
           {orders.length > 0 && (
             <button
               type="button"
               onClick={() => setShowClearModal(true)}
               className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-              title="Limpar todos os pedidos para publicar a loja"
+              title="Limpar histórico de pedidos"
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-500" />
               <span>Limpar Pedidos ({orders.length})</span>
@@ -690,10 +690,10 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ onRefreshOrders, o
             </div>
             <div className="space-y-1.5">
               <h3 className="font-['Mali'] text-lg font-bold text-purple-950">
-                Limpar Pedidos de Teste?
+                Limpar Histórico de Pedidos?
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Esta ação apagará os pedidos de teste para que a loja seja publicada com a listagem de pedidos zerada, pronta para receber os pedidos reais das clientes.
+                Esta ação apagará permanentemente o histórico de pedidos listados. Novos pedidos de clientes continuarão sendo registrados normalmente.
               </p>
             </div>
             <div className="flex items-center gap-2 pt-2">

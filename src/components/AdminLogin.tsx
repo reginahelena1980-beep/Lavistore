@@ -460,7 +460,7 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-[11px] text-purple-950 font-medium flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Senha provisória de primeiro acesso: <strong>1234</strong></span>
+                    <span>Primeiro acesso à gerência? Configure sua senha pessoal.</span>
                   </div>
                   <button
                     type="button"
@@ -609,11 +609,11 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
                             setRecoveryEmail(e.target.value);
                             if (recoveryError) setRecoveryError(null);
                           }}
-                          placeholder={`Deixe em branco para usar STORE_EMAIL (${maskedRecoveryEmail})`}
+                          placeholder={`Deixe em branco para usar o e-mail cadastrado (${maskedRecoveryEmail})`}
                           className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all"
                         />
                         <p className="text-[11px] text-slate-600">
-                          O código será enviado para o <strong>STORE_EMAIL</strong> configurado no sistema ({maskedRecoveryEmail}). Deixe o campo em branco para usar o padrão diretamente.
+                          O código será enviado para o e-mail cadastrado da loja ({maskedRecoveryEmail}). Deixe o campo em branco para usar o e-mail cadastrado.
                         </p>
                       </div>
 
@@ -754,9 +754,9 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
               <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-2xl text-xs text-amber-950 font-medium flex items-start gap-2.5">
                 <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold">Primeiro acesso ou alteração voluntária</p>
+                  <p className="font-bold">Alterar Senha de Gerência</p>
                   <p className="text-[11px] text-amber-900/80 leading-relaxed pt-0.5">
-                    Se for seu primeiro acesso, sua senha atual é <strong>1234</strong>. Crie uma nova senha para manter a gestão da loja segura.
+                    Se for seu primeiro acesso ou desejar atualizar a segurança da loja, informe a senha atual e cadastre a nova senha.
                   </p>
                 </div>
               </div>
@@ -779,7 +779,7 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-purple-950">
-                    Senha Atual / Provisória
+                    Senha Atual
                   </label>
                   <button
                     type="button"
@@ -803,7 +803,7 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
                       setCurrentPassword(e.target.value);
                       if (changeError) setChangeError(null);
                     }}
-                    placeholder="Digite a senha atual (padrão 1234)"
+                    placeholder="Digite a senha atual"
                     className="w-full px-4 py-2.5 bg-purple-50/50 border-2 border-purple-200 rounded-xl text-sm font-semibold text-purple-950 placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all pr-10"
                   />
                   <button
@@ -919,7 +919,7 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
             </h3>
 
             <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Você está acessando a gerência com a senha padrão inicial (<strong>1234</strong>).
+              Identificamos que você ainda não personalizou sua senha de acesso.
               Gostaria de cadastrar sua senha pessoal exclusiva agora?
             </p>
 
@@ -945,7 +945,7 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
                 }}
                 className="w-full py-2.5 rounded-xl border border-purple-200 text-purple-900 font-bold text-xs hover:bg-purple-50 transition-colors cursor-pointer"
               >
-                Continuar com Senha 1234 por enquanto
+                Continuar por enquanto
               </button>
             </div>
 

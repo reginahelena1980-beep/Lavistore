@@ -915,7 +915,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
               type="button"
               onClick={handleLoadSampleData}
               className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-purple-950 border border-amber-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Carregar produtos de teste da Lavistore (Meias de Panda, Canetas, Pulseiras, etc.)"
+              title="Carregar modelo de exemplo da Lavistore (Meias de Panda, Canetas, Pulseiras, etc.)"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-300" />
               <span>Carregar Exemplo Lavistore</span>

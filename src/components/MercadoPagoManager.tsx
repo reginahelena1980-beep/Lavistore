@@ -350,72 +350,6 @@ export const MercadoPagoManager: React.FC = () => {
         )}
       </div>
 
-      {/* CARD ESCLARECEDOR: SOBRE A MENSAGEM "VOCÊ NÃO PASSOU? TENTE NOVAMENTE" */}
-      <div className="bg-gradient-to-r from-amber-50 via-white to-sky-50 rounded-3xl p-6 sm:p-7 border-2 border-amber-200/90 shadow-sm space-y-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-600 shrink-0">
-            <Info className="w-5 h-5" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-              <span>Sobre o aviso no Mercado Pago:</span>
-              <span className="bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-lg text-xs font-mono font-semibold border border-amber-300/80">
-                "Você não passou? Tente novamente"
-              </span>
-            </h3>
-            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
-              Fique 100% tranquila! Esse aviso é comum no painel de desenvolvedores do Mercado Pago e <strong>não impede a sua loja de vender</strong>. Entenda o que ele significa:
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1 text-xs">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-            <div className="flex items-center gap-2 text-emerald-700 font-bold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-              <span>1. Credenciais Já Liberadas</span>
-            </div>
-            <p className="text-slate-600 leading-relaxed">
-              Como visto no seu print, o Mercado Pago <strong>já gerou e ativou suas Credenciais de Produção</strong> (<code className="bg-slate-100 px-1 py-0.5 rounded text-[11px]">APP_USR-...</code>). Nosso teste em tempo real confirmou status <strong>200 OK</strong> na API oficial.
-            </p>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-            <div className="flex items-center gap-2 text-sky-700 font-bold">
-              <Zap className="w-4 h-4 text-sky-500" />
-              <span>2. O que é o Questionário</span>
-            </div>
-            <p className="text-slate-600 leading-relaxed">
-              O Mercado Pago exibe um formulário de boas práticas ("Homologação / Go-Live") com perguntas teóricas sobre segurança. Caso alguma opção seja marcada diferente do esperado pelo robô, ele mostra "Você não passou?".
-            </p>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-            <div className="flex items-center gap-2 text-purple-700 font-bold">
-              <ShieldCheck className="w-4 h-4 text-purple-500" />
-              <span>3. Nossa Loja Já Cumpre Tudo</span>
-            </div>
-            <p className="text-slate-600 leading-relaxed">
-              A Lavistore já implementa todos os requisitos técnicos exigidos: <strong>conexão segura HTTPS/SSL</strong>, <strong>antifraude com Device ID</strong>, <strong>validação de CPF (Módulo 11)</strong> e parcelamento transparente.
-            </p>
-          </div>
-        </div>
-
-        {/* Guia Rápido de Respostas caso queira refazer no painel do MP */}
-        <div className="bg-amber-500/10 border border-amber-300/60 rounded-2xl p-4 text-xs text-amber-950 space-y-2">
-          <p className="font-bold flex items-center gap-1.5 text-amber-900">
-            <Sparkles className="w-4 h-4 text-amber-600" />
-            <span>Respostas corretas se você quiser clicar em "Tente novamente" no Mercado Pago:</span>
-          </p>
-          <ul className="list-disc list-inside space-y-1 text-slate-700 pl-1 leading-relaxed">
-            <li><strong>Qual modelo de integração você utiliza?</strong> Responda: <em>"Checkout Transparente"</em>.</li>
-            <li><strong>Seu site utiliza certificado de segurança SSL (HTTPS)?</strong> Responda: <em>"Sim, todo o tráfego é HTTPS"</em>.</li>
-            <li><strong>Você envia o Device ID / device fingerprint nas transações?</strong> Responda: <em>"Sim, via cabeçalho X-Meli-Session-Id e SDK"</em>.</li>
-            <li><strong>Você valida e envia o documento do cliente (CPF/CNPJ)?</strong> Responda: <em>"Sim, validação algorítmica obrigatória"</em>.</li>
-            <li><strong>Qual é a URL da loja?</strong> Informe: <em>https://www.lavistorekids.com.br</em>.</li>
-          </ul>
-        </div>
-      </div>
 
       {/* FORMULÁRIO DE GESTÃO / AJUSTE MANUAL DE CHAVES */}
       <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm space-y-5">
@@ -566,7 +500,7 @@ export const MercadoPagoManager: React.FC = () => {
           </div>
           <div className="space-y-1">
             <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-              <span>Como Funciona o PIX em Produção & Testes do Lojista</span>
+              <span>Como Funciona o PIX da Loja</span>
               <span className="bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-lg text-xs font-mono font-semibold border border-emerald-300/80">
                 Regra Oficial BACEN
               </span>
@@ -599,12 +533,7 @@ export const MercadoPagoManager: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-3 bg-white/80 rounded-2xl border border-emerald-200 text-xs text-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span><strong>Dica para testar:</strong> Na tela de pedido finalizado, use o botão <em>"Aprovar Pagamento no Sistema (Teste do Lojista)"</em> para testar todo o fluxo de e-mails e confirmação de estoque sem gastar dinheiro!</span>
-          </div>
-        </div>
+
       </div>
     </div>
   );

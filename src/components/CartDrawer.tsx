@@ -571,7 +571,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
               <div className="text-center text-[10px] text-purple-700/80 font-medium flex items-center justify-center gap-2">
                 <Sparkles className="w-3 h-3 text-amber-500" />
-                <span>API Melhor Envio Conectada • Entrega Garantida</span>
+                <span>Envio Seguro • Entrega Garantida para Todo o Brasil</span>
               </div>
             </div>
           )}

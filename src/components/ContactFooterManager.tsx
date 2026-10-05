@@ -348,7 +348,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-102 active:scale-98"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Testar Link do WhatsApp Agora</span>
+                  <span>Verificar Link do WhatsApp</span>
                 </a>
               </div>
 

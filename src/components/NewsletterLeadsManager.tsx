@@ -388,19 +388,17 @@ export const NewsletterLeadsManager: React.FC<NewsletterLeadsManagerProps> = ({
         </div>
       </div>
 
-      {/* Storage Location Explanation Card */}
+      {/* Storage & Export Tips Card */}
       <div className="bg-amber-50/80 rounded-2xl p-4 border border-amber-200/80 shadow-2xs flex items-start gap-3 text-xs text-amber-950">
         <div className="p-2 bg-amber-200/60 rounded-xl text-amber-800 shrink-0 mt-0.5">
-          <Database className="w-4 h-4" />
+          <Mail className="w-4 h-4" />
         </div>
         <div className="space-y-1">
           <p className="font-bold text-amber-900 text-xs sm:text-sm flex items-center gap-1.5">
-            <span>💾 Onde o sistema armazena esses dados cadastrados?</span>
+            <span>Disparo de Campanhas & Exportação</span>
           </p>
           <p className="text-slate-700 leading-relaxed text-[11px] sm:text-xs">
-            1. <strong>No Firebase Firestore:</strong> Os e-mails são sincronizados em tempo real na coleção oficial <code>newsletter_leads</code> na nuvem.<br />
-            2. <strong>No Servidor Backend:</strong> Os cadastros são persistidos de forma segura e soberana, sem nenhum dado retido em localStorage.<br />
-            3. <strong>Disparo & Exportação:</strong> Você pode exportar para planilha Excel/CSV ou copiar todos os e-mails com 1 clique para colar no campo CCO de ferramentas como Gmail, Mailchimp ou Brevo.
+            Você pode exportar a lista de contatos para planilha Excel/CSV ou copiar todos os e-mails com 1 clique para colar no campo CCO de ferramentas de e-mail marketing como Gmail, Mailchimp ou Brevo.
           </p>
         </div>
       </div>

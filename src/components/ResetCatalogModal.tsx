@@ -23,7 +23,7 @@ export const ResetCatalogModal: React.FC<ResetCatalogModalProps> = ({
           </div>
           <div>
             <h3 className="font-['Mali'] text-base font-bold text-purple-950">Restaurar Catálogo Padrão?</h3>
-            <p className="text-[11px] text-slate-500 font-normal">Voltar para os produtos demonstrativos originais.</p>
+            <p className="text-[11px] text-slate-500 font-normal">Voltar para o catálogo padrão original.</p>
           </div>
         </div>
 

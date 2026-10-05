@@ -504,7 +504,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
               <MessageCircleHeart className="w-8 h-8 text-rose-400 mx-auto" />
               <p className="text-xs sm:text-sm font-bold text-purple-950">Nenhum depoimento cadastrado no momento.</p>
               <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-                Todos os depoimentos de demonstração foram removidos. Clique em "Adicionar Novo Depoimento" acima para cadastrar avaliações reais das suas clientes.
+                Clique em "Adicionar Novo Depoimento" acima para cadastrar avaliações de suas clientes.
               </p>
             </div>
           ) : (

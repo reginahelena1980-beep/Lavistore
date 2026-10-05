@@ -483,7 +483,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
           <span className="text-[11px] text-slate-500 flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Conexão direta e segura com a API oficial do Google Sheets
+            Conexão direta e segura com o Google Sheets
           </span>
 
           <button
