@@ -92,123 +92,108 @@ function sanitizeProductItem(p: Product): boolean {
 }
 
 /**
+ * Mescla recursiva e não-destrutiva de configurações:
+ * - O objeto `target` (originário do Administrador/Firestore) tem prioridade absoluta.
+ * - Valores persistidos legítimos como "", false, 0, [] e {} JAMAIS são substituídos ou descartados.
+ * - `defaults` é utilizado EXCLUSIVAMENTE para preencher propriedades que sejam genuinamente `undefined` em `target`.
+ * - Se `target` contém sub-objetos (ex: FormattedText { text, fontSize, isBold }), as propriedades internas existentes são mantidas e apenas campos ausentes recebem valor de `defaults`.
+ */
+export function deepMergeConfigWithDefaults<T extends Record<string, any>>(
+  target: T | null | undefined,
+  defaults: T
+): T {
+  if (target === undefined || target === null) {
+    if (Array.isArray(defaults)) return [...defaults] as unknown as T;
+    return typeof defaults === 'object' && defaults !== null ? { ...defaults } : defaults;
+  }
+
+  // Coleções em Array são autoritativas mesmo se vazias ([])
+  if (Array.isArray(target)) {
+    return target;
+  }
+
+  // Tipos primitivos (string, number, boolean) em target são autoritativos mesmo se vazios/falsy ("", 0, false)
+  if (typeof target !== 'object') {
+    return target;
+  }
+
+  const result: Record<string, any> = { ...target };
+
+  if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
+    for (const key of Object.keys(defaults)) {
+      const defVal = defaults[key];
+      const targetVal = target[key];
+
+      if (targetVal === undefined) {
+        // Campo genuinamente ausente no target: herda o default do código
+        result[key] = defVal;
+      } else if (
+        typeof targetVal === 'object' &&
+        targetVal !== null &&
+        !Array.isArray(targetVal) &&
+        typeof defVal === 'object' &&
+        defVal !== null &&
+        !Array.isArray(defVal)
+      ) {
+        // Sub-objeto de configuração: mescla recursiva protegendo as chaves internas existentes
+        result[key] = deepMergeConfigWithDefaults(targetVal, defVal);
+      }
+      // Se targetVal !== undefined (incluindo "", 0, false, [], {}), permanece intocado!
+    }
+  }
+
+  return result as T;
+}
+
+/**
  * Mescla produtos garantindo que NENHUMA edição do administrador seja perdida.
- * Se o produto foi editado ou existe na lista do admin, TODOS os campos do admin têm prioridade absoluta.
- * Elimina produtos de teste e registros descartados.
+ * Se uma lista persistida existir (mesmo que vazia []), ela é soberana.
+ * Itens excluídos pelo administrador JAMAIS são ressuscitados pelo código padrão.
+ * Apenas campos de modelo ausentes (undefined) em um produto existente recebem fallback.
  */
 export function mergeProductsSafely(
-  primaryList: Product[],
-  fallbackList: Product[]
+  primaryList?: Product[] | null,
+  fallbackList?: Product[] | null
 ): Product[] {
-  const cleanPrimary = (Array.isArray(primaryList) ? primaryList : []).filter(sanitizeProductItem);
-  const cleanFallback = (Array.isArray(fallbackList) ? fallbackList : []).filter(sanitizeProductItem);
+  if (Array.isArray(primaryList)) {
+    const cleanPrimary = primaryList.filter(sanitizeProductItem);
+    const cleanFallback = Array.isArray(fallbackList) ? fallbackList.filter(sanitizeProductItem) : [];
 
-  if (cleanPrimary.length === 0) return cleanFallback;
-  if (cleanFallback.length === 0) return cleanPrimary;
-
-  const result: Product[] = [];
-
-  // 1. Processa a lista principal (local do Admin ou cofre soberano)
-  for (const item of cleanPrimary) {
-    if (!item || !item.id) continue;
-    const normName = item.name?.trim().toLowerCase();
-
-    // Encontra se existe no fallback para preencher campos complementares
-    const matchFallback = cleanFallback.find(
-      fb => fb.id === item.id || (normName && fb.name?.trim().toLowerCase() === normName)
-    );
-
-    if (matchFallback) {
-      result.push({
-        ...matchFallback,
-        ...item,
-        images: (item.images && item.images.length > 0) ? item.images : matchFallback.images,
-        sizes: (item.sizes && item.sizes.length > 0) ? item.sizes : matchFallback.sizes,
-        colors: (item.colors && item.colors.length > 0) ? item.colors : matchFallback.colors,
-        features: (item.features && item.features.length > 0) ? item.features : matchFallback.features,
-        description: item.description?.trim() ? item.description : matchFallback.description,
-        tag: item.tag?.trim() ? item.tag : matchFallback.tag
-      });
-    } else {
-      result.push(item);
-    }
+    return cleanPrimary.map(item => {
+      const match = cleanFallback.find(fb => fb.id === item.id);
+      if (!match) return item;
+      return deepMergeConfigWithDefaults(item, match);
+    });
   }
 
-  return result;
+  if (Array.isArray(fallbackList)) {
+    return fallbackList.filter(sanitizeProductItem);
+  }
+
+  return [];
 }
 
 /**
- * Mescla profunda da configuração da Home Page (Sobre Nós, Contato, Rodapé, Frases, Selos, Telefone, E-mail, WhatsApp)
+ * Mescla profunda da configuração da Home Page.
  * `primary` contém personalizações do Administrador que têm prioridade absoluta sobre `fallback`.
- * Novos campos adicionados no código/fallback são preservados sem sobrescrever as edições existentes.
+ * Valores válidos ("", false, 0, [], {}) são preservados intactos.
+ * Novos campos adicionados no código/fallback são incorporados sem sobrescrever as edições existentes.
  */
 export function mergeHomePageConfigSafely(
-  primary: HomePageConfig,
+  primary?: Partial<HomePageConfig> | null,
   fallback?: Partial<HomePageConfig> | null
 ): HomePageConfig {
-  if (!fallback) return { ...primary };
-  if (!primary) return { ...fallback } as HomePageConfig;
+  if (!primary && !fallback) return {} as HomePageConfig;
+  if (!primary) return { ...(fallback as HomePageConfig) };
+  if (!fallback) return { ...(primary as HomePageConfig) };
 
-  const result: Record<string, unknown> = { ...fallback };
-  const fallbackRecord = fallback as Record<string, unknown>;
-
-  for (const [key, pVal] of Object.entries(primary)) {
-    if (pVal === undefined || pVal === null) continue;
-
-    const fVal = fallbackRecord[key];
-
-    // Se for objeto com { text, fontSize, isBold } (FormattedText)
-    if (typeof pVal === 'object' && !Array.isArray(pVal) && 'text' in pVal) {
-      result[key] = {
-        ...(typeof fVal === 'object' && fVal !== null ? fVal : {}),
-        ...pVal
-      };
-    } else if (typeof pVal === 'string') {
-      result[key] = pVal;
-    } else if (typeof pVal === 'boolean' || typeof pVal === 'number') {
-      result[key] = pVal;
-    } else if (Array.isArray(pVal)) {
-      result[key] = pVal.length > 0 ? pVal : fVal;
-    } else if (typeof pVal === 'object') {
-      result[key] = {
-        ...(typeof fVal === 'object' && fVal !== null ? fVal : {}),
-        ...pVal
-      };
-    }
-  }
-
-  const typedResult = result as unknown as HomePageConfig;
-
-  // Sanitização estrita e garantia das 4 vantagens oficiais da Lavistore (sem descrições)
-  if (typedResult.perk1Title?.text?.includes('Mimos Florais') || !typedResult.perk1Title?.text?.trim()) {
-    typedResult.perk1Title = { text: 'Mimos Especiais', fontSize: 'base', isBold: true };
-    typedResult.perk1Icon = '🛍️';
-  }
-  typedResult.perk1Desc = { text: '', fontSize: 'xs', isBold: false };
-
-  if (typedResult.perk2Title?.text?.includes('Cheirinho Floral') || !typedResult.perk2Title?.text?.trim()) {
-    typedResult.perk2Title = { text: 'Embalagem Exclusiva', fontSize: 'base', isBold: true };
-    typedResult.perk2Icon = '🎀';
-  }
-  typedResult.perk2Desc = { text: '', fontSize: 'xs', isBold: false };
-
-  if (!typedResult.perk3Title?.text?.trim()) {
-    typedResult.perk3Title = { text: 'Frete Grátis Especial', fontSize: 'base', isBold: true };
-    typedResult.perk3Icon = '🚚';
-  }
-  typedResult.perk3Desc = { text: '', fontSize: 'xs', isBold: false };
-
-  if (typedResult.perk4Title?.text?.includes('Feito com Amor') || !typedResult.perk4Title?.text?.trim()) {
-    typedResult.perk4Title = { text: 'Preço máximo: R$ 15,00', fontSize: 'base', isBold: true };
-    typedResult.perk4Icon = '🌸';
-  }
-  typedResult.perk4Desc = { text: '', fontSize: 'xs', isBold: false };
-
-  return typedResult;
+  return deepMergeConfigWithDefaults(primary as HomePageConfig, fallback as HomePageConfig);
 }
 
 /**
- * Mescla segura da configuração do Hero Banner
+ * Mescla segura da configuração do Hero Banner.
+ * Preserva títulos, subtítulos, imagens e opções do administrador (inclusive strings vazias).
+ * Novos campos estruturais herdam o default apenas se undefined.
  */
 export function mergeHeroConfigSafely(
   primary?: Partial<HeroConfig> | null,
@@ -219,116 +204,73 @@ export function mergeHeroConfigSafely(
     badge: '',
     title: '',
     subtitle: '',
+    imageFit: 'cover',
+    imageScale: 100,
+    imagePosition: 'center',
+    imagePositionX: 50,
+    imagePositionY: 50,
+    bannerHeight: 'medium',
     ...(fallback || {})
   };
 
   if (!primary) return base;
-
-  return {
-    ...base,
-    ...primary,
-    image: primary.image !== undefined ? primary.image : base.image,
-    badge: primary.badge !== undefined ? primary.badge : base.badge,
-    title: primary.title !== undefined ? primary.title : base.title,
-    subtitle: primary.subtitle !== undefined ? primary.subtitle : base.subtitle
-  };
+  return deepMergeConfigWithDefaults(primary as HeroConfig, base);
 }
 
 /**
- * Mescla segura de cupons mantendo os cupons ativos e cadastrados pelo administrador
+ * Mescla segura de cupons:
+ * Um array de cupons existente é autoritativo MESMO SE VAZIO ([]).
+ * Cupons excluídos pelo administrador JAMAIS são ressuscitados pelo código.
  */
 export function mergeCouponsSafely(
-  primary: Coupon[],
-  fallback: Coupon[]
+  primary?: Coupon[] | null,
+  fallback?: Coupon[] | null
 ): Coupon[] {
-  if (!Array.isArray(primary) || primary.length === 0) return fallback || [];
-  if (!Array.isArray(fallback) || fallback.length === 0) return primary;
-
-  const result: Coupon[] = [...primary];
-  const knownCodes = new Set(primary.map(c => c.code.trim().toUpperCase()));
-
-  for (const fb of fallback) {
-    if (!fb || !fb.code) continue;
-    const codeUpper = fb.code.trim().toUpperCase();
-    if (!knownCodes.has(codeUpper)) {
-      knownCodes.add(codeUpper);
-      result.push(fb);
-    }
-  }
-
-  return result;
+  if (Array.isArray(primary)) return primary;
+  if (Array.isArray(fallback)) return fallback;
+  return [];
 }
 
 /**
- * Mescla segura de categorias
+ * Mescla segura de categorias:
+ * Um array de categorias existente é autoritativo MESMO SE VAZIO ([]).
+ * Categorias excluídas pelo administrador JAMAIS são ressuscitadas pelo código.
  */
 export function mergeCategoriesSafely(
-  primary: Category[],
-  fallback: Category[]
+  primary?: Category[] | null,
+  fallback?: Category[] | null
 ): Category[] {
-  if (!Array.isArray(primary) || primary.length === 0) return fallback || [];
-  if (!Array.isArray(fallback) || fallback.length === 0) return primary;
-
-  const result: Category[] = [...primary];
-  const knownIds = new Set(primary.map(c => c.id));
-
-  for (const fb of fallback) {
-    if (!fb || !fb.id) continue;
-    if (!knownIds.has(fb.id)) {
-      knownIds.add(fb.id);
-      result.push(fb);
-    }
-  }
-
-  return result;
+  if (Array.isArray(primary)) return primary;
+  if (Array.isArray(fallback)) return fallback;
+  return [];
 }
 
 /**
- * Mescla segura de modelos de embalagens / sacolinhas
+ * Mescla segura de modelos de embalagens / sacolinhas:
+ * Um array existente é autoritativo MESMO SE VAZIO ([]).
+ * Itens excluídos pelo administrador JAMAIS são ressuscitados.
  */
 export function mergeBagTypesSafely(
-  primary: BagType[],
-  fallback: BagType[]
+  primary?: BagType[] | null,
+  fallback?: BagType[] | null
 ): BagType[] {
-  if (!Array.isArray(primary) || primary.length === 0) return fallback || [];
-  if (!Array.isArray(fallback) || fallback.length === 0) return primary;
-
-  const result: BagType[] = [...primary];
-  const knownIds = new Set(primary.map(b => b.id));
-
-  for (const fb of fallback) {
-    if (!fb || !fb.id) continue;
-    if (!knownIds.has(fb.id)) {
-      knownIds.add(fb.id);
-      result.push(fb);
-    }
-  }
-
-  return result;
+  if (Array.isArray(primary)) return primary;
+  if (Array.isArray(fallback)) return fallback;
+  return [];
 }
 
 /**
- * Mescla segura de opções de fitas
+ * Mescla segura de opções de fitas:
+ * Um array existente é autoritativo MESMO SE VAZIO ([]).
+ * Itens excluídos pelo administrador JAMAIS são ressuscitados.
  */
 export function mergeRibbonOptionsSafely(
-  primary: RibbonOption[],
-  fallback: RibbonOption[]
+  primary?: RibbonOption[] | null,
+  fallback?: RibbonOption[] | null
 ): RibbonOption[] {
-  if (!Array.isArray(primary) || primary.length === 0) return fallback || [];
-  if (!Array.isArray(fallback) || fallback.length === 0) return primary;
-
-  const result: RibbonOption[] = [...primary];
-  const knownIds = new Set(primary.map(r => r.id));
-
-  for (const fb of fallback) {
-    if (!fb || !fb.id) continue;
-    if (!knownIds.has(fb.id)) {
-      knownIds.add(fb.id);
-      result.push(fb);
-    }
-  }
-
-  return result;
+  if (Array.isArray(primary)) return primary;
+  if (Array.isArray(fallback)) return fallback;
+  return [];
 }
 
 /**

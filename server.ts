@@ -139,6 +139,43 @@ function safeReadJsonFile(filePath: string): any {
 }
 
 /**
+ * Helper: Mescla profunda não-destrutiva com padrões (preenche apenas campos undefined).
+ * Preserva valores válidos persistidos: "", false, 0, [], {}
+ */
+function deepMergeWithDefaults(target: any, defaults: any): any {
+  if (target === undefined || target === null) {
+    if (Array.isArray(defaults)) return [...defaults];
+    return typeof defaults === 'object' && defaults !== null ? { ...defaults } : defaults;
+  }
+  if (Array.isArray(target)) {
+    return target;
+  }
+  if (typeof target !== 'object') {
+    return target;
+  }
+  const result = { ...target };
+  if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
+    for (const key of Object.keys(defaults)) {
+      const defVal = defaults[key];
+      const targetVal = target[key];
+      if (targetVal === undefined) {
+        result[key] = defVal;
+      } else if (
+        typeof targetVal === 'object' &&
+        targetVal !== null &&
+        !Array.isArray(targetVal) &&
+        typeof defVal === 'object' &&
+        defVal !== null &&
+        !Array.isArray(defVal)
+      ) {
+        result[key] = deepMergeWithDefaults(targetVal, defVal);
+      }
+    }
+  }
+  return result;
+}
+
+/**
  * Helper: Mescla profunda de objetos (preservando sub-objetos como aboutUs, contact, etc.)
  */
 function deepMergeObjects(target: any, source: any): any {
@@ -221,16 +258,16 @@ function initializePersistentStorage() {
         homePageConfig: existingAdminSettings.homePageConfig || seedData.homePageConfig || {},
         heroConfig: existingAdminSettings.heroConfig || seedData.heroConfig || {},
         filterBarConfig: existingAdminSettings.filterBarConfig || seedData.filterBarConfig || {},
-        coupons: (Array.isArray(existingAdminSettings.coupons) && existingAdminSettings.coupons.length > 0)
+        coupons: Array.isArray(existingAdminSettings.coupons)
           ? existingAdminSettings.coupons
           : (seedData.coupons || []),
-        bagTypes: (Array.isArray(existingAdminSettings.bagTypes) && existingAdminSettings.bagTypes.length > 0)
+        bagTypes: Array.isArray(existingAdminSettings.bagTypes)
           ? existingAdminSettings.bagTypes
           : (seedData.bagTypes || []),
-        ribbonOptions: (Array.isArray(existingAdminSettings.ribbonOptions) && existingAdminSettings.ribbonOptions.length > 0)
+        ribbonOptions: Array.isArray(existingAdminSettings.ribbonOptions)
           ? existingAdminSettings.ribbonOptions
           : (seedData.ribbonOptions || []),
-        categories: (Array.isArray(existingAdminSettings.categories) && existingAdminSettings.categories.length > 0)
+        categories: Array.isArray(existingAdminSettings.categories)
           ? existingAdminSettings.categories
           : (seedData.categories || [])
       };
@@ -250,7 +287,7 @@ function initializePersistentStorage() {
       };
       safeWriteJsonFile(PERSISTENT_STORE_FILE, persistentStore);
     } else {
-      const prodsToSanitize = (Array.isArray(persistentStore.products) && persistentStore.products.length > 0)
+      const prodsToSanitize = Array.isArray(persistentStore.products)
         ? persistentStore.products
         : (seedData.products || []);
       persistentStore = {
@@ -295,32 +332,19 @@ initializePersistentStorage();
  * Helper: Mescla segura de lista de produtos para evitar perdas de campos editados pelo Admin
  */
 function mergeProductsLists(incoming: any[], existing: any[]): any[] {
-  const cleanIncoming = sanitizeProductsList(incoming);
-  const cleanExisting = sanitizeProductsList(existing);
+  if (Array.isArray(incoming)) {
+    const cleanIncoming = sanitizeProductsList(incoming);
+    const cleanExisting = sanitizeProductsList(existing);
+    if (cleanIncoming.length === 0) return [];
 
-  if (cleanIncoming.length === 0) return cleanExisting;
-  if (cleanExisting.length === 0) return cleanIncoming;
-
-  const result: any[] = [];
-
-  for (const item of cleanIncoming) {
-    if (!item || !item.id) continue;
-    const matchOld = cleanExisting.find(e => e.id === item.id || (e.name && item.name && e.name.trim().toLowerCase() === item.name.trim().toLowerCase()));
-    if (matchOld) {
-      result.push({
-        ...matchOld,
-        ...item,
-        images: Array.isArray(item.images) && item.images.length > 0 ? item.images : matchOld.images,
-        sizes: Array.isArray(item.sizes) && item.sizes.length > 0 ? item.sizes : matchOld.sizes,
-        colors: Array.isArray(item.colors) && item.colors.length > 0 ? item.colors : matchOld.colors,
-        features: Array.isArray(item.features) && item.features.length > 0 ? item.features : matchOld.features,
-      });
-    } else {
-      result.push(item);
-    }
+    return cleanIncoming.map(item => {
+      const match = cleanExisting.find(e => e.id === item.id);
+      if (!match) return item;
+      return deepMergeWithDefaults(item, match);
+    });
   }
 
-  return result;
+  return sanitizeProductsList(existing);
 }
 
 /**
@@ -459,89 +483,58 @@ app.post('/api/admin/settings', async (req, res) => {
 /**
  * GET /api/store/data
  * Retorna as fotos, produtos, frases e configurações salvas para publicação oficial.
- * As configurações administrativas blindadas SEMPRE têm prioridade absoluta.
+ * O Firebase Firestore é a fonte de verdade soberana.
+ * Valores válidos ("", false, 0, [], {}) são sempre preservados.
  */
 app.get('/api/store/data', async (_req, res) => {
   try {
-    let finalData = safeReadJsonFile(PERSISTENT_STORE_FILE)
-      || safeReadJsonFile(STORE_DATA_FILE)
-      || safeReadJsonFile(ADMIN_VAULT_FILE);
+    let cloudData: any = null;
 
-    const adminSettings = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE)
-      || safeReadJsonFile(ADMIN_VAULT_FILE);
-
-    // Consulta soberana no Firestore para garantir persistência mesmo em novos deploys e múltiplos containers
+    // 1. Consulta prioritária e soberana no Firestore
     if (serverDb) {
       try {
         const docRef = getFsDoc(serverDb, 'settings', 'store_config');
         const snap = await getFsDocSnap(docRef);
         if (snap.exists()) {
-          const cloudData = snap.data();
-          if (cloudData && (Array.isArray(cloudData.products) || cloudData.homePageConfig || cloudData.heroConfig)) {
-            finalData = {
-              ...(finalData || {}),
-              ...cloudData,
-              isLockedByAdmin: true
-            };
-            console.log('[Server Firebase] Dados soberanos da loja recuperados do Firestore com sucesso!');
-          }
+          cloudData = snap.data();
+          console.log('[Server Firebase] Dados soberanos da loja recuperados do Firestore com sucesso!');
         }
       } catch (cloudErr: any) {
         console.warn('[Server Firebase] Aviso ao ler dados do Firestore:', cloudErr?.message);
       }
     }
 
+    const diskStore = safeReadJsonFile(PERSISTENT_STORE_FILE)
+      || safeReadJsonFile(STORE_DATA_FILE)
+      || {};
+    const adminSettings = safeReadJsonFile(PERSISTENT_ADMIN_SETTINGS_FILE)
+      || safeReadJsonFile(ADMIN_VAULT_FILE)
+      || {};
+
+    const diskFallback = {
+      ...diskStore,
+      ...adminSettings
+    };
+
+    let finalData: any = null;
+
+    if (cloudData) {
+      // O Firestore é soberano sobre arquivos de disco.
+      // Mescla com diskFallback exclusivamente para preencher propriedades que sejam undefined.
+      finalData = deepMergeWithDefaults(cloudData, diskFallback);
+      finalData.isLockedByAdmin = true;
+    } else if (diskFallback && Object.keys(diskFallback).length > 0) {
+      finalData = diskFallback;
+    }
+
     if (finalData) {
-      const isLocked = Boolean(adminSettings?.isLockedByAdmin || finalData?.isLockedByAdmin);
-      if (adminSettings) {
-        finalData = {
-          ...finalData,
-          isLockedByAdmin: isLocked,
-          lastAdminSavedAt: adminSettings.lastAdminSavedAt || finalData.lastAdminSavedAt,
-          homePageConfig: adminSettings.homePageConfig || finalData.homePageConfig,
-          heroConfig: adminSettings.heroConfig || finalData.heroConfig,
-          coupons: (Array.isArray(adminSettings.coupons) && adminSettings.coupons.length > 0)
-            ? adminSettings.coupons
-            : finalData.coupons,
-          bagTypes: (Array.isArray(adminSettings.bagTypes) && adminSettings.bagTypes.length > 0)
-            ? adminSettings.bagTypes
-            : finalData.bagTypes,
-          ribbonOptions: (Array.isArray(adminSettings.ribbonOptions) && adminSettings.ribbonOptions.length > 0)
-            ? adminSettings.ribbonOptions
-            : finalData.ribbonOptions,
-          categories: (Array.isArray(adminSettings.categories) && adminSettings.categories.length > 0)
-            ? adminSettings.categories
-            : finalData.categories,
-          filterBarConfig: adminSettings.filterBarConfig || finalData.filterBarConfig,
-        };
-      }
-
-      // Garantia soberana das 4 vantagens oficiais da Lavistore (sem descrições)
-      if (finalData.homePageConfig) {
-        finalData.homePageConfig.perk1Icon = '🛍️';
-        finalData.homePageConfig.perk1Title = { text: 'Mimos Especiais', fontSize: 'base', isBold: true };
-        finalData.homePageConfig.perk1Desc = { text: '', fontSize: 'xs', isBold: false };
-
-        finalData.homePageConfig.perk2Icon = '🎀';
-        finalData.homePageConfig.perk2Title = { text: 'Embalagem Exclusiva', fontSize: 'base', isBold: true };
-        finalData.homePageConfig.perk2Desc = { text: '', fontSize: 'xs', isBold: false };
-
-        finalData.homePageConfig.perk3Icon = '🚚';
-        finalData.homePageConfig.perk3Title = { text: 'Frete Grátis Especial', fontSize: 'base', isBold: true };
-        finalData.homePageConfig.perk3Desc = { text: '', fontSize: 'xs', isBold: false };
-
-        finalData.homePageConfig.perk4Icon = '🌸';
-        finalData.homePageConfig.perk4Title = { text: 'Preço máximo: R$ 15,00', fontSize: 'base', isBold: true };
-        finalData.homePageConfig.perk4Desc = { text: '', fontSize: 'xs', isBold: false };
-      }
-
       // Anexa os registros de BI persistidos
       const biContent = safeReadJsonFile(PERSISTENT_BI_FILE) || safeReadJsonFile(BI_DATA_FILE);
       if (Array.isArray(biContent)) {
         finalData.biRecords = biContent;
       }
 
-      return res.json({ success: true, hasCustomData: isLocked, data: finalData });
+      return res.json({ success: true, hasCustomData: Boolean(finalData.isLockedByAdmin), data: finalData });
     }
 
     return res.json({ success: true, hasCustomData: false, data: null });
@@ -653,51 +646,25 @@ app.post('/api/store/sync', async (req, res) => {
       ? deepMergeObjects(existingContent.homePageConfig || adminSettings.homePageConfig || {}, homePageConfig)
       : (adminSettings.homePageConfig || existingContent.homePageConfig);
 
-    if (mergedHomePageConfig) {
-      if (mergedHomePageConfig.perk1Title?.text?.includes('Mimos Florais') || !mergedHomePageConfig.perk1Title?.text?.trim()) {
-        mergedHomePageConfig.perk1Title = { text: 'Mimos Especiais', fontSize: 'base', isBold: true };
-        mergedHomePageConfig.perk1Icon = '🛍️';
-      }
-      mergedHomePageConfig.perk1Desc = { text: '', fontSize: 'xs', isBold: false };
-
-      if (mergedHomePageConfig.perk2Title?.text?.includes('Cheirinho Floral') || !mergedHomePageConfig.perk2Title?.text?.trim()) {
-        mergedHomePageConfig.perk2Title = { text: 'Embalagem Exclusiva', fontSize: 'base', isBold: true };
-        mergedHomePageConfig.perk2Icon = '🎀';
-      }
-      mergedHomePageConfig.perk2Desc = { text: '', fontSize: 'xs', isBold: false };
-
-      if (!mergedHomePageConfig.perk3Title?.text?.trim()) {
-        mergedHomePageConfig.perk3Title = { text: 'Frete Grátis Especial', fontSize: 'base', isBold: true };
-        mergedHomePageConfig.perk3Icon = '🚚';
-      }
-      mergedHomePageConfig.perk3Desc = { text: '', fontSize: 'xs', isBold: false };
-
-      if (mergedHomePageConfig.perk4Title?.text?.includes('Feito com Amor') || !mergedHomePageConfig.perk4Title?.text?.trim()) {
-        mergedHomePageConfig.perk4Title = { text: 'Preço máximo: R$ 15,00', fontSize: 'base', isBold: true };
-        mergedHomePageConfig.perk4Icon = '🌸';
-      }
-      mergedHomePageConfig.perk4Desc = { text: '', fontSize: 'xs', isBold: false };
-    }
-
     const mergedFilterBarConfig = filterBarConfig
       ? deepMergeObjects(existingContent.filterBarConfig || adminSettings.filterBarConfig || {}, filterBarConfig)
       : (adminSettings.filterBarConfig || existingContent.filterBarConfig);
 
-    const mergedCoupons = Array.isArray(coupons) && coupons.length > 0
+    const mergedCoupons = Array.isArray(coupons)
       ? coupons
-      : (adminSettings.coupons || existingContent.coupons);
+      : (Array.isArray(adminSettings.coupons) ? adminSettings.coupons : existingContent.coupons);
 
-    const mergedBagTypes = Array.isArray(bagTypes) && bagTypes.length > 0
+    const mergedBagTypes = Array.isArray(bagTypes)
       ? bagTypes
-      : (adminSettings.bagTypes || existingContent.bagTypes);
+      : (Array.isArray(adminSettings.bagTypes) ? adminSettings.bagTypes : existingContent.bagTypes);
 
-    const mergedRibbonOptions = Array.isArray(ribbonOptions) && ribbonOptions.length > 0
+    const mergedRibbonOptions = Array.isArray(ribbonOptions)
       ? ribbonOptions
-      : (adminSettings.ribbonOptions || existingContent.ribbonOptions);
+      : (Array.isArray(adminSettings.ribbonOptions) ? adminSettings.ribbonOptions : existingContent.ribbonOptions);
 
-    const mergedCategories = Array.isArray(categories) && categories.length > 0
+    const mergedCategories = Array.isArray(categories)
       ? categories
-      : (adminSettings.categories || existingContent.categories);
+      : (Array.isArray(adminSettings.categories) ? adminSettings.categories : existingContent.categories);
 
     const payloadToSave = {
       updatedAt: now,

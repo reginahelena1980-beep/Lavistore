@@ -110,13 +110,13 @@ export default function App() {
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
       const vault = getLocalAdminVault();
-      if (vault?.categories && Array.isArray(vault.categories) && vault.categories.length > 0) {
+      if (vault?.categories && Array.isArray(vault.categories)) {
         return vault.categories;
       }
       const saved = safeGetItem('lavistore_categories');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -131,22 +131,22 @@ export default function App() {
     try {
       const vault = getLocalAdminVault();
       if (vault?.homePageConfig) {
-        const merged = mergeHomePageConfigSafely(vault.homePageConfig, DEFAULT_HOME_PAGE_CONFIG);
-        if (merged.announcementCoupon === 'PRIMEIRACOMPRA') merged.announcementCoupon = '';
-        return merged;
+        return mergeHomePageConfigSafely(vault.homePageConfig, DEFAULT_HOME_PAGE_CONFIG);
       }
       const saved = safeGetItem('lavistore_home_page_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const merged = mergeHomePageConfigSafely(parsed, DEFAULT_HOME_PAGE_CONFIG);
-        if (merged.announcementCoupon === 'PRIMEIRACOMPRA') merged.announcementCoupon = '';
-        return merged;
+        return mergeHomePageConfigSafely(parsed, DEFAULT_HOME_PAGE_CONFIG);
       }
     } catch (e) {
       console.error(e);
     }
     return DEFAULT_HOME_PAGE_CONFIG;
   });
+
+  // Explicit Hydration Guard: no publish/sync may send React default state before authoritative Firestore config has loaded
+  const [isHydrated, setIsHydrated] = useState<boolean>(false);
+  const isHydratedRef = React.useRef<boolean>(false);
 
   // Loading state for sovereign Firestore / server configuration
   const [isConfigLoading, setIsConfigLoading] = useState<boolean>(true);
@@ -319,13 +319,13 @@ export default function App() {
   const [coupons, setCoupons] = useState<Coupon[]>(() => {
     try {
       const vault = getLocalAdminVault();
-      if (vault?.coupons && Array.isArray(vault.coupons) && vault.coupons.length > 0) {
+      if (vault?.coupons && Array.isArray(vault.coupons)) {
         return vault.coupons;
       }
       const saved = safeGetItem('lavistore_coupons');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -351,20 +351,22 @@ export default function App() {
 
   // Persist Coupons to memory
   useEffect(() => {
-    safeSetItem('lavistore_coupons', JSON.stringify(coupons));
+    if (isHydratedRef.current) {
+      safeSetItem('lavistore_coupons', JSON.stringify(coupons));
+    }
   }, [coupons]);
 
   // Packaging Models (Sacolinhas) State
   const [bagTypes, setBagTypes] = useState<BagType[]>(() => {
     try {
       const vault = getLocalAdminVault();
-      if (vault?.bagTypes && Array.isArray(vault.bagTypes) && vault.bagTypes.length > 0) {
+      if (vault?.bagTypes && Array.isArray(vault.bagTypes)) {
         return vault.bagTypes;
       }
       const saved = safeGetItem('lavistore_bag_types');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -375,20 +377,22 @@ export default function App() {
   });
 
   useEffect(() => {
-    safeSetItem('lavistore_bag_types', JSON.stringify(bagTypes));
+    if (isHydratedRef.current) {
+      safeSetItem('lavistore_bag_types', JSON.stringify(bagTypes));
+    }
   }, [bagTypes]);
 
   // Ribbon Colors State
   const [ribbonOptions, setRibbonOptions] = useState<RibbonOption[]>(() => {
     try {
       const vault = getLocalAdminVault();
-      if (vault?.ribbonOptions && Array.isArray(vault.ribbonOptions) && vault.ribbonOptions.length > 0) {
+      if (vault?.ribbonOptions && Array.isArray(vault.ribbonOptions)) {
         return vault.ribbonOptions;
       }
       const saved = safeGetItem('lavistore_ribbon_options');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -399,12 +403,16 @@ export default function App() {
   });
 
   useEffect(() => {
-    safeSetItem('lavistore_ribbon_options', JSON.stringify(ribbonOptions));
+    if (isHydratedRef.current) {
+      safeSetItem('lavistore_ribbon_options', JSON.stringify(ribbonOptions));
+    }
   }, [ribbonOptions]);
 
   // Persist Products to session memory
   useEffect(() => {
-    safeSetItem('lavistore_products', JSON.stringify(products));
+    if (isHydratedRef.current) {
+      safeSetItem('lavistore_products', JSON.stringify(products));
+    }
   }, [products]);
 
   // Synchronize URL with Dedicated Admin Route (/admin) and Storefront
@@ -464,22 +472,30 @@ export default function App() {
 
   // Persist Hero Banner Config
   useEffect(() => {
-    safeSetItem('lavistore_hero_config', JSON.stringify(heroConfig));
+    if (isHydratedRef.current) {
+      safeSetItem('lavistore_hero_config', JSON.stringify(heroConfig));
+    }
   }, [heroConfig]);
 
   // Persist Categories to session memory
   useEffect(() => {
-    safeSetItem('lavistore_categories', JSON.stringify(categories));
+    if (isHydratedRef.current) {
+      safeSetItem('lavistore_categories', JSON.stringify(categories));
+    }
   }, [categories]);
 
   // Persist Home Page Typography & Content Config
   useEffect(() => {
-    safeSetItem('lavistore_home_page_config', JSON.stringify(homePageConfig));
+    if (isHydratedRef.current) {
+      safeSetItem('lavistore_home_page_config', JSON.stringify(homePageConfig));
+    }
   }, [homePageConfig]);
 
   // Persist Filter Bar Config
   useEffect(() => {
-    safeSetItem('lavistore_filter_bar_config', JSON.stringify(filterBarConfig));
+    if (isHydratedRef.current) {
+      safeSetItem('lavistore_filter_bar_config', JSON.stringify(filterBarConfig));
+    }
   }, [filterBarConfig]);
 
   const showToast = (msg: string) => {
@@ -491,6 +507,14 @@ export default function App() {
 
   // Sincronização persistente com o Firebase Firestore e servidor para publicação oficial
   const handlePublishToServer = async (customPayload?: Partial<AdminCustomVault>, showFeedback = true): Promise<boolean> => {
+    if (!isHydratedRef.current) {
+      console.warn('[Publish Guard] Operação de publicação bloqueada: as configurações da loja ainda não foram hidratadas do Firestore.');
+      if (showFeedback) {
+        showToast('⏳ Aguarde o carregamento dos dados da nuvem antes de salvar.');
+      }
+      return false;
+    }
+
     setIsPublishingToServer(true);
     try {
       let biRecordsList: BiProductCalculatedRecord[] = [];
@@ -568,21 +592,16 @@ export default function App() {
 
       console.info('⚡ [Firestore Real-Time] Atualização soberana recebida do Firebase Firestore em tempo real!');
 
-      // PRODUTOS
-      if (Array.isArray(cloudData.products) && cloudData.products.length > 0) {
+      // PRODUTOS (Array vazio é autoritativo)
+      if (Array.isArray(cloudData.products)) {
         const clean = cloudData.products.filter(p => p && p.id && !TEST_PRODUCT_IDS.has(p.id) && !p.name?.toLowerCase().includes('teste'));
-        if (clean.length > 0) {
-          setProducts(clean);
-          safeSetItem('lavistore_products', JSON.stringify(clean));
-        }
+        setProducts(clean);
+        safeSetItem('lavistore_products', JSON.stringify(clean));
       }
 
       // HOMEPAGE CONFIG
       if (cloudData.homePageConfig) {
         const mergedHome = mergeHomePageConfigSafely(cloudData.homePageConfig, DEFAULT_HOME_PAGE_CONFIG);
-        if (mergedHome.announcementCoupon === 'PRIMEIRACOMPRA') {
-          mergedHome.announcementCoupon = '';
-        }
         setHomePageConfig(mergedHome);
         safeSetItem('lavistore_home_page_config', JSON.stringify(mergedHome));
       }
@@ -594,26 +613,26 @@ export default function App() {
         safeSetItem('lavistore_hero_config', JSON.stringify(mergedHero));
       }
 
-      // CATEGORIAS
-      if (Array.isArray(cloudData.categories) && cloudData.categories.length > 0) {
+      // CATEGORIAS (Array vazio é autoritativo)
+      if (Array.isArray(cloudData.categories)) {
         setCategories(cloudData.categories);
         safeSetItem('lavistore_categories', JSON.stringify(cloudData.categories));
       }
 
-      // CUPONS
-      if (Array.isArray(cloudData.coupons) && cloudData.coupons.length > 0) {
+      // CUPONS (Array vazio é autoritativo)
+      if (Array.isArray(cloudData.coupons)) {
         setCoupons(cloudData.coupons);
         safeSetItem('lavistore_coupons', JSON.stringify(cloudData.coupons));
       }
 
-      // SACOLINHAS
-      if (Array.isArray(cloudData.bagTypes) && cloudData.bagTypes.length > 0) {
+      // SACOLINHAS (Array vazio é autoritativo)
+      if (Array.isArray(cloudData.bagTypes)) {
         setBagTypes(cloudData.bagTypes);
         safeSetItem('lavistore_bag_types', JSON.stringify(cloudData.bagTypes));
       }
 
-      // FITAS
-      if (Array.isArray(cloudData.ribbonOptions) && cloudData.ribbonOptions.length > 0) {
+      // FITAS (Array vazio é autoritativo)
+      if (Array.isArray(cloudData.ribbonOptions)) {
         setRibbonOptions(cloudData.ribbonOptions);
         safeSetItem('lavistore_ribbon_options', JSON.stringify(cloudData.ribbonOptions));
       }
@@ -624,12 +643,14 @@ export default function App() {
         safeSetItem('lavistore_filter_bar_config', JSON.stringify(cloudData.filterBarConfig));
       }
 
-      // DEPOIMENTOS
+      // DEPOIMENTOS (Array vazio é autoritativo)
       if (Array.isArray(cloudData.reviews)) {
         setReviews(cloudData.reviews);
         safeSetItem('lavistore_reviews', JSON.stringify(cloudData.reviews));
       }
 
+      isHydratedRef.current = true;
+      setIsHydrated(true);
       setIsConfigLoading(false);
     });
 
@@ -639,23 +660,27 @@ export default function App() {
         const sovereignResult = await fetchSovereignStoreConfig();
         if (sovereignResult.data && isSubscribed) {
           const d = sovereignResult.data;
-          if (Array.isArray(d.products) && d.products.length > 0) {
+          if (Array.isArray(d.products)) {
             const clean = d.products.filter(p => p && p.id && !TEST_PRODUCT_IDS.has(p.id) && !p.name?.toLowerCase().includes('teste'));
-            if (clean.length > 0) setProducts(clean);
+            setProducts(clean);
           }
           if (d.homePageConfig) setHomePageConfig(mergeHomePageConfigSafely(d.homePageConfig, DEFAULT_HOME_PAGE_CONFIG));
           if (d.heroConfig) setHeroConfig(mergeHeroConfigSafely(d.heroConfig, DEFAULT_HERO_CONFIG));
-          if (Array.isArray(d.categories) && d.categories.length > 0) setCategories(d.categories);
-          if (Array.isArray(d.coupons) && d.coupons.length > 0) setCoupons(d.coupons);
-          if (Array.isArray(d.bagTypes) && d.bagTypes.length > 0) setBagTypes(d.bagTypes);
-          if (Array.isArray(d.ribbonOptions) && d.ribbonOptions.length > 0) setRibbonOptions(d.ribbonOptions);
+          if (Array.isArray(d.categories)) setCategories(d.categories);
+          if (Array.isArray(d.coupons)) setCoupons(d.coupons);
+          if (Array.isArray(d.bagTypes)) setBagTypes(d.bagTypes);
+          if (Array.isArray(d.ribbonOptions)) setRibbonOptions(d.ribbonOptions);
           if (d.filterBarConfig) setFilterBarConfig(d.filterBarConfig);
-          if (Array.isArray(d.reviews) && d.reviews.length > 0) setReviews(d.reviews);
+          if (Array.isArray(d.reviews)) setReviews(d.reviews);
         }
       } catch (err) {
         console.warn('Store sync initialization notice:', err);
       } finally {
-        if (isSubscribed) setIsConfigLoading(false);
+        if (isSubscribed) {
+          isHydratedRef.current = true;
+          setIsHydrated(true);
+          setIsConfigLoading(false);
+        }
       }
     };
 
@@ -1364,7 +1389,7 @@ export default function App() {
                     showToast('🔄 Configuração dos filtros restaurada para o padrão!');
                   }}
                   onPublishToServer={() => handlePublishToServer(undefined, true)}
-                  isPublishing={isPublishingToServer}
+                  isPublishing={isPublishingToServer || !isHydrated}
                   onRestoreFromBi={handleRestoreFromBi}
                   onRestoreSafetyBackup={handleRestoreSafetyBackup}
                   onDownloadBackup={handleDownloadFullBackup}
