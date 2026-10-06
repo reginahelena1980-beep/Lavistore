@@ -1,7 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, Download, Upload, RotateCcw, Sparkles, Plus, Eye, Copy, Edit3, Trash2, ChevronDown, Database, X, BarChart3, Store } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Search, Download, Upload, RotateCcw, Sparkles, Plus, Eye, Copy, Edit3, Trash2, ChevronDown, Database, X, BarChart3, Store, UploadCloud } from 'lucide-react';
 import { Product, Category, BiProductCalculatedRecord } from '../types';
 import { getEffectiveProductBiData } from '../utils/productGroupingEngine';
+import { detectLegacyBase64Images } from '../services/legacyImageMigrationService';
+import { LegacyImageMigrationModal } from './LegacyImageMigrationModal';
+import { AdminCustomVault } from '../utils/adminDataProtection';
 
 interface AdminProductCatalogViewProps {
   products: Product[];
@@ -26,6 +29,8 @@ interface AdminProductCatalogViewProps {
   onDuplicateProduct: (product: Product) => void;
   onDeleteProduct: (product: Product) => void;
   onViewProductLive: (product: Product) => void;
+  onMigrationComplete?: (migratedProducts: Product[], migratedBiRecords?: BiProductCalculatedRecord[]) => void;
+  fullStoreConfigPayload?: Partial<AdminCustomVault>;
 }
 
 export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = ({
@@ -50,10 +55,18 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
   onSaveProduct,
   onDuplicateProduct,
   onDeleteProduct,
-  onViewProductLive
+  onViewProductLive,
+  onMigrationComplete,
+  fullStoreConfigPayload
 }) => {
   const [showDataMenu, setShowDataMenu] = useState(false);
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
   const dataMenuRef = useRef<HTMLDivElement>(null);
+
+  // Detecção automática de imagens legadas em Base64
+  const legacyDetection = useMemo(() => {
+    return detectLegacyBase64Images(products, biRecords, fullStoreConfigPayload);
+  }, [products, biRecords, fullStoreConfigPayload]);
 
   // Fecha o menu de dados ao clicar fora
   useEffect(() => {
@@ -241,6 +254,25 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
                     </button>
                   )}
 
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDataMenu(false);
+                      setShowMigrationModal(true);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs text-amber-900 hover:bg-amber-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                      <UploadCloud className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <p className="font-bold">Migrar fotos para Storage</p>
+                      <p className="text-[10px] text-amber-700 font-normal">
+                        {legacyDetection.hasLegacyImages ? `${legacyDetection.totalBase64ImagesCount} foto(s) em Base64` : 'Catálogo 100% otimizado'}
+                      </p>
+                    </div>
+                  </button>
+
                   <div className="my-1 border-t border-slate-100" />
 
                   <button
@@ -275,6 +307,36 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
           </div>
         </div>
       </div>
+
+      {/* Aviso de migração necessária de fotos Base64 para Firebase Storage */}
+      {legacyDetection.hasLegacyImages && (
+        <div className="bg-amber-50/90 border border-amber-300/80 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+              <UploadCloud className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-amber-950 flex items-center gap-2">
+                <span>Fotos Legadas em Base64 Detectadas</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-semibold">
+                  {legacyDetection.totalBase64ImagesCount} foto(s) • ~{(legacyDetection.estimatedBase64PayloadBytes / 1024).toFixed(0)} KB
+                </span>
+              </p>
+              <p className="text-[11px] sm:text-xs text-amber-800">
+                Para evitar erros de limite de tamanho (1 MB) no Firestore, migre as fotos para o Firebase Storage de forma segura.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowMigrationModal(true)}
+            className="px-3.5 py-2 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-bold text-xs shadow-2xs hover:shadow-xs transition-all active:scale-95 cursor-pointer shrink-0 flex items-center gap-1.5"
+          >
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span>🔧 Migrar fotos antigas para Storage</span>
+          </button>
+        </div>
+      )}
 
       {/* Aviso de resgate rápido do BI caso a vitrine esteja com catálogo reduzido */}
       {products.length < 8 && onRestoreFromBi && (
@@ -592,6 +654,18 @@ export const AdminProductCatalogView: React.FC<AdminProductCatalogViewProps> = (
           </div>
         )}
       </div>
+
+      {/* Modal de Migração de Imagens Legadas para Firebase Storage */}
+      <LegacyImageMigrationModal
+        isOpen={showMigrationModal}
+        onClose={() => setShowMigrationModal(false)}
+        products={products}
+        biRecords={biRecords}
+        fullStoreConfigPayload={fullStoreConfigPayload}
+        onMigrationComplete={(migratedProds, migratedBi) => {
+          onMigrationComplete?.(migratedProds, migratedBi);
+        }}
+      />
     </div>
   );
 };

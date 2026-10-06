@@ -480,16 +480,14 @@ var Cookies = class {
     return path;
   }
 };
-var cookies_default = Cookies;
 
 // node_modules/nodemailer/dist/esm/package-info.js
-var version = "10.0.15";
+var version = "10.0.10";
 
 // node_modules/nodemailer/dist/esm/fetch/index.js
 import net3 from "node:net";
 
 // node_modules/nodemailer/dist/esm/errors.js
-var ECONFIG = "ECONFIG";
 var EFETCH = "EFETCH";
 
 // node_modules/nodemailer/dist/esm/shared/objects.js
@@ -497,8 +495,6 @@ var isProtoKey = (key) => key === "__proto__";
 
 // node_modules/nodemailer/dist/esm/fetch/index.js
 var MAX_REDIRECTS = 5;
-var DEFAULT_TIMEOUT = 60 * 1e3;
-var DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 var TLS_OPTION_KEYS = [
   "ALPNProtocols",
   "ca",
@@ -537,7 +533,7 @@ function parseFetchUrl(url) {
 function nmfetch(url, options) {
   options = options || {};
   options.fetchRes = options.fetchRes || new PassThrough();
-  options.cookies = options.cookies || new cookies_default();
+  options.cookies = options.cookies || new Cookies();
   options.redirects = options.redirects || 0;
   options.maxRedirects = isNaN(options.maxRedirects) ? MAX_REDIRECTS : options.maxRedirects;
   const fetchRes = options.fetchRes;
@@ -611,11 +607,14 @@ function nmfetch(url, options) {
             return encodeURIComponent(key) + "=" + encodeURIComponent(value);
           }).join("&"));
         } catch (E) {
+          if (finished) {
+            return void 0;
+          }
           finished = true;
           E.code = EFETCH;
           E.sourceUrl = url;
-          setImmediate(() => fetchRes.emit("error", E));
-          return fetchRes;
+          fetchRes.emit("error", E);
+          return void 0;
         }
       } else {
         body = Buffer.from(options.body.toString().trim());
@@ -659,21 +658,28 @@ function nmfetch(url, options) {
     });
     return fetchRes;
   }
-  const fail = (err, sourceUrl = url) => {
+  if (options.timeout) {
+    req.setTimeout(options.timeout, () => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      req.abort();
+      const err = new Error("Request Timeout");
+      err.code = EFETCH;
+      err.sourceUrl = url;
+      fetchRes.emit("error", err);
+    });
+  }
+  req.on("error", (err) => {
     if (finished) {
       return;
     }
     finished = true;
     err.code = EFETCH;
-    err.sourceUrl = sourceUrl;
+    err.sourceUrl = url;
     fetchRes.emit("error", err);
-    req.abort();
-  };
-  const timeout = typeof options.timeout === "number" && options.timeout >= 0 ? options.timeout : DEFAULT_TIMEOUT;
-  if (timeout) {
-    req.setTimeout(timeout, () => fail(new Error("Request Timeout")));
-  }
-  req.on("error", (err) => fail(err));
+  });
   req.on("response", (res) => {
     let inflate;
     if (finished) {
@@ -693,7 +699,13 @@ function nmfetch(url, options) {
     if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
       options.redirects++;
       if (options.redirects > options.maxRedirects) {
-        return fail(new Error("Maximum redirect count exceeded"));
+        finished = true;
+        const err = new Error("Maximum redirect count exceeded");
+        err.code = EFETCH;
+        err.sourceUrl = url;
+        fetchRes.emit("error", err);
+        req.abort();
+        return;
       }
       options.method = "GET";
       options.body = false;
@@ -705,7 +717,13 @@ function nmfetch(url, options) {
       }
       const redirectParsed = parseFetchUrl(redirectUrl);
       if (!redirectParsed) {
-        return fail(new Error("Unsupported protocol for URL " + redirectUrl), redirectUrl);
+        finished = true;
+        const err = new Error("Unsupported protocol for URL " + redirectUrl);
+        err.code = EFETCH;
+        err.sourceUrl = redirectUrl;
+        fetchRes.emit("error", err);
+        req.abort();
+        return;
       }
       const crossHost = redirectParsed.hostname !== parsed.hostname;
       const downgrade = parsed.protocol === "https:" && redirectParsed.protocol === "http:";
@@ -717,31 +735,41 @@ function nmfetch(url, options) {
           }
         });
       }
-      finished = true;
-      res.resume();
-      req.abort();
       return nmfetch(redirectUrl, options);
     }
     fetchRes.statusCode = res.statusCode;
     fetchRes.headers = res.headers;
     if (res.statusCode >= 300 && !options.allowErrorResponse) {
-      return fail(new Error("Invalid status code " + res.statusCode));
+      finished = true;
+      const err = new Error("Invalid status code " + res.statusCode);
+      err.code = EFETCH;
+      err.sourceUrl = url;
+      fetchRes.emit("error", err);
+      req.abort();
+      return;
     }
-    res.on("error", (err) => fail(err));
-    const maxBytes = typeof options.maxBytes === "number" && options.maxBytes > 0 ? options.maxBytes : DEFAULT_MAX_BYTES;
-    const source = inflate || res;
-    let received = 0;
-    source.on("data", (chunk) => {
-      received += chunk.length;
-      if (received <= maxBytes || finished) {
+    res.on("error", (err) => {
+      if (finished) {
         return;
       }
-      source.unpipe(fetchRes);
-      fail(new Error("Response size exceeds the allowed " + maxBytes + " bytes"));
+      finished = true;
+      err.code = EFETCH;
+      err.sourceUrl = url;
+      fetchRes.emit("error", err);
+      req.abort();
     });
     if (inflate) {
       res.pipe(inflate).pipe(fetchRes);
-      inflate.on("error", (err) => fail(err));
+      inflate.on("error", (err) => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        err.code = EFETCH;
+        err.sourceUrl = url;
+        fetchRes.emit("error", err);
+        req.abort();
+      });
     } else {
       res.pipe(fetchRes);
     }
@@ -754,15 +782,18 @@ function nmfetch(url, options) {
         }
         req.write(body);
       } catch (err) {
-        return fail(err);
+        finished = true;
+        err.code = EFETCH;
+        err.sourceUrl = url;
+        fetchRes.emit("error", err);
+        return;
       }
     }
     req.end();
   });
   return fetchRes;
 }
-nmfetch.Cookies = cookies_default;
-nmfetch.DEFAULT_TIMEOUT = DEFAULT_TIMEOUT;
+nmfetch.Cookies = Cookies;
 
 // node_modules/nodemailer/dist/esm/shared/index.js
 import os from "node:os";
@@ -817,11 +848,6 @@ var EMPTY_LINES = Buffer.alloc(4096, CRLF);
 
 // node_modules/nodemailer/dist/esm/dkim/sign.js
 import crypto from "node:crypto";
-function unsupportedHashAlgoError(hashAlgo) {
-  const err = new Error('Unsupported DKIM hash algorithm "' + hashAlgo + '"');
-  err.code = ECONFIG;
-  return err;
-}
 function sign(headers, hashAlgo, bodyHash, options) {
   options = options || {};
   const defaultFieldNames = "From:Sender:Reply-To:Subject:Date:Message-ID:To:Cc:MIME-Version:Content-Type:Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive";
@@ -829,12 +855,7 @@ function sign(headers, hashAlgo, bodyHash, options) {
   const canonicalizedHeaderData = relaxedHeaders(headers, fieldNames, options.skipFields);
   const dkimHeader = generateDKIMHeader(options.domainName, options.keySelector, canonicalizedHeaderData.fieldNames, hashAlgo, bodyHash);
   canonicalizedHeaderData.headers += "dkim-signature:" + relaxedHeaderLine(dkimHeader);
-  let signer;
-  try {
-    signer = crypto.createSign(("rsa-" + hashAlgo).toUpperCase());
-  } catch (_E) {
-    throw unsupportedHashAlgoError(hashAlgo);
-  }
+  const signer = crypto.createSign(("rsa-" + hashAlgo).toUpperCase());
   signer.update(canonicalizedHeaderData.headers, "latin1");
   let signature;
   try {
@@ -845,7 +866,6 @@ function sign(headers, hashAlgo, bodyHash, options) {
   return dkimHeader + signature.replace(/(^.{73}|.{75}(?!\r?\n|\r))/g, "$&\r\n ").trim();
 }
 sign.relaxedHeaders = relaxedHeaders;
-sign.unsupportedHashAlgoError = unsupportedHashAlgoError;
 function generateDKIMHeader(domainName, keySelector, fieldNames, hashAlgo, bodyHash) {
   const cleanTagValue = (value) => (value || "").toString().replace(/[\x00-\x1f\x7f;=]/g, "");
   const dkim = [
@@ -898,12 +918,6 @@ var MAX_MESSAGE_SIZE = 10 * 1024 * 1024;
 
 // node_modules/nodemailer/dist/esm/smtp-connection/http-proxy-client.js
 var MAX_RESPONSE_HEADER_BYTES = 64 * 1024;
-
-// node_modules/nodemailer/dist/esm/smtp-connection/data-stream.js
-var INSERT_LF = Buffer.from("\n");
-var INSERT_LF_DOT = Buffer.from("\n.");
-var INSERT_CR = Buffer.from("\r");
-var INSERT_DOT = Buffer.from(".");
 
 // node_modules/nodemailer/dist/esm/smtp-connection/index.js
 var CONNECTION_TIMEOUT = 2 * 60 * 1e3;
@@ -1224,12 +1238,6 @@ var services = {
     "description": "Mailosaur (email testing service)",
     "host": "mailosaur.io",
     "port": 25
-  },
-  "MailSenpai": {
-    "description": "MailSenpai (SMTP Senpai, EU)",
-    "host": "relay.mailsenpai.com",
-    "port": 2525,
-    "secure": false
   },
   "Mailtrap": {
     "description": "Mailtrap",

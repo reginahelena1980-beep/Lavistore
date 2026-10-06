@@ -128,6 +128,7 @@ interface AdminDashboardProps {
   onRestoreSafetyBackup?: () => void;
   onDownloadBackup?: () => void;
   onRestoreBackup?: (file: File) => void;
+  onMigrationComplete?: (migratedProducts: Product[], migratedBiRecords?: BiProductCalculatedRecord[]) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -174,7 +175,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRestoreFromBi,
   onRestoreSafetyBackup,
   onDownloadBackup,
-  onRestoreBackup
+  onRestoreBackup,
+  onMigrationComplete
 }) => {
   const [adminSection, setAdminSection] = useState<'orders' | 'cards' | 'products' | 'hero' | 'hometexts' | 'categories' | 'packaging' | 'filters' | 'about' | 'contact' | 'reviews' | 'coupons' | 'bi' | 'leads' | 'shipping' | 'mercadopago'>(initialAdminSection);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1151,6 +1153,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           onDuplicateProduct={onDuplicateProduct}
           onDeleteProduct={setProductToDelete}
           onViewProductLive={onViewProductLive}
+          onMigrationComplete={(migratedProds, migratedBi) => {
+            if (migratedBi && Array.isArray(migratedBi) && migratedBi.length > 0) {
+              setBiRecords(migratedBi);
+              safeSetItem('lavistore_bi_records', JSON.stringify(migratedBi));
+            }
+            onMigrationComplete?.(migratedProds, migratedBi);
+          }}
+          fullStoreConfigPayload={{
+            products,
+            biRecords,
+            heroConfig,
+            homePageConfig,
+            categories,
+            reviews,
+            coupons,
+            bagTypes,
+            ribbonOptions,
+            filterBarConfig
+          }}
         />
       )}
 

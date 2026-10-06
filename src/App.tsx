@@ -880,6 +880,24 @@ export default function App() {
     }
   };
 
+  // Callback de conclusão da migração segura de fotos Base64 para Firebase Storage
+  const handleMigrationComplete = (
+    migratedProducts: Product[],
+    migratedBiRecords?: BiProductCalculatedRecord[]
+  ) => {
+    setProducts(migratedProducts);
+    productsRef.current = migratedProducts;
+    safeSetItem('lavistore_products', JSON.stringify(migratedProducts));
+
+    if (migratedBiRecords && Array.isArray(migratedBiRecords) && migratedBiRecords.length > 0) {
+      setBiRecords(migratedBiRecords);
+      biRecordsRef.current = migratedBiRecords;
+      safeSetItem('lavistore_bi_records', JSON.stringify(migratedBiRecords));
+    }
+
+    showToast('🎉 Fotos migradas com sucesso para o Firebase Storage e sincronizadas no Firestore!');
+  };
+
   // CRUD Handlers for Administrator
   const handleSaveProduct = async (productData: Product): Promise<boolean> => {
     // 1. Determina a lista atualizada de produtos baseada na referência mais recente (productsRef)
@@ -1443,6 +1461,7 @@ export default function App() {
                   onGoToAboutPage={() => {
                     navigateToStorefront('about');
                   }}
+                  onMigrationComplete={handleMigrationComplete}
                 />
               </div>
             )}
