@@ -41,6 +41,8 @@ export interface LegacyImageDetectionResult {
   estimatedBase64PayloadBytes: number;
   estimatedTotalPayloadBytes: number;
   biRecordsWithBase64Count: number;
+  biBase64PayloadBytes: number;
+  biTotalPayloadBytes: number;
   details: {
     productId: string;
     productName: string;
@@ -307,6 +309,17 @@ export function detectLegacyBase64Images(
   let estimatedBase64PayloadBytes = 0;
   const details: LegacyImageDetectionResult['details'] = [];
 
+  const getUtf8Bytes = (str: string): number => {
+    try {
+      if (typeof TextEncoder !== 'undefined') {
+        return new TextEncoder().encode(str).length;
+      }
+      return new Blob([str]).size;
+    } catch {
+      return str.length;
+    }
+  };
+
   for (const product of products) {
     let pCount = 0;
     let pBytes = 0;
@@ -315,7 +328,7 @@ export function detectLegacyBase64Images(
       for (const img of product.images) {
         if (isBase64ImageUrl(img)) {
           pCount++;
-          pBytes += (img.length * 3) / 4; // Estimativa de bytes binários a partir do Base64
+          pBytes += getUtf8Bytes(img); // FASE F5 BUG 1: Medição real de bytes UTF-8 no documento Firestore
         }
       }
     }
@@ -324,7 +337,7 @@ export function detectLegacyBase64Images(
       for (const color of product.colors) {
         if (isBase64ImageUrl(color.imageUrl)) {
           pCount++;
-          pBytes += (color.imageUrl!.length * 3) / 4;
+          pBytes += getUtf8Bytes(color.imageUrl!);
         }
       }
     }
@@ -337,21 +350,30 @@ export function detectLegacyBase64Images(
         productId: product.id,
         productName: product.name,
         base64Count: pCount,
-        base64Bytes: Math.round(pBytes)
+        base64Bytes: pBytes
       });
     }
   }
 
+  // FASE F5 BUG 2: Contagem e medição de bytes de Base64 em settings/bi_data
   let biRecordsWithBase64Count = 0;
+  let biBase64PayloadBytes = 0;
   for (const record of biRecords) {
     if (isBase64ImageUrl(record.vitrineImageUrl)) {
       biRecordsWithBase64Count++;
-      // Não adiciona aos bytes se a imagem for a mesma de algum produto, mas soma se for única
+      biBase64PayloadBytes += getUtf8Bytes(record.vitrineImageUrl!);
     }
   }
 
-  const payloadToEstimate = fullStoreConfigPayload || { products, biRecords };
+  // FASE F: store_config NÃO contém biRecords. Medição isolada do documento settings/store_config
+  const { biRecords: _omittedBi, ...cleanStoreConfig } = (fullStoreConfigPayload || {}) as any;
+  const payloadToEstimate = {
+    ...cleanStoreConfig,
+    products
+  };
+  delete (payloadToEstimate as any).biRecords;
   const estimatedTotalPayloadBytes = estimateDocumentSizeInBytes(payloadToEstimate);
+  const biTotalPayloadBytes = estimateDocumentSizeInBytes({ records: biRecords });
 
   return {
     hasLegacyImages: totalBase64ImagesCount > 0 || biRecordsWithBase64Count > 0,
@@ -360,6 +382,8 @@ export function detectLegacyBase64Images(
     estimatedBase64PayloadBytes: Math.round(estimatedBase64PayloadBytes),
     estimatedTotalPayloadBytes,
     biRecordsWithBase64Count,
+    biBase64PayloadBytes: Math.round(biBase64PayloadBytes),
+    biTotalPayloadBytes,
     details
   };
 }
@@ -451,9 +475,12 @@ export async function migrateLegacyProductImages(
   const uploader = options.storageUploader || defaultStorageUploader;
   const onProgress = options.onProgress || (() => {});
 
-  const beforeSizeBytes = estimateDocumentSizeInBytes(
-    options.fullStoreConfigPayload || { products, biRecords }
-  );
+  const rawBase = options.fullStoreConfigPayload || { products };
+  const { biRecords: _omitBeforeBi, ...cleanBeforePayload } = (rawBase as any);
+  const beforeSizeBytes = estimateDocumentSizeInBytes({
+    ...cleanBeforePayload,
+    products
+  });
 
   // Mapeamento de fotos migradas: Base64 -> HTTPS URL
   const base64ToHttpsMap = new Map<string, string>();
@@ -726,11 +753,12 @@ export async function migrateLegacyProductImages(
     statusText: 'Calculando tamanho final do documento...'
   });
 
+  const { biRecords: _omittedBiAfter, ...cleanStoreConfigBase } = (options.fullStoreConfigPayload || {}) as any;
   const storeConfigPayload: Partial<AdminCustomVault> = {
-    ...(options.fullStoreConfigPayload || {}),
-    products: migratedProducts,
-    biRecords: migratedBiRecords.length > 0 ? migratedBiRecords : undefined
+    ...cleanStoreConfigBase,
+    products: migratedProducts
   };
+  delete (storeConfigPayload as any).biRecords;
 
   const afterSizeBytes = estimateDocumentSizeInBytes(storeConfigPayload);
   const reductionBytes = Math.max(0, beforeSizeBytes - afterSizeBytes);

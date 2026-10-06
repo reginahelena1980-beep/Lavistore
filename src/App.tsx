@@ -542,31 +542,38 @@ export default function App() {
     setIsPublishingToServer(true);
     try {
       const effectiveProducts = customPayload?.products ?? productsRef.current;
-      const effectiveBiRecords = customPayload?.biRecords ?? (biRecordsRef.current.length > 0 ? biRecordsRef.current : undefined);
+      // FASE F: biRecords é mantido exclusivamente no documento settings/bi_data.
+      // O payload do settings/store_config deve conter APENAS dados de vitrine e configurações.
+      const { biRecords: customBi, ...cleanCustomPayload } = (customPayload || {}) as any;
 
       const payload: Partial<AdminCustomVault> = {
         products: effectiveProducts,
-        heroConfig: customPayload?.heroConfig ?? heroConfig,
-        homePageConfig: customPayload?.homePageConfig ?? homePageConfig,
-        categories: customPayload?.categories ?? categories,
-        reviews: customPayload?.reviews ?? reviews,
-        coupons: customPayload?.coupons ?? coupons,
-        bagTypes: customPayload?.bagTypes ?? bagTypes,
-        ribbonOptions: customPayload?.ribbonOptions ?? ribbonOptions,
-        filterBarConfig: customPayload?.filterBarConfig ?? filterBarConfig,
-        biRecords: effectiveBiRecords,
-        ...customPayload
+        heroConfig: cleanCustomPayload.heroConfig ?? heroConfig,
+        homePageConfig: cleanCustomPayload.homePageConfig ?? homePageConfig,
+        categories: cleanCustomPayload.categories ?? categories,
+        reviews: cleanCustomPayload.reviews ?? reviews,
+        coupons: cleanCustomPayload.coupons ?? coupons,
+        bagTypes: cleanCustomPayload.bagTypes ?? bagTypes,
+        ribbonOptions: cleanCustomPayload.ribbonOptions ?? ribbonOptions,
+        filterBarConfig: cleanCustomPayload.filterBarConfig ?? filterBarConfig,
+        ...cleanCustomPayload
       };
+      // Garantia absoluta de que biRecords não é enviado em store_config
+      delete (payload as any).biRecords;
 
-      // 1. Grava diretamente no Firebase Firestore (Autoridade Única e Obrigatória)
+      // 1. Grava diretamente no Firebase Firestore (Autoridade Única e Obrigatória de store_config)
       const firestoreSuccess = await saveStoreConfigToFirestore(payload);
       if (!firestoreSuccess) {
         throw new Error('Falha na resposta de gravação do Firestore.');
       }
 
-      // Se houver registros de BI na gravação, persiste também em bi_data
-      if (payload.biRecords && Array.isArray(payload.biRecords) && payload.biRecords.length > 0) {
-        await saveBiRecordsToFirestore(payload.biRecords);
+      // FASE F: Se houver registros de BI na operação (ex: sincronização de produto com BI ou restore),
+      // persiste exclusivamente em settings/bi_data
+      if (customBi && Array.isArray(customBi) && customBi.length > 0) {
+        await saveBiRecordsToFirestore(customBi);
+        biRecordsRef.current = customBi;
+        setBiRecords(customBi);
+        safeSetItem('lavistore_bi_records', JSON.stringify(customBi));
       }
 
       // 2. Atualiza o cache local do navegador para suporte offline e consistência
@@ -574,10 +581,6 @@ export default function App() {
       if (payload.products) {
         productsRef.current = payload.products;
         safeSetItem('lavistore_products', JSON.stringify(payload.products));
-      }
-      if (payload.biRecords) {
-        biRecordsRef.current = payload.biRecords;
-        safeSetItem('lavistore_bi_records', JSON.stringify(payload.biRecords));
       }
       if (payload.homePageConfig) safeSetItem('lavistore_home_page_config', JSON.stringify(payload.homePageConfig));
       if (payload.heroConfig) safeSetItem('lavistore_hero_config', JSON.stringify(payload.heroConfig));
@@ -710,6 +713,18 @@ export default function App() {
           if (d.filterBarConfig) setFilterBarConfig(d.filterBarConfig);
           if (Array.isArray(d.reviews)) setReviews(d.reviews);
         }
+
+        // FASE F2: Hidratação segura dos dados de BI a partir do documento soberano settings/bi_data
+        try {
+          const cloudBi = await fetchBiRecordsFromFirestore();
+          if (isSubscribed && Array.isArray(cloudBi) && cloudBi.length > 0) {
+            setBiRecords(cloudBi);
+            biRecordsRef.current = cloudBi;
+            safeSetItem('lavistore_bi_records', JSON.stringify(cloudBi));
+          }
+        } catch (biErr) {
+          console.warn('[BI Init] Consulta de contingência de bi_data:', biErr);
+        }
       } catch (err) {
         console.warn('Store sync initialization notice:', err);
       } finally {
@@ -738,6 +753,7 @@ export default function App() {
       lastAdminSavedAt: new Date().toISOString(),
       isLockedByAdmin: true,
       products,
+      biRecords: biRecordsRef.current.length > 0 ? biRecordsRef.current : biRecords,
       heroConfig,
       homePageConfig,
       categories,
@@ -775,7 +791,18 @@ export default function App() {
         if (v.filterBarConfig) setFilterBarConfig(v.filterBarConfig);
         if (Array.isArray(v.reviews) && v.reviews.length > 0) setReviews(v.reviews);
 
-        await handlePublishToServer(v, false);
+        // FASE F4: Se o backup contiver biRecords, restaura no fluxo dedicado de settings/bi_data
+        // e NUNCA dentro de store_config!
+        if (Array.isArray(v.biRecords) && v.biRecords.length > 0) {
+          setBiRecords(v.biRecords);
+          biRecordsRef.current = v.biRecords;
+          safeSetItem('lavistore_bi_records', JSON.stringify(v.biRecords));
+          await saveBiRecordsToFirestore(v.biRecords);
+        }
+
+        // Separa biRecords antes de enviar para publicação de store_config
+        const { biRecords: _omittedBackupBi, ...cleanStorefrontVault } = v;
+        await handlePublishToServer(cleanStorefrontVault, false);
         showToast('🛡️ Backup restaurado e blindado no servidor com sucesso! ✨');
       } catch (err: any) {
         showToast('❌ Erro ao ler o arquivo de backup: ' + err.message);

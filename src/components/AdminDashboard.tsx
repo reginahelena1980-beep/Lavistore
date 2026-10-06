@@ -79,6 +79,7 @@ import { PackagingRibbonManager } from './PackagingRibbonManager';
 import { ShieldBackupModal } from './ShieldBackupModal';
 import { ResetCatalogModal } from './ResetCatalogModal';
 import { ResetHeroModal } from './ResetHeroModal';
+import { saveBiRecordsToFirestore } from '../services/firestoreConfigService';
 import { DEFAULT_HOME_PAGE_CONFIG } from '../utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from '../data/filterConfig';
 import { getEffectiveProductBiData } from '../utils/productGroupingEngine';
@@ -535,6 +536,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               setBiRecords(imported.biRecords);
               try {
                 safeSetItem('lavistore_bi_records', JSON.stringify(imported.biRecords));
+                saveBiRecordsToFirestore(imported.biRecords).catch(e => console.warn('[BI Restore] Erro:', e));
                 fetch('/api/bi/records', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },

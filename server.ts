@@ -592,14 +592,24 @@ app.post('/api/admin/vault', async (req, res) => {
       safeWriteJsonFile(BI_DATA_FILE, vault.biRecords);
     }
 
-    // Grava também no Firestore para persistência global entre usuários
+    // Grava também no Firestore para persistência global entre usuários (sem duplicar biRecords em store_config)
     if (serverDb) {
       try {
         const docRef = getFsDoc(serverDb, 'settings', 'store_config');
-        await setFsDocSnap(docRef, vaultWithMeta, { merge: true });
+        const { biRecords: _omitBi, ...cleanVaultWithMeta } = vaultWithMeta;
+        await setFsDocSnap(docRef, cleanVaultWithMeta, { merge: true });
         console.log(`[Server Firebase] Cofre do administrador gravado no Firestore (${now})`);
       } catch (fsErr: any) {
         console.warn('[Server Firebase] Aviso ao gravar cofre no Firestore:', fsErr?.message);
+      }
+
+      if (Array.isArray(vault.biRecords) && vault.biRecords.length > 0) {
+        try {
+          const biDocRef = getFsDoc(serverDb, 'settings', 'bi_data');
+          await setFsDocSnap(biDocRef, { records: vault.biRecords, updatedAt: now }, { merge: true });
+        } catch (biFsErr: any) {
+          console.warn('[Server Firebase] Aviso ao gravar bi_data no Firestore:', biFsErr?.message);
+        }
       }
     }
 

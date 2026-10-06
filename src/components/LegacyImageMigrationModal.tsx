@@ -13,6 +13,7 @@ import {
   HardDrive,
   FileCheck2,
   Layers,
+  Store,
   Image as ImageIcon
 } from 'lucide-react';
 import { Product, BiProductCalculatedRecord } from '../types';
@@ -240,26 +241,71 @@ export const LegacyImageMigrationModal: React.FC<LegacyImageMigrationModalProps>
                   <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-1.5">
                     <div className="flex items-center gap-2 font-bold text-amber-900">
                       <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Fotos legadas em formato Base64 detectadas</span>
+                      <span>Diagnóstico de Imagens em Base64</span>
                     </div>
                     <p className="text-[11px] text-amber-800 leading-relaxed">
-                      O Firestore possui limite máximo de 1.048.576 bytes (1 MiB) por documento. As fotos armazenadas em Base64 estão ocupando excesso de espaço no documento <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">settings/store_config</code>.
+                      O Firestore possui limite de 1 MiB (1.048.576 bytes) por documento. As fotos armazenadas em Base64 são strings UTF-8 e devem ser migradas para o Firebase Storage para otimizar os documentos.
                     </p>
                   </div>
 
-                  {/* Estatísticas Detectadas */}
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <div className="p-3 bg-purple-50/60 border border-purple-100 rounded-2xl text-center">
-                      <p className="text-[10px] text-purple-700 uppercase font-semibold">Produtos Afetados</p>
-                      <p className="font-['Mali'] text-lg font-bold text-purple-950">{detection.productsWithBase64Count}</p>
+                  {/* FASE F5: Estatísticas Detectadas com distinção entre STORE_CONFIG e BI_DATA */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Painel A: STORE CONFIG */}
+                    <div className="p-3.5 bg-purple-50/70 border border-purple-200 rounded-2xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-purple-950 uppercase tracking-wide flex items-center gap-1.5">
+                          <Store className="w-3.5 h-3.5 text-purple-700" />
+                          STORE CONFIG
+                        </span>
+                        <span className="text-[10px] font-mono text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-full">
+                          settings/store_config
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div className="bg-white p-2 rounded-xl border border-purple-100 text-center">
+                          <p className="text-[10px] text-slate-500 font-semibold">Fotos Legadas</p>
+                          <p className="font-['Mali'] text-base font-bold text-purple-950">{detection.totalBase64ImagesCount}</p>
+                          <p className="text-[9px] text-slate-400">em {detection.productsWithBase64Count} produto(s)</p>
+                        </div>
+                        <div className="bg-white p-2 rounded-xl border border-purple-100 text-center">
+                          <p className="text-[10px] text-slate-500 font-semibold">Impacto Base64</p>
+                          <p className="font-['Mali'] text-base font-bold text-rose-700">{formatBytes(detection.estimatedBase64PayloadBytes)}</p>
+                          <p className="text-[9px] text-slate-400">string UTF-8</p>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-purple-900/70 flex items-center justify-between px-1">
+                        <span>Tamanho total estimado do documento:</span>
+                        <span className="font-bold text-purple-950">{formatBytes(detection.estimatedTotalPayloadBytes)}</span>
+                      </div>
                     </div>
-                    <div className="p-3 bg-amber-50/60 border border-amber-100 rounded-2xl text-center">
-                      <p className="text-[10px] text-amber-700 uppercase font-semibold">Fotos Base64</p>
-                      <p className="font-['Mali'] text-lg font-bold text-amber-950">{detection.totalBase64ImagesCount}</p>
-                    </div>
-                    <div className="p-3 bg-rose-50/60 border border-rose-100 rounded-2xl text-center">
-                      <p className="text-[10px] text-rose-700 uppercase font-semibold">Espaço Base64</p>
-                      <p className="font-['Mali'] text-lg font-bold text-rose-950">{formatBytes(detection.estimatedBase64PayloadBytes)}</p>
+
+                    {/* Painel B: BI DATA */}
+                    <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-blue-950 uppercase tracking-wide flex items-center gap-1.5">
+                          <Database className="w-3.5 h-3.5 text-blue-700" />
+                          BI DATA
+                        </span>
+                        <span className="text-[10px] font-mono text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full">
+                          settings/bi_data
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div className="bg-white p-2 rounded-xl border border-blue-100 text-center">
+                          <p className="text-[10px] text-slate-500 font-semibold">Fotos Referenciadas</p>
+                          <p className="font-['Mali'] text-base font-bold text-blue-950">{detection.biRecordsWithBase64Count}</p>
+                          <p className="text-[9px] text-slate-400">nos registros de BI</p>
+                        </div>
+                        <div className="bg-white p-2 rounded-xl border border-blue-100 text-center">
+                          <p className="text-[10px] text-slate-500 font-semibold">Impacto Base64</p>
+                          <p className="font-['Mali'] text-base font-bold text-indigo-700">{formatBytes(detection.biBase64PayloadBytes)}</p>
+                          <p className="text-[9px] text-slate-400">string UTF-8</p>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-blue-900/70 flex items-center justify-between px-1">
+                        <span>Isolado no documento soberano:</span>
+                        <span className="font-bold text-blue-950">{formatBytes(detection.biTotalPayloadBytes)}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -272,7 +318,7 @@ export const LegacyImageMigrationModal: React.FC<LegacyImageMigrationModalProps>
                     <ul className="space-y-1 text-slate-600 text-[11px] list-disc list-inside">
                       <li>Nenhum produto ou registro da planilha é apagado.</li>
                       <li>A foto original só é substituída após confirmação de URL HTTPS no Storage.</li>
-                      <li>O documento do Firestore é gravado apenas uma vez, após validação atômica.</li>
+                      <li>O documento store_config e bi_data são mantidos desacoplados com segurança.</li>
                       <li>Registros de BI têm suas fotos sincronizadas para a mesma URL HTTPS.</li>
                     </ul>
                   </div>

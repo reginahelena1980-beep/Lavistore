@@ -210,7 +210,8 @@ export async function syncStoreData(payload: SyncStorePayload, skipFirestore: bo
   // 1. Gravação no Firestore apenas se não foi dispensada pelo autor principal
   if (!skipFirestore && isFirebaseReady()) {
     try {
-      firestoreSuccess = await saveStoreConfigToFirestore(payload as Partial<AdminCustomVault>);
+      const { biRecords: _omitBi, ...cleanPayload } = (payload || {}) as any;
+      firestoreSuccess = await saveStoreConfigToFirestore(cleanPayload as Partial<AdminCustomVault>);
       if (firestoreSuccess) {
         console.info('[StoreAPI] ⚡ Dados gravados com sucesso diretamente no Firestore!');
       }
@@ -298,7 +299,11 @@ export async function fetchAdminVault(): Promise<AdminVaultResponse> {
 export async function saveAdminVault(vault: AdminCustomVault): Promise<GenericApiResponse> {
   if (isFirebaseReady()) {
     try {
-      await saveStoreConfigToFirestore(vault);
+      const { biRecords: vaultBi, ...cleanVault } = vault as any;
+      await saveStoreConfigToFirestore(cleanVault);
+      if (Array.isArray(vaultBi) && vaultBi.length > 0) {
+        await saveBiRecordsToFirestore(vaultBi);
+      }
     } catch {}
   }
 

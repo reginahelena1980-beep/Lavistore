@@ -19,7 +19,8 @@ import {
   onSnapshot,
   query,
   orderBy,
-  Unsubscribe
+  Unsubscribe,
+  deleteField
 } from 'firebase/firestore';
 import { 
   getFirestoreDb, 
@@ -46,6 +47,19 @@ export interface FirestoreLoadResult {
 }
 
 /**
+ * FASE F — SANITIZAÇÃO E DESACOPLAMENTO CENTRALIZADO
+ * Sanitiza defensivamente qualquer payload destinado ao documento settings/store_config,
+ * garantindo que biRecords NUNCA seja incluído em store_config.
+ * O banco de dados de BI permanece de forma exclusiva e soberana em settings/bi_data.
+ */
+export function sanitizeStoreConfigPayload<T extends Record<string, any>>(payload: T): Omit<T, 'biRecords'> {
+  if (!payload || typeof payload !== 'object') return payload;
+  const clean = { ...payload };
+  delete (clean as any).biRecords;
+  return clean;
+}
+
+/**
  * Registra um ouvinte em tempo real (onSnapshot) para as configurações e catálogo da loja.
  * Qualquer alteração feita pelo Administrador (produtos, preços, estoque, banner, frases)
  * reflete INSTANTANEAMENTE para todos os usuários e dispositivos conectados.
@@ -68,7 +82,9 @@ export function subscribeToStoreConfig(
     (docSnap) => {
       if (docSnap.exists()) {
         const rawData = docSnap.data() as Partial<AdminCustomVault>;
-        callback(rawData);
+        // Sanitiza para garantir que a interface consuma apenas dados soberanos de vitrine
+        const cleanData = sanitizeStoreConfigPayload(rawData);
+        callback(cleanData);
       }
     },
     (error) => {
@@ -96,7 +112,9 @@ export async function loadStoreConfigFromFirestore(): Promise<FirestoreLoadResul
     const docSnap = await getDoc(configDocRef);
 
     if (docSnap.exists()) {
-      const data = docSnap.data() as Partial<AdminCustomVault>;
+      const rawData = docSnap.data() as Partial<AdminCustomVault>;
+      // Sanitiza para remover qualquer resquício legado de biRecords
+      const data = sanitizeStoreConfigPayload(rawData);
       return {
         exists: true,
         data,
@@ -121,7 +139,9 @@ export async function loadStoreConfigFromFirestore(): Promise<FirestoreLoadResul
 
 /**
  * Salva as configurações e catálogo no Firestore.
- * Utiliza setDoc com merge e sanitização profunda para garantir persistência global.
+ * FASE F1 & F3: Safeguard centralizado e blindagem arquitetural.
+ * O documento settings/store_config deve conter EXCLUSIVAMENTE configurações da vitrine.
+ * biRecords é totalmente expurgado deste payload e eliminado do documento remoto via deleteField().
  */
 export async function saveStoreConfigToFirestore(payload: Partial<AdminCustomVault>): Promise<boolean> {
   const db = getFirestoreDb();
@@ -133,15 +153,30 @@ export async function saveStoreConfigToFirestore(payload: Partial<AdminCustomVau
   const path = `${FIRESTORE_SETTINGS_COLLECTION}/${FIRESTORE_STORE_CONFIG_DOC}`;
   try {
     const configDocRef = doc(db, FIRESTORE_SETTINGS_COLLECTION, FIRESTORE_STORE_CONFIG_DOC);
+
+    // 1. Sanitização defensiva na camada de persistência
+    const cleanStorefrontPayload = sanitizeStoreConfigPayload(payload);
+
     const sanitizedData = removeUndefinedFields({
-      ...payload,
+      ...cleanStorefrontPayload,
       isLockedByAdmin: true,
       lastAdminSavedAt: payload.lastAdminSavedAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
 
-    await setDoc(configDocRef, sanitizedData, { merge: true });
-    console.info('[Firestore] 🛡️ Dados da loja salvos e sincronizados com sucesso no Firestore.');
+    // 2. Garantia explícita: biRecords NUNCA deve ser gravado como dado em store_config
+    delete (sanitizedData as any).biRecords;
+
+    // 3. FASE F3: Remoção atômica do campo legado biRecords no Firestore sem intervenção manual.
+    // deleteField() remove a duplicação legada enquanto { merge: true } preserva outros campos
+    // como melhorEnvioToken configurados no documento.
+    const writePayload = {
+      ...sanitizedData,
+      biRecords: deleteField()
+    };
+
+    await setDoc(configDocRef, writePayload, { merge: true });
+    console.info('[Firestore] 🛡️ Dados da loja salvos e sincronizados com sucesso no Firestore (sem duplicação de biRecords).');
     return true;
   } catch (error: any) {
     console.error('[Firestore setDoc] Erro ao gravar store_config:', error?.message || error);
@@ -166,12 +201,13 @@ export async function updateProductPublicationStatusInFirestore(
   }
 
   try {
-    // 1. Grava no documento store_config com merge
+    // 1. Grava no documento store_config com merge (expurgando biRecords)
     const storeDocRef = doc(db, FIRESTORE_SETTINGS_COLLECTION, FIRESTORE_STORE_CONFIG_DOC);
     const sanitizedStoreData = removeUndefinedFields({
       products: updatedProducts,
       isLockedByAdmin: true,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      biRecords: deleteField()
     });
     await setDoc(storeDocRef, sanitizedStoreData, { merge: true });
 
