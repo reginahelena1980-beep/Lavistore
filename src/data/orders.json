@@ -193,7 +193,7 @@
     "items": [
       {
         "id": "1",
-        "name": "Vestidinho Floral Lavistore",
+        "name": "Vestidinho Delicado Lavistore",
         "quantity": 1,
         "price": 29.9
       }
@@ -253,7 +253,7 @@
     "items": [
       {
         "id": "prod-mimo-2",
-        "name": "Laço Floral Rosé",
+        "name": "Laço Cetim Rosé",
         "quantity": 1,
         "price": 25
       }
@@ -311,7 +311,7 @@
     "items": [
       {
         "id": "prod-1",
-        "name": "Vestidinho Floral",
+        "name": "Vestidinho Delicado",
         "quantity": 1,
         "price": 59.9
       }

@@ -9,7 +9,7 @@
     {
       "id": "lav-13",
       "name": "Meia 3/4 Panda Listrada Algodão Confort",
-      "category": "floral-special",
+      "category": "acessorios-mimos",
       "price": 15,
       "originalPrice": 22,
       "rating": 0,
@@ -134,7 +134,7 @@
         "https://images.unsplash.com/photo-1559454403-b8fb88521f11?w=800&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80"
       ],
-      "description": "A definição exata de \"iti malia\" em forma de bolsa! ☁️✨ A nossa Bolsa Unicórnio é feita de pelúcia super macia, com detalhes cintilantes de estrelas e luas, cílios delicados e um chifre dourado brilhante. Espaçosa e muito aconchegante, é a companheira perfeita para carregar os seus tesouros com muito estilo e fofura! 🌈💖",
+      "description": "A definição exata de \"iti malia\" em forma de bolsa! ☁️✨ A nossa Bolsa Unicórnio é feita de pelúcia super macia, com detalhes cintilantes de estrelas e luas, cílios delicados e um chifre dourado encantador. Espaçosa e muito aconchegante, é a companheira perfeita para carregar os seus tesouros com muito estilo e fofura! 🌈💖",
       "features": [
         "Pelúcia hipoalergênica ultra macia",
         "Alça tiracolo resistente e ajustável",
@@ -180,7 +180,7 @@
         "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80"
       ],
-      "description": "Magia pura que cabe na palma da mão! 🫧✨ Com o nosso Tubo para Bolinha de Sabão, a diversão e a alegria estão garantidas. Os tubinhos vêm com tampas super fofas em formato de coração e estrelinha para você criar bolhas gigantes, brilhantes e cheias de diversão. Perfeito para colorir o dia! 🌈💖",
+      "description": "Magia pura que cabe na palma da mão! 🫧✨ Com o nosso Tubo para Bolinha de Sabão, a diversão e a alegria estão garantidas. Os tubinhos vêm com tampas super fofas em formato de coração e estrelinha para você criar bolhas gigantes, brilhantes e cheias de encanto. Perfeito para colorir o dia! 🌈💖",
       "features": [
         "Tampinha lúdica com varinha em relevo",
         "Fórmula especial que cria bolhas brilhantes e resistentes",
@@ -310,7 +310,7 @@
       "isBold": true
     },
     "promoDescription": {
-      "text": "Escolha a sacolinha amarela exclusiva, selecione os mimos favoritos, adicione uma dedicatória e surpreenda quem você ama!",
+      "text": "Escolha a sacolinha amarela exclusiva, selecione os mimos favoritos, adicione uma dedicatória e encante quem você ama!",
       "fontSize": "sm",
       "isBold": false
     },
@@ -320,7 +320,7 @@
       "isBold": true
     },
     "reviewsBadge": {
-      "text": "Clientes Felizes",
+      "text": "Clientes Encantadas",
       "fontSize": "xs",
       "isBold": true
     },
@@ -380,8 +380,8 @@
     "whatsappDefaultMessage": "Olá Lavistore! Estou na loja virtual e gostaria de tirar uma dúvida sobre os mimos. 🌸",
     "aboutHeroSlogan": "A Lavistore nasce para fazer o mundo mais afetuoso, doce e colorido!",
     "aboutHeroQuote": "Faça a diferença no dia de quem você ama, demonstre o seu carinho através dos nossos mimos!",
-    "aboutHeroDescription": "Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore — desde o traço desenhado à mão do nosso trio de florzinhas com centrinho amarelo ensolarado até as nossas caixas e sacolinhas amarelas exclusivas com laço de cetim — foi criado para espalhar sorrisos e momentos inesquecíveis!",
-    "aboutTrioTitle": "O Significado do Nosso Trio Floral",
+    "aboutHeroDescription": "Acreditamos que presentear é um ato de puro afeto. Cada detalhe da Lavistore — desde o traço desenhado à mão do nosso trio de florzinhas com centrinho amarelo ensolarado até o acabamento com laço e carinho nas caixas e sacolinhas amarelas — foi criado para espalhar sorrisos e momentos inesquecíveis!",
+    "aboutTrioTitle": "O Significado do Nosso Trio de Flores",
     "aboutTrioSubtitle": "Inspiradas em traços livres de criança, cada florzinha traz uma energia especial de cuidado e carinho.",
     "aboutFlower1Title": "Flor Violeta",
     "aboutFlower1Subtitle": "Criatividade & Calma",
@@ -391,26 +391,26 @@
     "aboutFlower2Desc": "Traz a vitalidade dos dias ensolarados, o frescor de estrear um caderno novinho e o entusiasmo contagiante de trocar bilhetinhos de carinho.",
     "aboutFlower3Title": "Flor Rosa",
     "aboutFlower3Subtitle": "Afeto & Doçura",
-    "aboutFlower3Desc": "Simboliza o amor colocado em cada laço de fita e a sensação acolhedora de um abraço carinhoso.",
+    "aboutFlower3Desc": "Simboliza o amor colocado em cada laço de fita, o cuidado em cada detalhe e a sensação acolhedora de um abraço carinhoso.",
     "aboutSolarTag": "O Miolo Amarelo Solar ☀️",
     "aboutSolarTitle": "Traços Infantis Feitos com Amor & Energia Solar",
     "aboutSolarDesc": "O estilo de desenho de criança com sorrisinhos meigos e o miolo amarelo brilhante celebram a pureza, a imaginação e a alegria genuína. Cada sacolinha amarela carrega esse raio de sol até você!",
     "aboutSolarBtnText": "Conhecer Nossos Mimos",
     "aboutPillarsTitle": "Nossos 4 Toques de Afeto em Cada Envio",
-    "aboutPillarsSubtitle": "Detalhes pensados com carinho para surpreender quem você ama",
-    "aboutPillar1Icon": "🛍️",
-    "aboutPillar1Title": "Mimos Especiais",
-    "aboutPillar1Desc": "Mimos e papelaria fofa selecionados com amor para alegrar o seu dia a dia.",
+    "aboutPillarsSubtitle": "Detalhes pensados com carinho para encantar todos os sentidos",
+    "aboutPillar1Icon": "✨",
+    "aboutPillar1Title": "Cuidado Artesanal",
+    "aboutPillar1Desc": "Cada mimo é preparado e embalado à mão com papel de seda, laço de fita e muito carinho.",
     "aboutPillar2Icon": "🎀",
     "aboutPillar2Title": "Sacolinhas Amarelas",
-    "aboutPillar2Desc": "Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para surpreender antes mesmo de abrir.",
+    "aboutPillar2Desc": "Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para encantar antes mesmo de abrir.",
     "aboutPillar3Icon": "💌",
     "aboutPillar3Title": "Dedicatórias Fofas",
     "aboutPillar3Desc": "Cartinhas afetivas e bilhetinhos personalizados para emocionar e marcar memórias para sempre.",
-    "aboutPillar4Icon": "🏷️",
-    "aboutPillar4Title": "Preço Máximo: R$ 15,00",
-    "aboutPillar4Desc": "Mimos e presentes criativos acessíveis para surpreender quem você ama sem pesar no bolso.",
-    "aboutCtaBadge": "Pronta para Presentear?",
+    "aboutPillar4Icon": "🎁",
+    "aboutPillar4Title": "Mimos & Surpresas",
+    "aboutPillar4Desc": "Adesivos colecionáveis exclusivos, marcadores de página e mimos extras em cada pedido.",
+    "aboutCtaBadge": "Pronta para Encantar?",
     "aboutCtaTitle": "Venha conhecer nossos mimos e presentes",
     "aboutCtaDesc": "Navegue pela nossa vitrine de papelaria fofa, monte sacolinhas personalizadas e espalhe sorrisos por onde passar!",
     "aboutCtaBtn1": "Ver Todos os Mimos no Catálogo",
@@ -428,7 +428,7 @@
       "showInFilter": true
     },
     {
-      "id": "floral-special",
+      "id": "colecao-especial",
       "name": "Meias 3/4 ",
       "icon": "🌸",
       "description": "Produtos exclusivos Estilo Bee",
@@ -489,8 +489,8 @@
       "createdAt": "2026-03-01"
     },
     {
-      "id": "coupon-florzinha",
-      "code": "FLORZINHA",
+      "id": "coupon-mimo15",
+      "code": "MIMO15",
       "description": "15% de desconto especial em toda a loja com muito carinho",
       "type": "percentage",
       "discountValue": 15,
@@ -511,8 +511,8 @@
       "image": "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80"
     },
     {
-      "id": "bag-amarela-floral",
-      "name": "Sacolinha Amarela Floral Trio Lavistore",
+      "id": "bag-amarela-trio",
+      "name": "Sacolinha Amarela Trio Lavistore",
       "price": 18.9,
       "color": "#FEF08A",
       "bgClass": "from-yellow-100 to-amber-200 border-yellow-300",
@@ -525,7 +525,7 @@
       "price": 16.9,
       "color": "#FDE047",
       "bgClass": "from-amber-50 to-yellow-100 border-amber-300",
-      "description": "Sacolinha amarela em kraft reforçado, com papel de seda especial e laço artesanal.",
+      "description": "Sacolinha amarela em kraft reforçado, com papel de seda especial e acabamento artesanal.",
       "image": "https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=400&q=80"
     },
     {

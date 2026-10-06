@@ -27,8 +27,8 @@ export const DEFAULT_COUPONS: Coupon[] = (storeState && Array.isArray(storeState
     createdAt: '2026-03-01'
   },
   {
-    id: 'coupon-florzinha',
-    code: 'FLORZINHA',
+    id: 'coupon-mimo15',
+    code: 'MIMO15',
     description: '15% de desconto especial em toda a loja com muito carinho',
     type: 'percentage',
     discountValue: 15,

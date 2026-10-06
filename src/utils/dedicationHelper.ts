@@ -146,13 +146,18 @@ export function openDedicationPrintWindow(dedication: OrderDedicationInfo): void
   }
 
   const themeColors: Record<string, { primary: string; bg: string; border: string; accent: string }> = {
+    'Rosa Candy': { primary: '#9d174d', bg: '#fff1f2', border: '#f43f5e', accent: '#fb7185' },
+    'Lilás Suave': { primary: '#581c87', bg: '#faf5ff', border: '#c084fc', accent: '#d8b4fe' },
+    'Amarelo Solar': { primary: '#78350f', bg: '#fffbeb', border: '#f59e0b', accent: '#fde68a' },
+    'Turquesa Tiffany': { primary: '#155e75', bg: '#ecfeff', border: '#06b6d4', accent: '#67e8f9' },
+    // Compatibilidade reversa com temas anteriores
     'Sakura Rosé': { primary: '#9d174d', bg: '#fff1f2', border: '#f43f5e', accent: '#fb7185' },
     'Lavanda Imperial': { primary: '#581c87', bg: '#faf5ff', border: '#c084fc', accent: '#d8b4fe' },
     'Tulipas Douradas': { primary: '#78350f', bg: '#fffbeb', border: '#f59e0b', accent: '#fde68a' },
     'Margaridinhas Lilás': { primary: '#3730a3', bg: '#f5f3ff', border: '#818cf8', accent: '#c7d2fe' }
   };
 
-  const theme = themeColors[dedication.theme || ''] || themeColors['Sakura Rosé'];
+  const theme = themeColors[dedication.theme || ''] || themeColors['Rosa Candy'];
 
   const html = `
     <!DOCTYPE html>
@@ -345,7 +350,7 @@ export function openDedicationPrintWindow(dedication: OrderDedicationInfo): void
       <body>
         <div class="instructions">
           <button class="btn-print" onclick="window.print()">🖨️ Imprimir Cartãozinho de Dedicatória</button>
-          <p>Dica: Imprima em papel cartão ou papel fotográfico fosco e recorte na linha pontilhada antes de colocar no pacote!</p>
+          <p>Dica: Imprima em papel cartão ou papel fotográfico fosco, recorte na linha pontilhada e coloque com carinho dentro do pacote!</p>
         </div>
 
         <div class="card-wrapper">

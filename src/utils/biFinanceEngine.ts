@@ -642,16 +642,16 @@ export function generateBiTemplateCsv(): string {
 
   const sampleRows = [
     ['2026', 'Janeiro', 'Meias de Panda Fofas', 'Único / P&B', 'Meia cano médio atoalhada de algodão penteado estampa panda', '50', '250.00', '19.90', '38'],
-    ['2026', 'Janeiro', 'Caneta Florzinha Gel Mimo', '0.5mm / Rosa e Lilás', 'Caneta gel com ponta fina e topper de florzinha em silicone', '100', '320.00', '9.90', '82'],
-    ['2026', 'Janeiro', 'Pulseira Cristais & Margarida', 'Ajustável / Dourado Floral', 'Pulseira folheada com cristais brilhantes e pingente de margarida', '40', '360.00', '24.90', '29'],
-    ['2026', 'Janeiro', 'Caderno Floral Lilás Lavanda', 'A5 / Lilás Vintage', 'Caderno capa dura com detalhes em hot stamping dourado e 80 folhas', '30', '420.00', '34.90', '24'],
+    ['2026', 'Janeiro', 'Caneta Gel Topper Fofo', '0.5mm / Rosa e Lilás', 'Caneta gel com ponta fina e topper em silicone', '100', '320.00', '9.90', '82'],
+    ['2026', 'Janeiro', 'Pulseira Cristais & Coração', 'Ajustável / Dourado Especial', 'Pulseira folheada com cristais brilhantes e pingente de coração', '40', '360.00', '24.90', '29'],
+    ['2026', 'Janeiro', 'Caderno Criativo Lilás Lavanda', 'A5 / Lilás Vintage', 'Caderno capa dura com detalhes em hot stamping dourado e 80 folhas', '30', '420.00', '34.90', '24'],
     ['2026', 'Fevereiro', 'Meias de Panda Fofas', 'Único / P&B', 'Meia cano médio atoalhada de algodão penteado estampa panda', '60', '300.00', '19.90', '45'],
     ['2026', 'Fevereiro', 'Kit Sacolinha Mimos Criativos', 'Médio / Candy Colors', 'Kit com sacolinha personalizada, laço de cetim e 3 mimos surpresa', '25', '375.00', '42.00', '19'],
-    ['2026', 'Fevereiro', 'Chaveiro Pelúcia Ursinho Floral', 'Único / Caramelo', 'Chaveiro de pelúcia com toque aveludado e gravatinha xadrez lilás', '35', '210.00', '16.90', '27'],
-    ['2026', 'Fevereiro', 'Caneca Porcelana Flores Silvestres', '350ml / Lavanda', 'Caneca de porcelana legítima com estampa floral artesanal', '20', '260.00', '32.90', '16'],
+    ['2026', 'Fevereiro', 'Chaveiro Pelúcia Ursinho Fofo', 'Único / Caramelo', 'Chaveiro de pelúcia com toque aveludado e gravatinha xadrez lilás', '35', '210.00', '16.90', '27'],
+    ['2026', 'Fevereiro', 'Caneca Porcelana Borboletas', '350ml / Lavanda', 'Caneca de porcelana legítima com estampa delicada artesanal', '20', '260.00', '32.90', '16'],
     ['2026', 'Março', 'Meias de Panda Fofas', 'Único / P&B', 'Meia cano médio atoalhada de algodão penteado estampa panda', '70', '350.00', '19.90', '52'],
-    ['2026', 'Março', 'Caneta Florzinha Gel Mimo', '0.5mm / Rosa e Lilás', 'Caneta gel com ponta fina e topper de florzinha em silicone', '120', '384.00', '9.90', '98'],
-    ['2026', 'Março', 'Pulseira Cristais & Margarida', 'Ajustável / Dourado Floral', 'Pulseira folheada com cristais brilhantes e pingente de margarida', '50', '450.00', '24.90', '41']
+    ['2026', 'Março', 'Caneta Gel Topper Fofo', '0.5mm / Rosa e Lilás', 'Caneta gel com ponta fina e topper em silicone', '120', '384.00', '9.90', '98'],
+    ['2026', 'Março', 'Pulseira Cristais & Coração', 'Ajustável / Dourado Especial', 'Pulseira folheada com cristais brilhantes e pingente de coração', '50', '450.00', '24.90', '41']
   ];
 
   const csvLines = [

@@ -25,10 +25,10 @@ export const CATEGORIES: Category[] = (storeState && Array.isArray(storeState.ca
     showInFilter: true,
   },
   {
-    id: 'floral-special',
-    name: 'Coleção 3 Flores (Exclusiva)',
-    icon: '🌸',
-    description: 'Produtos exclusivos com a identidade das 3 florzinhas',
+    id: 'colecao-especial',
+    name: 'Coleção Especial',
+    icon: '✨',
+    description: 'Produtos exclusivos e mimos selecionados',
     badge: 'Exclusivo',
     showInFooter: true,
     showInFilter: true,
@@ -52,7 +52,7 @@ export const CATEGORIES: Category[] = (storeState && Array.isArray(storeState.ca
   },
   {
     id: 'washi-adesivos',
-    name: 'Washi Tapes Decorativas',
+    name: 'Washi Tapes & Adesivos',
     icon: '🎀',
     description: 'Fitas japonesas, cartelas decorativas e blocos translúcidos',
     showInFooter: true,
@@ -62,7 +62,7 @@ export const CATEGORIES: Category[] = (storeState && Array.isArray(storeState.ca
     id: 'presentes-kits',
     name: 'Caixas de Presente Prontas',
     icon: '🎁',
-    description: 'Kits prontos, caixas de presentes e mimos afetivos',
+    description: 'Kits prontos, caixas decoradas e presentes afetivos',
     badge: 'Popular',
     showInFooter: true,
     showInFilter: true,
@@ -78,8 +78,8 @@ export const CATEGORIES: Category[] = (storeState && Array.isArray(storeState.ca
   {
     id: 'acessorios-mimos',
     name: 'Acessórios & Mimos',
-    icon: '🌷',
-    description: 'Luminárias de tulipa, estojos e garrafas térmicas',
+    icon: '✨',
+    description: 'Luminárias delicadas, estojos e garrafas térmicas',
     showInFooter: true,
     showInFilter: true,
   }
@@ -96,12 +96,12 @@ export const BAG_TYPES: BagType[] = [
     image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80'
   },
   {
-    id: 'bag-amarela-floral',
+    id: 'bag-amarela-trio',
     name: 'Sacolinha Amarela Trio Lavistore',
     price: 18.90,
     color: '#FEF08A',
     bgClass: 'from-yellow-100 to-amber-200 border-yellow-300',
-    description: 'Sacolinha amarela pastel com estampa delicada do trio de florzinhas (violeta, turquesa e rosa).',
+    description: 'Sacolinha amarela pastel com estampa delicada do Trio Lavistore (violeta, turquesa e rosa).',
     image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=400&q=80'
   },
   {
@@ -110,7 +110,7 @@ export const BAG_TYPES: BagType[] = [
     price: 16.90,
     color: '#FDE047',
     bgClass: 'from-amber-50 to-yellow-100 border-amber-300',
-    description: 'Sacolinha amarela em kraft reforçado, com papel de seda especial e laço artesanal.',
+    description: 'Sacolinha amarela em kraft reforçado, com papel de seda especial e acabamento artesanal.',
     image: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=400&q=80'
   },
   {
@@ -136,7 +136,7 @@ export const RIBBON_OPTIONS: RibbonOption[] = [
 
 export const CARD_TEMPLATES = [
   {
-    theme: 'Aniversário Especial 🎂',
+    theme: 'Aniversário Encantado 🎂',
     text: 'Que o seu novo ciclo seja repleto de beleza, doçura e momentos inesquecíveis quanto este presente! Parabéns com todo meu carinho.'
   },
   {

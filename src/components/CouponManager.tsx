@@ -767,7 +767,7 @@ export const CouponManager: React.FC<CouponManagerProps> = ({
                 Restaurar Cupons Originais?
               </h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Isso restaurará os cupons padrões da Lavistore: <strong className="text-purple-950 font-mono">FRETEGRATIS, LAVI10, FLORZINHA e PRIMEIRACOMPRA</strong>.
+                Isso restaurará os cupons padrões da Lavistore: <strong className="text-purple-950 font-mono">FRETEGRATIS, LAVI10, MIMO15 e PRIMEIRACOMPRA</strong>.
               </p>
             </div>
 

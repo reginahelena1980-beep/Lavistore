@@ -10,7 +10,7 @@ export interface ProductSizeVariant {
 
 export interface ProductColorVariant {
   id?: string;
-  name: string; // Descrição/nome da cor ou estampa (ex: "Rosa Bebê", "Lilás Suave", "Amarelo Solar")
+  name: string; // Descrição/nome da cor ou estampa (ex: "Rosa Bebê", "Lilás Suave", "Poá Candy")
   imageUrl?: string; // Imagem/foto da cor ou textura da estampa
   hex?: string; // Código hexadecimal da cor (ex: "#F472B6")
   bgClass?: string;
@@ -385,8 +385,6 @@ export type ActiveTab =
   | 'catalog'
   | 'kit-builder'
   | 'card-generator'
-  | 'floral-collection'
-  | 'floral-special'
   | 'about'
   | 'admin';
 
