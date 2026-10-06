@@ -258,7 +258,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                 value={configData.reviewsBadge?.text || ''}
                 onChange={(e) => updateConfigField('reviewsBadge', { text: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
-                placeholder="Ex: Clientes Encantadas"
+                placeholder="Ex: Clientes Felizes"
               />
             </div>
 
@@ -459,7 +459,7 @@ export const ReviewsManager: React.FC<ReviewsManagerProps> = ({
                   required
                   value={editingReviewForm.comment || ''}
                   onChange={(e) => setEditingReviewForm(prev => ({ ...prev, comment: e.target.value }))}
-                  placeholder="Escreva a experiência encantadora da cliente com o produto ou unboxing..."
+                  placeholder="Escreva a experiência da cliente com o produto ou unboxing..."
                   className="w-full px-3 py-2 bg-amber-50/40 border border-amber-300 rounded-xl text-xs sm:text-sm text-purple-950 font-medium"
                 />
               </div>

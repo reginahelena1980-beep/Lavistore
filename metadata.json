@@ -1,6 +1,6 @@
 {
   "name": "Lavistore Kids - Mimos e Presentes Criativos",
-  "description": "Loja virtual encantadora de presentes criativos, papelaria fofa e mimos delicados Lavistore Kids.",
+  "description": "Loja virtual de presentes criativos, papelaria fofa e mimos delicados Lavistore Kids.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -212,7 +212,7 @@ export const ReturnPolicyModal: React.FC<ReturnPolicyModalProps> = ({
           <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 flex items-start gap-3 text-xs text-amber-950">
             <HelpCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold">Nosso compromisso de encantamento:</p>
+              <p className="font-bold">Nosso compromisso com você:</p>
               <p className="text-[11px] text-amber-900 leading-relaxed mt-0.5">
                 Queremos que sua experiência com a Lavistore seja sempre doce e acolhedora. Se tiver qualquer dúvida, nosso suporte humanizado está pronto para atender você com todo o carinho!
               </p>

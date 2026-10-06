@@ -771,7 +771,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   {hoverRating === 2 || (!hoverRating && newRating === 2) ? '2 estrelas - Regular' : ''}
                   {hoverRating === 3 || (!hoverRating && newRating === 3) ? '3 estrelas - Bom' : ''}
                   {hoverRating === 4 || (!hoverRating && newRating === 4) ? '4 estrelas - Muito bom' : ''}
-                  {hoverRating === 5 || (!hoverRating && newRating === 5) ? '5 estrelas - Amei! Encantador! 💖' : ''}
+                  {hoverRating === 5 || (!hoverRating && newRating === 5) ? '5 estrelas - Amei! Muito fofo! 💖' : ''}
                 </p>
               </div>
 

@@ -547,7 +547,7 @@ export const ContactFooterManager: React.FC<ContactFooterManagerProps> = ({
                       value={formData.footerCreditsText || DEFAULT_HOME_PAGE_CONFIG.footerCreditsText}
                       onChange={(e) => updateField('footerCreditsText', e.target.value)}
                       className="w-full px-3.5 py-2.5 bg-white border border-purple-200 rounded-xl text-xs sm:text-sm text-purple-950 font-medium focus:outline-none focus:ring-2 focus:ring-purple-400"
-                      placeholder="Ex: Desenvolvido com o encanto das 3 florzinhas ou Seu Nome / Agência"
+                      placeholder="Ex: Desenvolvido com o carinho das 3 florzinhas ou Seu Nome / Agência"
                     />
                     <div className="flex items-center gap-2 text-[11px] text-purple-800 bg-white/80 p-2.5 rounded-lg border border-purple-100">
                       <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />

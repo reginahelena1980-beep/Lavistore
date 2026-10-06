@@ -136,7 +136,7 @@ export const RIBBON_OPTIONS: RibbonOption[] = [
 
 export const CARD_TEMPLATES = [
   {
-    theme: 'Aniversário Encantado 🎂',
+    theme: 'Aniversário Especial 🎂',
     text: 'Que o seu novo ciclo seja repleto de beleza, doçura e momentos inesquecíveis quanto este presente! Parabéns com todo meu carinho.'
   },
   {

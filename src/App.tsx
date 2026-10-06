@@ -779,17 +779,19 @@ export default function App() {
 
       grouped.forEach((siblings) => {
         if (siblings.length === 0) return;
-        const baseName = siblings[0].produto;
-        const existing = products.find(
-          p => p.name.trim().toLowerCase() === baseName.trim().toLowerCase()
-        );
+        const baseKey = getGroupingKey(siblings[0].produto);
+        const existing = products.find(p => {
+          if (siblings.some(s => s.vitrineProductId && s.vitrineProductId === p.id)) return true;
+          if (siblings.some(s => s.id === p.biRecordId || (p.sizes && p.sizes.some(sz => sz.biRecordId === s.id)))) return true;
+          return getGroupingKey(p.name) === baseKey;
+        });
         const prod = createParentProductFromBiRecords(siblings[0], siblings, existing);
         restoredProducts.push(prod);
       });
 
       // Mescla com produtos que já existiam na vitrine que não estavam no BI
-      const restoredNames = new Set(restoredProducts.map(p => p.name.trim().toLowerCase()));
-      const otherExisting = products.filter(p => !restoredNames.has(p.name.trim().toLowerCase()));
+      const restoredKeys = new Set(restoredProducts.map(p => getGroupingKey(p.name)));
+      const otherExisting = products.filter(p => !restoredKeys.has(getGroupingKey(p.name)));
       const combined = [...restoredProducts, ...otherExisting];
 
       setProducts(combined);
@@ -841,7 +843,7 @@ export default function App() {
   };
 
   // CRUD Handlers for Administrator
-  const handleSaveProduct = (productData: Product) => {
+  const handleSaveProduct = async (productData: Product): Promise<boolean> => {
     let nextProducts: Product[] = [];
     setProducts(prev => {
       const existingIdx = prev.findIndex(p => p.id === productData.id);
@@ -895,7 +897,7 @@ export default function App() {
             return r;
           });
           safeSetItem('lavistore_bi_records', JSON.stringify(syncedBiRecords));
-          saveBiRecordsToFirestore(syncedBiRecords);
+          saveBiRecordsToFirestore(syncedBiRecords).catch(e => console.warn('[BI] Falha ao sincronizar biRecords:', e));
         }
       }
     } catch (biErr) {
@@ -904,8 +906,16 @@ export default function App() {
 
     setIsCreatingProduct(false);
     setEditingProduct(null);
-    showToast(`🌸 Mimo "${productData.name}" salvo com sucesso!`);
-    handlePublishToServer({ products: nextProducts, biRecords: syncedBiRecords }, false);
+
+    // Persistência autoritativa no Firestore antes de reportar sucesso
+    const persistenceSuccess = await handlePublishToServer({ products: nextProducts, biRecords: syncedBiRecords }, false);
+    if (persistenceSuccess) {
+      showToast(`🌸 Mimo "${productData.name}" salvo com sucesso!`);
+      return true;
+    } else {
+      showToast(`⚠️ Não foi possível salvar "${productData.name}" no Firestore. Verifique sua conexão com a nuvem.`);
+      return false;
+    }
   };
 
   // Quick stock update handler for Administrator
@@ -1479,7 +1489,7 @@ export default function App() {
                 {/* Catalog Subtitle */}
                 {selectedCategory === 'todos' ? (
                   <p className={`font-['Comfortaa'] text-slate-600 ${getFontSizeClass(homePageConfig.catalogSubtitle?.fontSize, 'xs')} ${getFontWeightClass(homePageConfig.catalogSubtitle?.isBold, false)}`}>
-                    {homePageConfig.catalogSubtitle?.text || 'Mimos especiais e embalagens exclusivas que transformam pequenos momentos em pura magia.'}
+                    {homePageConfig.catalogSubtitle?.text || 'Mimos especiais e embalagens exclusivas que transformam pequenos momentos em pura alegria.'}
                   </p>
                 ) : (
                   categories.find(c => c.id === selectedCategory)?.description ? (
@@ -1546,7 +1556,7 @@ export default function App() {
                   </h3>
 
                   <p className={`font-['Comfortaa'] text-purple-900 max-w-lg leading-relaxed ${getFontSizeClass(homePageConfig.promoDescription?.fontSize, 'xs')} ${getFontWeightClass(homePageConfig.promoDescription?.isBold, false)}`}>
-                    {homePageConfig.promoDescription?.text || 'Nossas sacolinhas amarelas exclusivas com laço de cetim, mimos favoritos selecionados, dedicatória especial e muito carinho para encantar!'}
+                    {homePageConfig.promoDescription?.text || 'Nossas sacolinhas amarelas exclusivas com laço de cetim, mimos favoritos selecionados, dedicatória especial e muito carinho em cada detalhe!'}
                   </p>
                 </div>
 
@@ -1812,7 +1822,7 @@ export default function App() {
                     {homePageConfig.aboutPillarsTitle || 'Nossos 4 Toques de Afeto em Cada Envio'}
                   </h3>
                   <p className="text-xs text-slate-600 font-['Comfortaa']">
-                    {homePageConfig.aboutPillarsSubtitle || 'Detalhes pensados com carinho para encantar quem você ama'}
+                    {homePageConfig.aboutPillarsSubtitle || 'Detalhes pensados com carinho para surpreender quem você ama'}
                   </p>
                 </div>
 
@@ -1837,7 +1847,7 @@ export default function App() {
                       {homePageConfig.aboutPillar2Title || 'Sacolinhas Amarelas'}
                     </h4>
                     <p className="text-xs text-slate-600 font-['Comfortaa'] leading-relaxed font-medium">
-                      {homePageConfig.aboutPillar2Desc || 'Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para encantar antes mesmo de abrir.'}
+                      {homePageConfig.aboutPillar2Desc || 'Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para surpreender antes mesmo de abrir.'}
                     </p>
                   </div>
 
@@ -1871,7 +1881,7 @@ export default function App() {
               <div className="bg-white/95 backdrop-blur-md rounded-3xl border-2 border-amber-200 p-8 sm:p-10 shadow-lg text-center space-y-4 max-w-2xl mx-auto">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold uppercase tracking-wider">
                   <Sparkles className="w-3.5 h-3.5 text-amber-600 fill-amber-300" />
-                  {homePageConfig.aboutCtaBadge || 'Pronta para Encantar?'}
+                  {homePageConfig.aboutCtaBadge || 'Pronta para Presentear?'}
                 </span>
                 <h3 className="font-['Mali'] text-2xl sm:text-3xl font-bold text-purple-950">
                   {homePageConfig.aboutCtaTitle || 'Venha conhecer nossos mimos e presentes'}

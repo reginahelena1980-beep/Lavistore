@@ -134,7 +134,7 @@
         "https://images.unsplash.com/photo-1559454403-b8fb88521f11?w=800&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80"
       ],
-      "description": "A definição exata de \"iti malia\" em forma de bolsa! ☁️✨ A nossa Bolsa Unicórnio é feita de pelúcia super macia, com detalhes cintilantes de estrelas e luas, cílios delicados e um chifre dourado encantador. Espaçosa e muito aconchegante, é a companheira perfeita para carregar os seus tesouros com muito estilo e fofura! 🌈💖",
+      "description": "A definição exata de \"iti malia\" em forma de bolsa! ☁️✨ A nossa Bolsa Unicórnio é feita de pelúcia super macia, com detalhes cintilantes de estrelas e luas, cílios delicados e um chifre dourado brilhante. Espaçosa e muito aconchegante, é a companheira perfeita para carregar os seus tesouros com muito estilo e fofura! 🌈💖",
       "features": [
         "Pelúcia hipoalergênica ultra macia",
         "Alça tiracolo resistente e ajustável",
@@ -180,7 +180,7 @@
         "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80"
       ],
-      "description": "Magia pura que cabe na palma da mão! 🫧✨ Com o nosso Tubo para Bolinha de Sabão, a diversão e a alegria estão garantidas. Os tubinhos vêm com tampas super fofas em formato de coração e estrelinha para você criar bolhas gigantes, brilhantes e cheias de encanto. Perfeito para colorir o dia! 🌈💖",
+      "description": "Magia pura que cabe na palma da mão! 🫧✨ Com o nosso Tubo para Bolinha de Sabão, a diversão e a alegria estão garantidas. Os tubinhos vêm com tampas super fofas em formato de coração e estrelinha para você criar bolhas gigantes, brilhantes e cheias de diversão. Perfeito para colorir o dia! 🌈💖",
       "features": [
         "Tampinha lúdica com varinha em relevo",
         "Fórmula especial que cria bolhas brilhantes e resistentes",
@@ -311,7 +311,7 @@
       "isBold": true
     },
     "promoDescription": {
-      "text": "Escolha a sacolinha amarela exclusiva, selecione os mimos favoritos, adicione uma dedicatória e encante quem você ama!",
+      "text": "Escolha a sacolinha amarela exclusiva, selecione os mimos favoritos, adicione uma dedicatória e surpreenda quem você ama!",
       "fontSize": "sm",
       "isBold": false
     },
@@ -398,7 +398,7 @@
     "aboutSolarDesc": "O estilo de desenho de criança com sorrisinhos meigos e genuínos",
     "aboutSolarBtnText": "Conhecer Nossos Mimos",
     "aboutPillarsTitle": "Nossos 4 Toques de Afeto em Cada Envio",
-    "aboutPillarsSubtitle": "Detalhes pensados com carinho para encantar todos os sentidos",
+    "aboutPillarsSubtitle": "Detalhes pensados com carinho para surpreender quem você ama",
     "aboutPillar1Icon": "🍯",
     "aboutPillar1Title": "Mimos Especiais",
     "aboutPillar1Desc": " ",

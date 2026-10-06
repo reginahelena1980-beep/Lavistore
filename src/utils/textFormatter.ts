@@ -166,7 +166,7 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
 
   // Reviews
   reviewsBadge: {
-    text: 'Clientes Encantadas',
+    text: 'Clientes Felizes',
     fontSize: 'xs',
     isBold: true
   },
@@ -205,7 +205,7 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   },
   footerDescription: 'Loja virtual brasileira focada em presentes criativos e mimos delicados.',
   companyLegalText: '© 2026 Lavistore Presentes e Mimos Criativos',
-  footerCreditsText: 'Desenvolvido com o encanto das 3 florzinhas',
+  footerCreditsText: 'Desenvolvido com o carinho das 3 florzinhas',
   showFooterCredits: true,
   sslSecurityText: 'SSL 256 Bits',
   pixDiscountText: 'PIX 5% OFF',
@@ -251,13 +251,13 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   aboutFlower3Subtitle: 'Afeto & Doçura',
   aboutFlower3Desc: 'Simboliza o amor colocado em cada laço e a sensação acolhedora de um abraço carinhoso.',
   aboutPillarsTitle: 'Nossos 4 Toques de Afeto em Cada Envio',
-  aboutPillarsSubtitle: 'Detalhes pensados com carinho para encantar quem você ama',
+  aboutPillarsSubtitle: 'Detalhes pensados com carinho para surpreender quem você ama',
   aboutPillar1Icon: '🛍️',
   aboutPillar1Title: 'Mimos Especiais',
   aboutPillar1Desc: 'Mimos e papelaria fofa selecionados com amor para alegrar o seu dia a dia.',
   aboutPillar2Icon: '🎀',
   aboutPillar2Title: 'Sacolinhas Amarelas',
-  aboutPillar2Desc: 'Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para encantar antes mesmo de abrir.',
+  aboutPillar2Desc: 'Nossa embalagem amarela ensolarada com laço de cetim nobre, pronta para surpreender antes mesmo de abrir.',
   aboutPillar3Icon: '💌',
   aboutPillar3Title: 'Dedicatórias',
   aboutPillar3Desc: 'Cartinhas afetivas e bilhetinhos personalizados para emocionar e marcar memórias para sempre.',
@@ -268,7 +268,7 @@ export const DEFAULT_HOME_PAGE_CONFIG: HomePageConfig = {
   aboutSolarTitle: 'Traços Infantis Feitos com Amor & Energia Solar',
   aboutSolarDesc: 'O estilo de desenho de criança com sorrisinhos meigos e o miolo amarelo brilhante celebram a pureza, a imaginação e a alegria genuína. Cada sacolinha amarela carrega esse raio de sol até você!',
   aboutSolarBtnText: 'Conhecer Nossos Mimos',
-  aboutCtaBadge: 'Pronta para Encantar?',
+  aboutCtaBadge: 'Pronta para Presentear?',
   aboutCtaTitle: 'Venha conhecer nossos mimos e presentes',
   aboutCtaDesc: 'Navegue pela nossa vitrine e monte sacolinhas personalizadas e espalhe sorrisos por onde passar!',
   aboutCtaBtn1: 'Ver Todos os Mimos no Catálogo',

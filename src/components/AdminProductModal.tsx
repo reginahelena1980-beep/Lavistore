@@ -30,7 +30,8 @@ import {
 } from 'lucide-react';
 import { Product, ProductSizeVariant, ProductColorVariant, Category, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES } from '../data/categories';
-import { safeSetItem, safeGetItem, safeRemoveItem, compressImage } from '../utils/storage';
+import { safeSetItem, safeGetItem, safeRemoveItem, compressImage, compressImageToBlob } from '../utils/storage';
+import { uploadProductImage, isFirebaseStorageReady } from '../services/firebase';
 import { 
   getGroupingKey, 
   normalizeBaseProductName, 
@@ -88,14 +89,14 @@ export interface AdminProductModalProps {
   isOpen: boolean;
   productToEdit: Product | null;
   onClose: () => void;
-  onSaveProduct: (product: Product) => void;
+  onSaveProduct: (product: Product) => Promise<boolean> | void;
   onDeleteProduct?: (productId: string) => void;
   categories?: Category[];
   // Integração unificada com a Planilha BI:
   biRecord?: BiProductCalculatedRecord | null;
   allBiRecords?: BiProductCalculatedRecord[];
-  onPublishBiRecord?: (record: BiProductCalculatedRecord, productData: Partial<Product>) => void;
-  onUnpublishBiRecord?: (recordId: string, productId?: string) => void;
+  onPublishBiRecord?: (record: BiProductCalculatedRecord, productData: Partial<Product>) => Promise<boolean> | void;
+  onUnpublishBiRecord?: (recordId: string, productId?: string) => Promise<boolean> | void;
   onViewLiveProduct?: (product: Product) => void;
 }
 
@@ -150,6 +151,8 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
   const [newFeatureText, setNewFeatureText] = useState('');
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
@@ -346,7 +349,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
         rating: 0,
         reviewCount: 0,
         images: initialPhotos,
-        description: foundBi.descricao || `Lindo mimo ${cleanBaseName} da Lavistore! Perfeito para presentear quem você ama com muito afeto, delicadeza e encanto. ✨💖`,
+        description: foundBi.descricao || `Lindo mimo ${cleanBaseName} da Lavistore! Perfeito para presentear quem você ama com muito afeto, delicadeza e carinho. ✨💖`,
         features: [
           useSizes ? `Variações disponíveis na planilha: ${siblings.map(s => s.tamCor).join(', ')}` : `Tam/Cor: ${foundBi.tamCor || 'Único'}`,
           'Item selecionado com carinho pela Lavistore',
@@ -401,7 +404,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
           rating: 0,
           reviewCount: 0,
           images: ['https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800&auto=format&fit=crop&q=80'],
-          description: 'Mimo especial e cheio de carinho para encantar o seu dia ou presentear quem você ama.',
+          description: 'Mimo especial e cheio de carinho para alegrar o seu dia ou presentear quem você ama.',
           features: ['Design exclusivo Lavistore', 'Embalado com laço de cetim especial'],
           tag: 'Novidade ✨',
           dimensions: '',
@@ -663,52 +666,88 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
       setErrorMessage('A imagem da cor deve ter no máximo 8MB.');
       return;
     }
+    setErrorMessage(null);
     try {
-      const compressed = await compressImage(file, 500, 0.8);
-      handleUpdateColorVariant(id, 'imageUrl', compressed);
+      const compressedBlob = await compressImageToBlob(file, 500, 0.8);
+      const downloadUrl = await uploadProductImage(compressedBlob, `cor_${id}`);
+      handleUpdateColorVariant(id, 'imageUrl', downloadUrl);
     } catch (e: any) {
-      setErrorMessage(e.message || 'Erro ao processar imagem da cor.');
+      console.warn('[AdminProductModal] Upload de imagem de cor via Storage indisponível:', e?.message || e);
+      setErrorMessage(
+        'O Firebase Storage ainda não foi ativado no projeto lavistorekides (Bucket indisponível). ' +
+        'Para manter o banco de dados leve e evitar exceder limites do Firestore, utilize uma URL HTTPS no campo de cor.'
+      );
     }
   };
 
   // MULTIPLE PHOTOS MANAGEMENT
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach(async (file: File) => {
+    setIsUploadingImage(true);
+    setErrorMessage(null);
+
+    const fileList = Array.from(files);
+    e.target.value = ''; // Reset input so same file can be selected again if needed
+
+    for (const file of fileList) {
       if (!file.type.startsWith('image/')) {
-        setErrorMessage('Por favor selecione apenas arquivos de imagem.');
-        return;
+        setErrorMessage('Por favor selecione apenas arquivos de imagem válidos.');
+        continue;
       }
 
       if (file.size > 10 * 1024 * 1024) {
         setErrorMessage('A imagem selecionada é muito pesada (máx 10MB).');
-        return;
+        continue;
       }
 
       try {
-        const compressedBase64 = await compressImage(file, 1000, 0.82);
+        // 1. Comprime a imagem no cliente gerando um Blob JPEG otimizado
+        const compressedBlob = await compressImageToBlob(file, 1000, 0.82);
+
+        // 2. Faz o upload binário para o Firebase Storage para obter a URL HTTPS (Zero Base64 no Firestore)
+        const downloadUrl = await uploadProductImage(compressedBlob, formData.name || 'mimo');
+
         setFormData(prev => ({
           ...prev,
-          images: [...(prev.images || []), compressedBase64]
+          images: [...(prev.images || []), downloadUrl]
         }));
       } catch (err: any) {
-        setErrorMessage(err.message || 'Erro ao comprimir imagem.');
+        console.error('[AdminProductModal] Erro ao enviar foto para o Storage:', err?.message || err);
+        // Regra de Blindagem (Problem 3): NUNCA gravar Base64 no Firestore quando o Storage não estiver provisionado
+        setErrorMessage(
+          'O Firebase Storage ainda não está ativado no projeto lavistorekides (Bucket indisponível no Google Cloud). ' +
+          'Para proteger a integridade do banco de dados e evitar o erro de limite de 1MB do Firestore, ' +
+          'o armazenamento direto em Base64 foi bloqueado. Por favor, utilize uma URL HTTPS de imagem (ex: Unsplash, Imgur, CDN) ' +
+          'no campo "Adicionar Foto por URL" abaixo.'
+        );
       }
-    });
+    }
 
-    // Reset input so same file can be selected again if needed
-    e.target.value = '';
+    setIsUploadingImage(false);
   };
 
   const handleAddImageUrl = () => {
-    if (!imageUrlInput.trim()) return;
+    const url = imageUrlInput.trim();
+    if (!url) return;
+
+    if (url.startsWith('data:')) {
+      setErrorMessage('Para proteger o banco de dados contra limites de tamanho de documento, URLs em formato Base64 não são permitidas. Por favor, utilize uma URL HTTPS.');
+      return;
+    }
+
+    if (!url.startsWith('https://') && !url.startsWith('http://')) {
+      setErrorMessage('A URL da foto deve ser um link válido iniciando com https:// ou http://');
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
-      images: [...(prev.images || []), imageUrlInput.trim()]
+      images: [...(prev.images || []), url]
     }));
     setImageUrlInput('');
+    setErrorMessage(null);
   };
 
   const handleRemoveImage = (index: number) => {
@@ -793,7 +832,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
       reviewCount: formData.reviewCount ?? 0,
       images: formData.images,
       description: formData.description?.trim() || 'Mimo especial Lavistore.',
-      features: formData.features && formData.features.length > 0 ? formData.features : ['Design encantador com carinho'],
+      features: formData.features && formData.features.length > 0 ? formData.features : ['Design especial feito com carinho'],
       stock: calculatedStock,
       tag: formData.tag?.trim() || undefined,
       dimensions: formData.dimensions?.trim() || undefined,
@@ -818,65 +857,89 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
       autoHideWhenOutOfStock: formData.autoHideWhenOutOfStock !== undefined ? formData.autoHideWhenOutOfStock : true,
     };
 
-    // Clean up draft on successful save
-    safeRemoveItem('lavistore_product_draft');
+    setIsSaving(true);
+    setErrorMessage(null);
 
-    if (currentBiRecord && onPublishBiRecord) {
-      onPublishBiRecord(currentBiRecord, finalProduct);
-    } else {
-      if (currentBiRecord || productToEdit) {
-        try {
-          let list: BiProductCalculatedRecord[] = allBiRecords || [];
-          if (list.length === 0) {
-            const raw = safeGetItem('lavistore_bi_records');
-            if (raw) list = JSON.parse(raw);
+    try {
+      if (currentBiRecord && onPublishBiRecord) {
+        const res = await onPublishBiRecord(currentBiRecord, finalProduct);
+        if (res === false) {
+          setErrorMessage('Não foi possível salvar e persistir o produto no Firestore. Tente novamente.');
+          setIsSaving(false);
+          return;
+        }
+      } else {
+        if (currentBiRecord || productToEdit) {
+          try {
+            let list: BiProductCalculatedRecord[] = allBiRecords || [];
+            if (list.length === 0) {
+              const raw = safeGetItem('lavistore_bi_records');
+              if (raw) list = JSON.parse(raw);
+            }
+            if (list.length > 0) {
+              const targetId = currentBiRecord?.id || productToEdit?.biRecordId;
+              const targetName = currentBiRecord?.produto || productToEdit?.name || finalProduct.name;
+              const pKey = getGroupingKey(targetName);
+              const updatedList = list.map(item => {
+                if (
+                  (targetId && item.id === targetId) ||
+                  (finalProduct.id && item.vitrineProductId === finalProduct.id) ||
+                  getGroupingKey(item.produto) === pKey
+                ) {
+                  return {
+                    ...item,
+                    publishedToVitrine: finalProduct.isPublished !== false,
+                    vitrineProductId: finalProduct.id,
+                    vitrineImageUrl: finalProduct.images[0] || item.vitrineImageUrl,
+                    vitrineCategory: finalProduct.category || item.vitrineCategory,
+                    vitrineTag: finalProduct.tag || item.vitrineTag
+                  };
+                }
+                return item;
+              });
+              safeSetItem('lavistore_bi_records', JSON.stringify(updatedList));
+              saveBiRecordsToFirestore(updatedList).catch(e => console.warn('[BI] Falha ao sincronizar biRecords:', e));
+              fetch('/api/bi/records', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ records: updatedList })
+              }).catch(() => {});
+            }
+          } catch (err) {
+            console.warn('Erro ao sincronizar registro do BI:', err);
           }
-          if (list.length > 0) {
-            const targetId = currentBiRecord?.id || productToEdit?.biRecordId;
-            const targetName = currentBiRecord?.produto || productToEdit?.name || finalProduct.name;
-            const pKey = getGroupingKey(targetName);
-            const updatedList = list.map(item => {
-              if (
-                (targetId && item.id === targetId) ||
-                (finalProduct.id && item.vitrineProductId === finalProduct.id) ||
-                getGroupingKey(item.produto) === pKey
-              ) {
-                return {
-                  ...item,
-                  publishedToVitrine: finalProduct.isPublished !== false,
-                  vitrineProductId: finalProduct.id,
-                  vitrineImageUrl: finalProduct.images[0] || item.vitrineImageUrl,
-                  vitrineCategory: finalProduct.category || item.vitrineCategory,
-                  vitrineTag: finalProduct.tag || item.vitrineTag
-                };
-              }
-              return item;
-            });
-            safeSetItem('lavistore_bi_records', JSON.stringify(updatedList));
-            saveBiRecordsToFirestore(updatedList);
-            fetch('/api/bi/records', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ records: updatedList })
-            }).catch(() => {});
-          }
-        } catch (err) {
-          console.warn('Erro ao sincronizar registro do BI:', err);
+        }
+        const res = await onSaveProduct(finalProduct);
+        if (res === false) {
+          setErrorMessage('Não foi possível salvar e persistir o produto no Firestore. Tente novamente.');
+          setIsSaving(false);
+          return;
         }
       }
-      onSaveProduct(finalProduct);
+
+      // Clean up draft on successful save
+      safeRemoveItem('lavistore_product_draft');
+      onClose();
+    } catch (err: any) {
+      console.error('[AdminProductModal] Falha ao salvar produto no Firestore:', err?.message || err);
+      setErrorMessage('Erro ao persistir produto no banco de dados. Verifique a conexão com a nuvem e tente novamente.');
+    } finally {
+      setIsSaving(false);
     }
-    onClose();
   };
 
-  const handleUnpublish = () => {
+  const handleUnpublish = async () => {
     const targetId = formData.id || productToEdit?.id;
     if (currentBiRecord && onUnpublishBiRecord) {
-      onUnpublishBiRecord(currentBiRecord.id, targetId);
+      await onUnpublishBiRecord(currentBiRecord.id, targetId);
       onClose();
     } else if (productToEdit) {
       const unpublishedProduct: Product = { ...productToEdit, isPublished: false };
-      onSaveProduct(unpublishedProduct);
+      const res = await onSaveProduct(unpublishedProduct);
+      if (res === false) {
+        setErrorMessage('Não foi possível despublicar o produto no Firestore.');
+        return;
+      }
 
       // Sincroniza também no armazenamento do BI para manter coerência total
       try {
@@ -898,7 +961,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
             return item;
           });
           safeSetItem('lavistore_bi_records', JSON.stringify(updatedList));
-          saveBiRecordsToFirestore(updatedList);
+          saveBiRecordsToFirestore(updatedList).catch(() => {});
           fetch('/api/bi/records', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2120,11 +2183,11 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
             )}
           </div>
 
-          {/* SECTION 6: DESCRIÇÃO & DIFERENCIAIS ENCANTADORES */}
+          {/* SECTION 6: DESCRIÇÃO & DIFERENCIAIS ESPECIAIS */}
           <div className="space-y-4">
             <h3 className="font-['Mali'] text-base font-bold text-purple-950 flex items-center gap-2 border-b border-pink-100 pb-1.5">
               <Layers className="w-4 h-4 text-pink-500" />
-              <span>6. Descrição & Diferenciais Encantadores na Loja</span>
+              <span>6. Descrição & Diferenciais Especiais na Loja</span>
             </h3>
 
             {/* Descrição */}
@@ -2296,14 +2359,24 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#F43F5E] via-[#FB923C] via-[#FACC15] to-[#06B6D4] hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-2 border-2 border-white/60 active:scale-95 transition-transform cursor-pointer"
+                disabled={isSaving || isUploadingImage}
+                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#F43F5E] via-[#FB923C] via-[#FACC15] to-[#06B6D4] hover:opacity-95 text-white font-bold text-xs sm:text-sm shadow-md flex items-center gap-2 border-2 border-white/60 active:scale-95 transition-transform cursor-pointer disabled:opacity-50"
               >
-                <Check className="w-4 h-4" />
-                <span>
-                  {currentBiRecord
-                    ? (isPublishedOnVitrine ? 'Atualizar Mimo na Vitrine 🌸' : 'Salvar e Publicar na Vitrine 🌸')
-                    : (isEditing ? 'Salvar Alterações na Vitrine' : 'Cadastrar Mimo na Vitrine')}
-                </span>
+                {isSaving ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Salvando no Firestore...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>
+                      {currentBiRecord
+                        ? (isPublishedOnVitrine ? 'Atualizar Mimo na Vitrine 🌸' : 'Salvar e Publicar na Vitrine 🌸')
+                        : (isEditing ? 'Salvar Alterações na Vitrine' : 'Cadastrar Mimo na Vitrine')}
+                    </span>
+                  </>
+                )}
               </button>
             </div>
           </div>

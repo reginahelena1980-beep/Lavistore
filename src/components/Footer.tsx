@@ -471,7 +471,7 @@ export const Footer: React.FC<FooterProps> = ({
             <div className="flex items-center gap-1.5 text-purple-900 font-semibold">
               {(!config?.footerCreditsText || config?.footerCreditsText.toLowerCase().includes('3 florzinhas') || config?.footerCreditsText.toLowerCase().includes('3 flor zinhas')) ? (
                 <p className="flex items-center gap-1">
-                  <span>{config?.footerCreditsText ? config.footerCreditsText.replace(/3\s*flor\s*zinhas/i, '').trim() : 'Desenvolvido com o encanto das'}</span>
+                  <span>{config?.footerCreditsText ? config.footerCreditsText.replace(/3\s*flor\s*zinhas/i, '').trim() : 'Desenvolvido com o carinho das'}</span>
                   <span className="text-[#8B5CF6] font-bold">3</span>
                   <span className="text-[#06B6D4] font-bold">flor</span>
                   <span className="text-[#F43F5E] font-bold">zinhas</span>

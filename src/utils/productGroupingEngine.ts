@@ -66,6 +66,111 @@ export function findSiblingBiRecords(
 }
 
 /**
+ * Realiza a mesclagem NÃO-DESTRUTIVA entre registros importados do Google Sheets / Excel
+ * e os registros existentes no Lavistore (BI e Vitrine).
+ *
+ * ORDEM DE CORRESPONDÊNCIA ESTÁVEL:
+ * 1. Identificador de registro existente estável (se coincide e não for apenas recém-gerado)
+ * 2. Vínculo por vitrineProductId existente
+ * 3. Chave de agrupamento normalizada + Tam/Cor
+ * 4. Chave de agrupamento normalizada quando não há variação específica
+ *
+ * CAMPOS DA PLANILHA (Atualizados a cada sincronização):
+ * - Quantidades (comprada, vendida, saldo)
+ * - Custos (total, unitário, venda, estoque)
+ * - Preço de venda
+ * - Descrição e nome de produto
+ * - Tam/Cor
+ * - Indicadores financeiros calculados pelo BI
+ *
+ * CAMPOS DA VITRINE LAVISTORE (Estritamente preservados):
+ * - id estável existente
+ * - publishedToVitrine
+ * - vitrineProductId
+ * - vitrineImageUrl
+ * - vitrineCategory
+ * - vitrineTag
+ * - autoHideWhenOutOfStock
+ */
+export function mergeBiRecordsNonDestructive(
+  incomingRecords: BiProductCalculatedRecord[],
+  existingRecords: BiProductCalculatedRecord[] = []
+): BiProductCalculatedRecord[] {
+  if (!incomingRecords || incomingRecords.length === 0) {
+    return existingRecords || [];
+  }
+  if (!existingRecords || existingRecords.length === 0) {
+    return incomingRecords;
+  }
+
+  const usedExistingIds = new Set<string>();
+
+  const mergedList: BiProductCalculatedRecord[] = incomingRecords.map(incoming => {
+    let match: BiProductCalculatedRecord | undefined;
+
+    // 1. Identificador de registro estável existente
+    if (incoming.id) {
+      match = existingRecords.find(e => !usedExistingIds.has(e.id) && e.id === incoming.id);
+    }
+
+    // 2. Vínculo por vitrineProductId
+    if (!match && incoming.vitrineProductId) {
+      match = existingRecords.find(e => !usedExistingIds.has(e.id) && e.vitrineProductId === incoming.vitrineProductId);
+    }
+
+    const incomingKey = getGroupingKey(incoming.produto);
+    const incomingTam = (incoming.tamCor || 'Único').trim().toLowerCase();
+
+    // 3. Chave normalizada de agrupamento + Tam/Cor
+    if (!match && incomingKey) {
+      match = existingRecords.find(e => {
+        if (usedExistingIds.has(e.id)) return false;
+        const eKey = getGroupingKey(e.produto);
+        if (eKey !== incomingKey) return false;
+        const eTam = (e.tamCor || 'Único').trim().toLowerCase();
+        return eTam === incomingTam;
+      });
+    }
+
+    // 4. Chave normalizada de agrupamento (produto base quando não há variação ou primeiro irmão compatível)
+    if (!match && incomingKey) {
+      match = existingRecords.find(e => {
+        if (usedExistingIds.has(e.id)) return false;
+        const eKey = getGroupingKey(e.produto);
+        return eKey === incomingKey;
+      });
+    }
+
+    if (match) {
+      usedExistingIds.add(match.id);
+
+      // Preserva metadados da vitrine existentes enquanto atualiza métricas e dados da planilha
+      return {
+        ...incoming,
+        id: match.id,
+        publishedToVitrine: match.publishedToVitrine !== undefined ? match.publishedToVitrine : Boolean(incoming.publishedToVitrine),
+        vitrineProductId: match.vitrineProductId || incoming.vitrineProductId,
+        vitrineImageUrl: match.vitrineImageUrl || incoming.vitrineImageUrl,
+        vitrineCategory: match.vitrineCategory || incoming.vitrineCategory,
+        vitrineTag: match.vitrineTag || incoming.vitrineTag,
+        autoHideWhenOutOfStock: match.autoHideWhenOutOfStock !== undefined ? match.autoHideWhenOutOfStock : (incoming.autoHideWhenOutOfStock ?? true),
+      };
+    }
+
+    // Novo registro vindo da planilha sem correspondência anterior
+    return {
+      ...incoming,
+      publishedToVitrine: incoming.publishedToVitrine !== undefined ? incoming.publishedToVitrine : false,
+      autoHideWhenOutOfStock: incoming.autoHideWhenOutOfStock !== undefined ? incoming.autoHideWhenOutOfStock : true
+    };
+  });
+
+  // Preserva registros existentes que não foram contemplados na planilha atual importada
+  const unmatchedExisting = existingRecords.filter(e => !usedExistingIds.has(e.id));
+  return [...mergedList, ...unmatchedExisting];
+}
+
+/**
  * Cria ou atualiza o Produto Pai da Vitrine a partir do grupo de registros filhos da planilha
  */
 export function createParentProductFromBiRecords(

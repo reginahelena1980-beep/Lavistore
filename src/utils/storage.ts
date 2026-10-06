@@ -299,3 +299,71 @@ export async function compressImage(
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * Compressor de imagens no cliente retornando Blob binário
+ * para upload direto ao Firebase Storage (Zero Base64 no banco de dados).
+ */
+export async function compressImageToBlob(
+  file: File,
+  maxDimension: number = 1000,
+  quality: number = 0.8
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('O arquivo selecionado não é uma imagem válida.'));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo da imagem.'));
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) {
+        reject(new Error('Falha ao processar arquivo de imagem.'));
+        return;
+      }
+
+      const img = new Image();
+      img.onerror = () => reject(new Error('Falha ao renderizar imagem para compressão.'));
+      img.onload = () => {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Falha ao obter contexto 2D para renderização da imagem.'));
+          return;
+        }
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Falha ao gerar blob comprimido da imagem.'));
+          }
+        }, 'image/jpeg', quality);
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  });
+}

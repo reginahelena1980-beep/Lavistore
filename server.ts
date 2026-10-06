@@ -2793,7 +2793,7 @@ function generateOrderEmailHtml(order: any, storeEmail: string): string {
               🌸 Nova Venda Concluída!
             </span>
             <h1 style="margin: 0; font-size: 26px; font-weight: 800;">Lavistore • Presentes & Mimos</h1>
-            <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.95;">Você recebeu um novo pedido encantado na loja virtual.</p>
+            <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.95;">Você recebeu um novo pedido na loja virtual.</p>
           </td>
         </tr>
 

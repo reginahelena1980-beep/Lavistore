@@ -17,6 +17,7 @@ import {
   getDocFromServer 
 } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
+import { getStorage, ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
 import firebaseAppletConfig from '../../firebase-applet-config.json';
 
 export enum OperationType {
@@ -58,6 +59,7 @@ export const DEFAULT_FIREBASE_CONFIG = {
 let appInstance: FirebaseApp | null = null;
 let firestoreInstance: Firestore | null = null;
 let authInstance: Auth | null = null;
+let storageInstance: FirebaseStorage | null = null;
 let isConfigured = false;
 
 function resolveFirebaseConfig() {
@@ -120,6 +122,16 @@ try {
     }
 
     authInstance = getAuth(appInstance);
+
+    if (config.storageBucket) {
+      try {
+        storageInstance = getStorage(appInstance, `gs://${config.storageBucket.replace(/^gs:\/\//, '')}`);
+        console.info('[Firebase] Storage configurado com bucket:', config.storageBucket);
+      } catch (sErr: any) {
+        console.warn('[Firebase Storage] Aviso ao inicializar Storage:', sErr?.message || sErr);
+      }
+    }
+
     isConfigured = true;
     console.info('[Firebase] Firestore inicializado com sucesso para o projeto:', config.projectId);
 
@@ -200,8 +212,47 @@ export function isFirebaseReady(): boolean {
   return isConfigured && firestoreInstance !== null;
 }
 
+export function isFirebaseStorageReady(): boolean {
+  return isConfigured && storageInstance !== null;
+}
+
 export function getFirestoreDb(): Firestore | null {
   return firestoreInstance;
 }
 
-export { firestoreInstance as db, authInstance as auth, appInstance as app };
+export function getStorageInstance(): FirebaseStorage | null {
+  return storageInstance;
+}
+
+/**
+ * Faz upload seguro de imagem comprimida para o Firebase Storage
+ * e retorna exclusivamente a URL HTTPS pública de download.
+ * NUNCA armazena Data URL / Base64 no Firestore.
+ */
+export async function uploadProductImage(
+  fileOrBlob: File | Blob,
+  filenamePrefix: string = 'product'
+): Promise<string> {
+  if (!storageInstance) {
+    throw new Error('STORAGE_NOT_CONFIGURED: O Firebase Storage não está disponível ou configurado.');
+  }
+
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const cleanPrefix = filenamePrefix.toLowerCase().replace(/[^a-z0-9_-]/g, '_').substring(0, 30);
+  const filePath = `products/${cleanPrefix}_${timestamp}_${randomSuffix}.jpg`;
+  const storageRef = ref(storageInstance, filePath);
+
+  try {
+    const snapshot = await uploadBytes(storageRef, fileOrBlob, {
+      contentType: 'image/jpeg'
+    });
+    const downloadUrl = await getDownloadURL(snapshot.ref);
+    return downloadUrl;
+  } catch (err: any) {
+    console.error('[Firebase Storage] Erro no upload da imagem:', err?.message || err);
+    throw err;
+  }
+}
+
+export { firestoreInstance as db, authInstance as auth, appInstance as app, storageInstance as storage };

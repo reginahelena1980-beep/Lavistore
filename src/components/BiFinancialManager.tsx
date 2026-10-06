@@ -47,7 +47,8 @@ import {
 import {
   findSiblingBiRecords,
   createParentProductFromBiRecords,
-  getGroupingKey
+  getGroupingKey,
+  mergeBiRecordsNonDestructive
 } from '../utils/productGroupingEngine';
 import { PublishToVitrineModal } from './PublishToVitrineModal';
 import { GoogleSheetsModal } from './GoogleSheetsModal';
@@ -65,14 +66,13 @@ import { OrderData } from '../types';
 import { 
   subscribeToBiRecords, 
   fetchBiRecordsFromFirestore, 
-  saveBiRecordsToFirestore,
-  updateProductPublicationStatusInFirestore 
+  saveBiRecordsToFirestore
 } from '../services/firestoreConfigService';
 import { safeSetItem, safeGetItem } from '../utils/storage';
 
 interface BiFinancialManagerProps {
   products?: Product[];
-  onSaveProduct?: (product: Product) => void;
+  onSaveProduct?: (product: Product) => Promise<boolean> | void;
   onDeleteProduct?: (productId: string) => void;
   categories?: Category[];
   onViewProductLive?: (product: Product) => void;
@@ -303,8 +303,8 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         return;
       }
 
-      // Se houver registros válidos, mescla ou substitui no banco
-      const mergedRecords = [...parsed.records];
+      // Mesclagem NÃO-DESTRUTIVA: Preserva metadados da vitrine (fotos, publicação, IDs de vitrine)
+      const mergedRecords = mergeBiRecordsNonDestructive(parsed.records, records);
       await persistRecords(mergedRecords);
 
       setUploadSuccess(`Planilha "${file.name}" importada com sucesso! ${parsed.records.length} produtos processados e apurados.`);
@@ -366,8 +366,9 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         throw new Error('Nenhum registro de produto válido pôde ser importado da planilha.');
       }
 
-      // 3. Persiste os registros calculados no banco de dados da aplicação
-      await persistRecords(result.records);
+      // 3. Mesclagem NÃO-DESTRUTIVA: Preserva metadados da vitrine (fotos, publicação, IDs de vitrine)
+      const mergedRecords = mergeBiRecordsNonDestructive(result.records, records);
+      await persistRecords(mergedRecords);
 
       const now = new Date();
       const syncTimestamp = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
@@ -637,12 +638,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       );
     }
 
-    // 2. Notifica o componente pai para atualizar a lista soberana de produtos
-    if (onSaveProduct) {
-      onSaveProduct(productToSave);
-    }
-
-    // 3. Atualiza os registros do BI da família do produto sincronizando publishedToVitrine
+    // 2. Atualiza os registros do BI da família do produto sincronizando publishedToVitrine
     const updatedRecords = records.map(item => {
       if (siblingIds.has(item.id) || item.id === record.id) {
         return {
@@ -657,28 +653,32 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       return item;
     });
 
-    // 4. Atualiza o estado local imediatamente
+    // 3. Atualiza o estado local de BI imediatamente
     setRecords(updatedRecords);
     if (onRecordsChange) {
       onRecordsChange(updatedRecords);
     }
 
-    // 5. Persiste imediatamente no Firebase Firestore (settings/bi_data) e cache/API
+    // 4. Persiste os registros de BI no Firestore (coleção bi_data)
     await persistRecords(updatedRecords);
 
-    // 6. Persiste também a atualização atômica de publicação no Firestore (settings/store_config)
-    const updatedProductsList = products.map(p => p.id === productToSave.id ? productToSave : p);
-    if (!updatedProductsList.some(p => p.id === productToSave.id)) {
-      updatedProductsList.unshift(productToSave);
+    // 5. Salva o produto através do pipeline autoritativo único em App.tsx (elimina escritas concorrentes em store_config)
+    let saveSuccess = true;
+    if (onSaveProduct) {
+      const res = await onSaveProduct(productToSave);
+      if (res === false) {
+        saveSuccess = false;
+      }
     }
-    await updateProductPublicationStatusInFirestore(
-      productToSave.id,
-      targetPublished,
-      updatedProductsList,
-      updatedRecords
-    );
 
-    // 7. Feedback amigável para o lojista
+    // 6. Feedback amigável para o lojista condicionado ao sucesso da persistência
+    if (!saveSuccess) {
+      if (onNotify) {
+        onNotify(`⚠️ Falha ao salvar no Firestore. A alteração de "${productToSave.name}" não pôde ser sincronizada.`);
+      }
+      return;
+    }
+
     if (onNotify) {
       if (targetPublished) {
         onNotify(`✨ Mimo "${productToSave.name}" publicado na vitrine da loja com sucesso!`);
@@ -709,10 +709,6 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       }
     );
 
-    if (onSaveProduct) {
-      onSaveProduct(productToSave);
-    }
-
     // Marca todas as linhas irmãs da planilha como publicadas ou despublicadas sincronizadas
     const siblingIds = new Set(effectiveSiblings.map(s => s.id));
     const newRecords = records.map(item => {
@@ -733,19 +729,23 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
     if (onRecordsChange) onRecordsChange(newRecords);
     await persistRecords(newRecords);
 
-    // Persiste também a atualização atômica no Firestore
-    const updatedProductsList = products.map(p => p.id === productToSave.id ? productToSave : p);
-    if (!updatedProductsList.some(p => p.id === productToSave.id)) {
-      updatedProductsList.unshift(productToSave);
+    // Salva o produto através do pipeline autoritativo único em App.tsx (elimina escritas concorrentes)
+    let saveSuccess = true;
+    if (onSaveProduct) {
+      const res = await onSaveProduct(productToSave);
+      if (res === false) {
+        saveSuccess = false;
+      }
     }
-    await updateProductPublicationStatusInFirestore(
-      productToSave.id,
-      targetPublished,
-      updatedProductsList,
-      newRecords
-    );
 
     setRecordToPublish(null);
+
+    if (!saveSuccess) {
+      if (onNotify) {
+        onNotify(`⚠️ Falha ao salvar no Firestore. As configurações de "${productToSave.name}" não foram persistidas.`);
+      }
+      return;
+    }
 
     if (onNotify) {
       if (!targetPublished) {
@@ -771,28 +771,28 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       ? products.find(p => p.id === productId || p.biRecordId === recordId)
       : getMatchingProduct(rec);
 
-    let updatedProduct: Product | null = null;
-    if (targetProd && onSaveProduct) {
-      updatedProduct = { ...targetProd, isPublished: false };
-      onSaveProduct(updatedProduct);
-    }
-
     const updated = records.map(r => (siblingIds.has(r.id) || r.id === recordId) ? { ...r, publishedToVitrine: false } : r);
     setRecords(updated);
     if (onRecordsChange) onRecordsChange(updated);
     await persistRecords(updated);
 
-    if (targetProd) {
-      const updatedProductsList = products.map(p => p.id === targetProd.id ? { ...p, isPublished: false } : p);
-      await updateProductPublicationStatusInFirestore(
-        targetProd.id,
-        false,
-        updatedProductsList,
-        updated
-      );
+    let saveSuccess = true;
+    if (targetProd && onSaveProduct) {
+      const updatedProduct = { ...targetProd, isPublished: false };
+      const res = await onSaveProduct(updatedProduct);
+      if (res === false) {
+        saveSuccess = false;
+      }
     }
 
     setRecordToPublish(null);
+
+    if (!saveSuccess) {
+      if (onNotify) {
+        onNotify(`⚠️ Falha ao despublicar no Firestore. Verifique sua conexão com a nuvem.`);
+      }
+      return;
+    }
 
     if (onNotify) {
       onNotify(`Mimo "${rec.produto}" e suas variações foram despublicados da vitrine dos clientes.`);
