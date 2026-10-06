@@ -802,7 +802,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     onClose();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name?.trim()) {
       setErrorMessage('Por favor, informe o nome do produto.');

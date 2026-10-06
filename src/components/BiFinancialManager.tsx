@@ -676,7 +676,7 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       if (onNotify) {
         onNotify(`⚠️ Falha ao salvar no Firestore. A alteração de "${productToSave.name}" não pôde ser sincronizada.`);
       }
-      return;
+      return false;
     }
 
     if (onNotify) {
@@ -686,10 +686,11 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         onNotify(`Mimo "${productToSave.name}" e suas variações foram despublicados da vitrine dos clientes.`);
       }
     }
+    return true;
   };
 
   // Publica ou atualiza o produto na Vitrine do E-commerce com inteligência de agrupamento Pai/Filho
-  const handlePublishToVitrine = async (updatedRecord: BiProductCalculatedRecord, productData: Partial<Product>) => {
+  const handlePublishToVitrine = async (updatedRecord: BiProductCalculatedRecord, productData: Partial<Product>): Promise<boolean> => {
     const existing = getMatchingProduct(updatedRecord);
     
     // Identifica automaticamente todas as linhas irmãs da família do produto pelo nome principal (ex: P, M, G, GG)
@@ -738,14 +739,14 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       }
     }
 
-    setRecordToPublish(null);
-
     if (!saveSuccess) {
       if (onNotify) {
         onNotify(`⚠️ Falha ao salvar no Firestore. As configurações de "${productToSave.name}" não foram persistidas.`);
       }
-      return;
+      return false;
     }
+
+    setRecordToPublish(null);
 
     if (onNotify) {
       if (!targetPublished) {
@@ -756,12 +757,13 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
         onNotify(`✨ Mimo "${productToSave.name}" publicado na vitrine com sucesso! Estoque: ${productToSave.stock} un.`);
       }
     }
+    return true;
   };
 
   // Despublica o produto da Vitrine (remove da visão pública dos clientes mantendo os dados no BI)
-  const handleUnpublishFromVitrine = async (recordId: string, productId?: string) => {
+  const handleUnpublishFromVitrine = async (recordId: string, productId?: string): Promise<boolean> => {
     const rec = records.find(r => r.id === recordId);
-    if (!rec) return;
+    if (!rec) return false;
 
     const siblings = findSiblingBiRecords(rec, records);
     const siblingIds = new Set((siblings.length > 0 ? siblings : [rec]).map(s => s.id));
@@ -785,18 +787,19 @@ export const BiFinancialManager: React.FC<BiFinancialManagerProps> = ({
       }
     }
 
-    setRecordToPublish(null);
-
     if (!saveSuccess) {
       if (onNotify) {
         onNotify(`⚠️ Falha ao despublicar no Firestore. Verifique sua conexão com a nuvem.`);
       }
-      return;
+      return false;
     }
+
+    setRecordToPublish(null);
 
     if (onNotify) {
       onNotify(`Mimo "${rec.produto}" e suas variações foram despublicados da vitrine dos clientes.`);
     }
+    return true;
   };
 
   // Filtragem dos registros

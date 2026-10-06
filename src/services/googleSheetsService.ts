@@ -19,6 +19,7 @@ import {
 import firebaseConfig from '../../firebase-applet-config.json';
 import { BiProductCalculatedRecord, OrderData } from '../types';
 import { parseSpreadsheetBuffer } from '../utils/biFinanceEngine';
+import { getGroupingKey, normalizeTamCor } from '../utils/productGroupingEngine';
 
 export const WORKSPACE_SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets'
@@ -806,15 +807,17 @@ export async function updateUserInitialSpreadsheet(
 
     const rawTam = colTamCor >= 0 ? String(row[colTamCor] || '').trim() : '';
 
-    // Encontra o registro correspondente no BI do site
+    // Encontra o registro correspondente no BI do site usando chave canônica de agrupamento
+    const rowKey = getGroupingKey(rawProd);
+    const rowNormTam = normalizeTamCor(rawTam);
+
     const match = records.find(r => {
-      const sameName = r.produto.trim().toLowerCase() === rawProd.toLowerCase();
-      if (!sameName) return false;
+      const sameGroup = getGroupingKey(r.produto) === rowKey;
+      if (!sameGroup) return false;
 
       if (colTamCor >= 0 && rawTam) {
-        const rTam = (r.tamCor || '').trim().toLowerCase();
-        const sTam = rawTam.toLowerCase();
-        if (rTam && sTam && rTam !== sTam && rTam !== 'único' && sTam !== 'único') {
+        const rNormTam = normalizeTamCor(r.tamCor);
+        if (rNormTam !== 'unico' && rowNormTam !== 'unico' && rNormTam !== rowNormTam) {
           return false;
         }
       }

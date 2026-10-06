@@ -11,6 +11,30 @@ import { BiProductCalculatedRecord, Product, ProductSizeVariant } from '../types
  */
 
 /**
+ * Normaliza a coluna "Tam/Cor" para comparação semântica uniforme
+ * (ex: "P", "Tamanho P", "Tam. P", "Único", "unico" etc.)
+ */
+export function normalizeTamCor(tamCor?: string): string {
+  if (!tamCor) return 'unico';
+  const clean = tamCor
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/^(tam(anho)?\.?\s*)/i, '')
+    .replace(/[^a-z0-9]/g, '');
+  if (!clean || clean === 'unico' || clean === 'u') return 'unico';
+  return clean;
+}
+
+/**
+ * Verifica se um valor de Tam/Cor representa ausência de variação (ex: Único)
+ */
+export function isUniqueOrNoVariation(tamCor?: string): boolean {
+  return normalizeTamCor(tamCor) === 'unico';
+}
+
+/**
  * Normaliza o nome do produto para agrupamento, removendo sufixos acidentais
  * como " - P", " - M", " (G)", mantendo o nome principal uniforme.
  */
@@ -70,10 +94,10 @@ export function findSiblingBiRecords(
  * e os registros existentes no Lavistore (BI e Vitrine).
  *
  * ORDEM DE CORRESPONDÊNCIA ESTÁVEL:
- * 1. Identificador de registro existente estável (se coincide e não for apenas recém-gerado)
- * 2. Vínculo por vitrineProductId existente
+ * 1. Identificador de registro existente estável (se coincide com ID pré-existente)
+ * 2. Vínculo por vitrineProductId existente + Tam/Cor
  * 3. Chave de agrupamento normalizada + Tam/Cor
- * 4. Chave de agrupamento normalizada quando não há variação específica
+ * 4. Chave de agrupamento normalizada quando NÃO há variação específica (ambos Único)
  *
  * CAMPOS DA PLANILHA (Atualizados a cada sincronização):
  * - Quantidades (comprada, vendida, saldo)
@@ -108,18 +132,25 @@ export function mergeBiRecordsNonDestructive(
   const mergedList: BiProductCalculatedRecord[] = incomingRecords.map(incoming => {
     let match: BiProductCalculatedRecord | undefined;
 
-    // 1. Identificador de registro estável existente
+    // 1. Identificador de registro estável existente (caso o registro importado possua ID compatível)
     if (incoming.id) {
       match = existingRecords.find(e => !usedExistingIds.has(e.id) && e.id === incoming.id);
     }
 
-    // 2. Vínculo por vitrineProductId
+    // 2. Vínculo por vitrineProductId existente
     if (!match && incoming.vitrineProductId) {
-      match = existingRecords.find(e => !usedExistingIds.has(e.id) && e.vitrineProductId === incoming.vitrineProductId);
+      const incomingNormTam = normalizeTamCor(incoming.tamCor);
+      match = existingRecords.find(e => {
+        if (usedExistingIds.has(e.id) || e.vitrineProductId !== incoming.vitrineProductId) return false;
+        return normalizeTamCor(e.tamCor) === incomingNormTam;
+      });
+      if (!match) {
+        match = existingRecords.find(e => !usedExistingIds.has(e.id) && e.vitrineProductId === incoming.vitrineProductId);
+      }
     }
 
     const incomingKey = getGroupingKey(incoming.produto);
-    const incomingTam = (incoming.tamCor || 'Único').trim().toLowerCase();
+    const incomingNormTam = normalizeTamCor(incoming.tamCor);
 
     // 3. Chave normalizada de agrupamento + Tam/Cor
     if (!match && incomingKey) {
@@ -127,37 +158,56 @@ export function mergeBiRecordsNonDestructive(
         if (usedExistingIds.has(e.id)) return false;
         const eKey = getGroupingKey(e.produto);
         if (eKey !== incomingKey) return false;
-        const eTam = (e.tamCor || 'Único').trim().toLowerCase();
-        return eTam === incomingTam;
+        const eNormTam = normalizeTamCor(e.tamCor);
+        return eNormTam === incomingNormTam;
       });
     }
 
-    // 4. Chave normalizada de agrupamento (produto base quando não há variação ou primeiro irmão compatível)
-    if (!match && incomingKey) {
+    // 4. Chave normalizada de agrupamento quando NÃO há variação específica (ambos 'Único' ou sem variação)
+    if (!match && incomingKey && isUniqueOrNoVariation(incoming.tamCor)) {
       match = existingRecords.find(e => {
         if (usedExistingIds.has(e.id)) return false;
         const eKey = getGroupingKey(e.produto);
-        return eKey === incomingKey;
+        if (eKey !== incomingKey) return false;
+        return isUniqueOrNoVariation(e.tamCor);
       });
     }
+
+    // Busca se existe algum irmão da mesma família em existingRecords para herança de metadados
+    const familySibling = existingRecords.find(
+      e => getGroupingKey(e.produto) === incomingKey && (e.vitrineProductId || e.publishedToVitrine || e.vitrineImageUrl)
+    );
 
     if (match) {
       usedExistingIds.add(match.id);
 
-      // Preserva metadados da vitrine existentes enquanto atualiza métricas e dados da planilha
+      // Preserva rigorosamente os metadados da vitrine Lavistore enquanto atualiza dados financeiros/estoque da planilha
       return {
         ...incoming,
         id: match.id,
-        publishedToVitrine: match.publishedToVitrine !== undefined ? match.publishedToVitrine : Boolean(incoming.publishedToVitrine),
-        vitrineProductId: match.vitrineProductId || incoming.vitrineProductId,
-        vitrineImageUrl: match.vitrineImageUrl || incoming.vitrineImageUrl,
-        vitrineCategory: match.vitrineCategory || incoming.vitrineCategory,
-        vitrineTag: match.vitrineTag || incoming.vitrineTag,
-        autoHideWhenOutOfStock: match.autoHideWhenOutOfStock !== undefined ? match.autoHideWhenOutOfStock : (incoming.autoHideWhenOutOfStock ?? true),
+        publishedToVitrine: match.publishedToVitrine !== undefined ? match.publishedToVitrine : (familySibling?.publishedToVitrine ?? false),
+        vitrineProductId: match.vitrineProductId || familySibling?.vitrineProductId || incoming.vitrineProductId,
+        vitrineImageUrl: match.vitrineImageUrl || familySibling?.vitrineImageUrl || incoming.vitrineImageUrl,
+        vitrineCategory: match.vitrineCategory || familySibling?.vitrineCategory || incoming.vitrineCategory,
+        vitrineTag: match.vitrineTag || familySibling?.vitrineTag || incoming.vitrineTag,
+        autoHideWhenOutOfStock: match.autoHideWhenOutOfStock !== undefined ? match.autoHideWhenOutOfStock : (familySibling?.autoHideWhenOutOfStock ?? (incoming.autoHideWhenOutOfStock ?? true)),
       };
     }
 
-    // Novo registro vindo da planilha sem correspondência anterior
+    // Novo registro vindo da planilha sem correspondência direta:
+    // Se pertencer a uma família já existente e publicada na vitrine, herda o vínculo da família
+    if (familySibling) {
+      return {
+        ...incoming,
+        publishedToVitrine: familySibling.publishedToVitrine !== undefined ? familySibling.publishedToVitrine : false,
+        vitrineProductId: familySibling.vitrineProductId || incoming.vitrineProductId,
+        vitrineImageUrl: familySibling.vitrineImageUrl || incoming.vitrineImageUrl,
+        vitrineCategory: familySibling.vitrineCategory || incoming.vitrineCategory,
+        vitrineTag: familySibling.vitrineTag || incoming.vitrineTag,
+        autoHideWhenOutOfStock: familySibling.autoHideWhenOutOfStock !== undefined ? familySibling.autoHideWhenOutOfStock : true
+      };
+    }
+
     return {
       ...incoming,
       publishedToVitrine: incoming.publishedToVitrine !== undefined ? incoming.publishedToVitrine : false,
@@ -165,7 +215,7 @@ export function mergeBiRecordsNonDestructive(
     };
   });
 
-  // Preserva registros existentes que não foram contemplados na planilha atual importada
+  // Preserva registros existentes do BI que não estavam presentes na planilha importada atual
   const unmatchedExisting = existingRecords.filter(e => !usedExistingIds.has(e.id));
   return [...mergedList, ...unmatchedExisting];
 }
@@ -193,7 +243,7 @@ export function createParentProductFromBiRecords(
   if (productOverrides?.sizes && productOverrides.sizes.length > 0) {
     sizes = productOverrides.sizes.map((s) => {
       const matchingSibling = siblingRecords.find(
-        r => r.id === s.biRecordId || r.tamCor.toLowerCase().trim() === s.label.toLowerCase().trim()
+        r => r.id === s.biRecordId || normalizeTamCor(r.tamCor) === normalizeTamCor(s.label)
       );
       return {
         ...s,
@@ -207,7 +257,7 @@ export function createParentProductFromBiRecords(
     sizes = siblingRecords.map((r, index) => {
       // Procura se já existia uma variante correspondente no produto
       const existingVar = existingProduct?.sizes?.find(
-        s => s.biRecordId === r.id || s.label.toLowerCase() === r.tamCor.toLowerCase()
+        s => s.biRecordId === r.id || normalizeTamCor(s.label) === normalizeTamCor(r.tamCor)
       );
 
       const effectiveStock = r.saldoEstoqueQtd > 0
@@ -337,14 +387,14 @@ export function findExactBiRecordForOrderItem(
   if (!productName) return null;
 
   const pKey = getGroupingKey(productName);
-  const targetLabel = (item.selectedSize || '').trim().toLowerCase();
+  const targetNorm = normalizeTamCor(item.selectedSize);
 
   // 3. Tenta encontrar pelo produto agrupado + Tam/Cor exato
   const matchingByGroupAndSize = biRecords.find(r => {
     const rKey = getGroupingKey(r.produto);
     if (rKey !== pKey) return false;
-    if (!targetLabel) return true;
-    return r.tamCor.trim().toLowerCase() === targetLabel;
+    if (targetNorm === 'unico') return true;
+    return normalizeTamCor(r.tamCor) === targetNorm;
   });
   if (matchingByGroupAndSize) return matchingByGroupAndSize;
 
@@ -353,8 +403,8 @@ export function findExactBiRecordForOrderItem(
   if (prodId) {
     const matchingByVitrineIdAndSize = biRecords.find(r => {
       if (r.vitrineProductId !== prodId) return false;
-      if (!targetLabel) return true;
-      return r.tamCor.trim().toLowerCase() === targetLabel;
+      if (targetNorm === 'unico') return true;
+      return normalizeTamCor(r.tamCor) === targetNorm;
     });
     if (matchingByVitrineIdAndSize) return matchingByVitrineIdAndSize;
   }

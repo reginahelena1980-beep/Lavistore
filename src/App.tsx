@@ -72,6 +72,8 @@ import {
   subscribeToStoreConfig, 
   saveStoreConfigToFirestore,
   saveBiRecordsToFirestore,
+  subscribeToBiRecords,
+  fetchBiRecordsFromFirestore,
   updateProductPublicationStatusInFirestore 
 } from './services/firestoreConfigService';
 import { isFirebaseReady } from './services/firebase';
@@ -212,6 +214,28 @@ export default function App() {
       return PRODUCTS;
     }
   });
+
+  // Referência soberana ao estado de produtos para prevenir leituras desatualizadas (closures antigas)
+  const productsRef = React.useRef<Product[]>(products);
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
+
+  // Registros de BI Financeiro em estado ativo no App para atualização em tempo real da Vitrine
+  const [biRecords, setBiRecords] = useState<BiProductCalculatedRecord[]>(() => {
+    try {
+      const raw = safeGetItem('lavistore_bi_records');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_BI_SAMPLE_RECORDS;
+  });
+  const biRecordsRef = React.useRef<BiProductCalculatedRecord[]>(biRecords);
+  useEffect(() => {
+    biRecordsRef.current = biRecords;
+  }, [biRecords]);
 
   // Admin Authentication state - Strictly password-protected (never auto-authenticate)
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
@@ -517,14 +541,11 @@ export default function App() {
 
     setIsPublishingToServer(true);
     try {
-      let biRecordsList: BiProductCalculatedRecord[] = [];
-      try {
-        const localBi = safeGetItem('lavistore_bi_records');
-        if (localBi) biRecordsList = JSON.parse(localBi);
-      } catch {}
+      const effectiveProducts = customPayload?.products ?? productsRef.current;
+      const effectiveBiRecords = customPayload?.biRecords ?? (biRecordsRef.current.length > 0 ? biRecordsRef.current : undefined);
 
       const payload: Partial<AdminCustomVault> = {
-        products: customPayload?.products ?? products,
+        products: effectiveProducts,
         heroConfig: customPayload?.heroConfig ?? heroConfig,
         homePageConfig: customPayload?.homePageConfig ?? homePageConfig,
         categories: customPayload?.categories ?? categories,
@@ -533,16 +554,31 @@ export default function App() {
         bagTypes: customPayload?.bagTypes ?? bagTypes,
         ribbonOptions: customPayload?.ribbonOptions ?? ribbonOptions,
         filterBarConfig: customPayload?.filterBarConfig ?? filterBarConfig,
-        biRecords: customPayload?.biRecords ?? (biRecordsList.length > 0 ? biRecordsList : undefined),
+        biRecords: effectiveBiRecords,
         ...customPayload
       };
 
-      // 1. Grava diretamente no Firebase Firestore (Nuvem em Tempo Real)
+      // 1. Grava diretamente no Firebase Firestore (Autoridade Única e Obrigatória)
       const firestoreSuccess = await saveStoreConfigToFirestore(payload);
+      if (!firestoreSuccess) {
+        throw new Error('Falha na resposta de gravação do Firestore.');
+      }
 
-      // 2. Atualiza o cache local do navegador para suporte offline
+      // Se houver registros de BI na gravação, persiste também em bi_data
+      if (payload.biRecords && Array.isArray(payload.biRecords) && payload.biRecords.length > 0) {
+        await saveBiRecordsToFirestore(payload.biRecords);
+      }
+
+      // 2. Atualiza o cache local do navegador para suporte offline e consistência
       saveLocalAdminVault(payload);
-      if (payload.products) safeSetItem('lavistore_products', JSON.stringify(payload.products));
+      if (payload.products) {
+        productsRef.current = payload.products;
+        safeSetItem('lavistore_products', JSON.stringify(payload.products));
+      }
+      if (payload.biRecords) {
+        biRecordsRef.current = payload.biRecords;
+        safeSetItem('lavistore_bi_records', JSON.stringify(payload.biRecords));
+      }
       if (payload.homePageConfig) safeSetItem('lavistore_home_page_config', JSON.stringify(payload.homePageConfig));
       if (payload.heroConfig) safeSetItem('lavistore_hero_config', JSON.stringify(payload.heroConfig));
       if (payload.coupons) safeSetItem('lavistore_coupons', JSON.stringify(payload.coupons));
@@ -551,18 +587,9 @@ export default function App() {
       if (payload.ribbonOptions) safeSetItem('lavistore_ribbon_options', JSON.stringify(payload.ribbonOptions));
       if (payload.filterBarConfig) safeSetItem('lavistore_filter_bar_config', JSON.stringify(payload.filterBarConfig));
 
-      // 3. Sincronização com o endpoint Express para espelhamento e contingência
+      // 3. Notificação secundária ao servidor Express (sem re-gravação duplicada no Firestore)
       try {
-        await syncStoreData(payload);
-        await saveAdminSettings({
-          homePageConfig: payload.homePageConfig,
-          heroConfig: payload.heroConfig,
-          categories: payload.categories,
-          coupons: payload.coupons,
-          bagTypes: payload.bagTypes,
-          ribbonOptions: payload.ribbonOptions,
-          filterBarConfig: payload.filterBarConfig
-        });
+        await syncStoreData(payload, true);
       } catch (settingsErr) {
         console.warn('[Admin Shield] Aviso ao sincronizar com servidor Express:', settingsErr);
       }
@@ -572,10 +599,10 @@ export default function App() {
       }
       setIsPublishingToServer(false);
       return true;
-    } catch (err) {
-      console.error('Erro ao sincronizar dados da loja no Firestore:', err);
+    } catch (err: any) {
+      console.error('[Publish Error] Falha ao sincronizar dados da loja no Firestore:', err?.message || err);
       if (showFeedback) {
-        showToast('⚠️ Erro ao salvar na nuvem. Dados salvos localmente.');
+        showToast('⚠️ Erro ao salvar na nuvem Firestore. Verifique sua conexão com a internet.');
       }
     }
     setIsPublishingToServer(false);
@@ -654,6 +681,16 @@ export default function App() {
       setIsConfigLoading(false);
     });
 
+    // Ouvinte em tempo real para os registros do BI Financeiro
+    const unsubscribeBi = subscribeToBiRecords((cloudRecords) => {
+      if (!isSubscribed || !cloudRecords) return;
+      if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+        setBiRecords(cloudRecords);
+        biRecordsRef.current = cloudRecords;
+        safeSetItem('lavistore_bi_records', JSON.stringify(cloudRecords));
+      }
+    });
+
     // 2. Consulta inicial rápida de contingência (caso o ouvinte demore alguns milissegundos)
     const initStoreSync = async () => {
       try {
@@ -689,6 +726,7 @@ export default function App() {
     return () => {
       isSubscribed = false;
       unsubscribe();
+      unsubscribeBi();
     };
   }, []);
 
@@ -844,75 +882,76 @@ export default function App() {
 
   // CRUD Handlers for Administrator
   const handleSaveProduct = async (productData: Product): Promise<boolean> => {
-    let nextProducts: Product[] = [];
-    setProducts(prev => {
-      const existingIdx = prev.findIndex(p => p.id === productData.id);
-      if (existingIdx >= 0) {
-        // Update existing
-        const updated = [...prev];
-        updated[existingIdx] = productData;
-        nextProducts = updated;
-        return updated;
-      } else {
-        // Insert new product at beginning of list
-        nextProducts = [productData, ...prev];
-        return nextProducts;
-      }
-    });
-
-    // Also update any item in favorites or active view
-    setFavorites(prev => prev.map(f => f.id === productData.id ? productData : f));
-    if (selectedProduct && selectedProduct.id === productData.id) {
-      setSelectedProduct(productData);
+    // 1. Determina a lista atualizada de produtos baseada na referência mais recente (productsRef)
+    const prevProducts = productsRef.current;
+    const existingIdx = prevProducts.findIndex(p => p.id === productData.id);
+    let nextProducts: Product[];
+    if (existingIdx >= 0) {
+      nextProducts = [...prevProducts];
+      nextProducts[existingIdx] = productData;
+    } else {
+      nextProducts = [productData, ...prevProducts];
     }
 
-    // Sincroniza o status de publicação unificado nos registros de BI correspondentes
+    // 2. Sincroniza o status de publicação unificado nos registros de BI correspondentes
     let syncedBiRecords: BiProductCalculatedRecord[] | undefined;
-    try {
-      const localBi = safeGetItem('lavistore_bi_records');
-      if (localBi) {
-        const biList: BiProductCalculatedRecord[] = JSON.parse(localBi);
-        const pKey = getGroupingKey(productData.name);
-        const hasMatch = biList.some(r =>
-          (productData.biRecordId && r.id === productData.biRecordId) ||
-          (r.vitrineProductId && r.vitrineProductId === productData.id) ||
-          getGroupingKey(r.produto) === pKey
-        );
-        if (hasMatch) {
-          syncedBiRecords = biList.map(r => {
-            if (
-              (productData.biRecordId && r.id === productData.biRecordId) ||
-              (r.vitrineProductId && r.vitrineProductId === productData.id) ||
-              getGroupingKey(r.produto) === pKey
-            ) {
-              return {
-                ...r,
-                publishedToVitrine: productData.isPublished !== false,
-                vitrineProductId: productData.id,
-                vitrineImageUrl: productData.images[0] || r.vitrineImageUrl,
-                vitrineCategory: productData.category || r.vitrineCategory,
-                vitrineTag: productData.tag || r.vitrineTag
-              };
-            }
-            return r;
-          });
-          safeSetItem('lavistore_bi_records', JSON.stringify(syncedBiRecords));
-          saveBiRecordsToFirestore(syncedBiRecords).catch(e => console.warn('[BI] Falha ao sincronizar biRecords:', e));
-        }
+    const currentBiList = biRecordsRef.current.length > 0 ? biRecordsRef.current : (() => {
+      try {
+        const localBi = safeGetItem('lavistore_bi_records');
+        return localBi ? JSON.parse(localBi) : [];
+      } catch { return []; }
+    })();
+
+    if (currentBiList.length > 0) {
+      const pKey = getGroupingKey(productData.name);
+      const hasMatch = currentBiList.some(r =>
+        (productData.biRecordId && r.id === productData.biRecordId) ||
+        (r.vitrineProductId && r.vitrineProductId === productData.id) ||
+        getGroupingKey(r.produto) === pKey
+      );
+      if (hasMatch) {
+        syncedBiRecords = currentBiList.map(r => {
+          if (
+            (productData.biRecordId && r.id === productData.biRecordId) ||
+            (r.vitrineProductId && r.vitrineProductId === productData.id) ||
+            getGroupingKey(r.produto) === pKey
+          ) {
+            return {
+              ...r,
+              publishedToVitrine: productData.isPublished !== false,
+              vitrineProductId: productData.id,
+              vitrineImageUrl: productData.images[0] || r.vitrineImageUrl,
+              vitrineCategory: productData.category || r.vitrineCategory,
+              vitrineTag: productData.tag || r.vitrineTag
+            };
+          }
+          return r;
+        });
       }
-    } catch (biErr) {
-      console.warn('Aviso ao sincronizar registros do BI em handleSaveProduct:', biErr);
     }
 
-    setIsCreatingProduct(false);
-    setEditingProduct(null);
-
-    // Persistência autoritativa no Firestore antes de reportar sucesso
+    // 3. Executa a gravação autoritativa no Firestore ANTES de atualizar o estado local ou fechar o modal
     const persistenceSuccess = await handlePublishToServer({ products: nextProducts, biRecords: syncedBiRecords }, false);
+    
     if (persistenceSuccess) {
+      // 4. Somente após confirmação de sucesso na persistência: atualiza estado e fecha o modal
+      productsRef.current = nextProducts;
+      setProducts(nextProducts);
+      if (syncedBiRecords) {
+        biRecordsRef.current = syncedBiRecords;
+        setBiRecords(syncedBiRecords);
+        safeSetItem('lavistore_bi_records', JSON.stringify(syncedBiRecords));
+      }
+      setFavorites(prev => prev.map(f => f.id === productData.id ? productData : f));
+      if (selectedProduct && selectedProduct.id === productData.id) {
+        setSelectedProduct(productData);
+      }
+      setIsCreatingProduct(false);
+      setEditingProduct(null);
       showToast(`🌸 Mimo "${productData.name}" salvo com sucesso!`);
       return true;
     } else {
+      console.error(`[Firestore Save Failed] O produto "${productData.name}" não pôde ser gravado no Firestore.`);
       showToast(`⚠️ Não foi possível salvar "${productData.name}" no Firestore. Verifique sua conexão com a nuvem.`);
       return false;
     }
@@ -1149,16 +1188,10 @@ export default function App() {
 
   const discountAmount = couponEvaluation.calculatedDiscount;
 
-  // Agregação automática Pai/Filho para a Vitrine pública (baseada na coluna Tam/Cor)
+  // Agregação automática Pai/Filho para a Vitrine pública (baseada na coluna Tam/Cor e registros do BI)
   const vitrineProducts = useMemo(() => {
-    try {
-      const rawBi = safeGetItem('lavistore_bi_records');
-      const biRecs = rawBi ? JSON.parse(rawBi) : undefined;
-      return aggregateProductsForVitrine(products, Array.isArray(biRecs) ? biRecs : undefined);
-    } catch {
-      return products;
-    }
-  }, [products]);
+    return aggregateProductsForVitrine(products, biRecords.length > 0 ? biRecords : undefined);
+  }, [products, biRecords]);
 
   // Filtered & Sorted Catalog
   const filteredProducts = useMemo(() => {
@@ -1417,7 +1450,7 @@ export default function App() {
         )}
 
         {/* TAB: Catalog / Storefront */}
-        {(activeTab === 'catalog' || activeTab === 'floral-special') && (
+        {activeTab === 'catalog' && (
           <div className="space-y-10">
             {/* Hero Section */}
             <HeroBanner 

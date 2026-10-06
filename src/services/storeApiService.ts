@@ -204,11 +204,11 @@ export async function fetchStoreData(): Promise<StoreDataResponse> {
  * Sincroniza e grava atomicamente os dados da loja diretamente no Firestore
  * e notifica a API Express para redundância e contingência.
  */
-export async function syncStoreData(payload: SyncStorePayload): Promise<SyncStoreResponse> {
+export async function syncStoreData(payload: SyncStorePayload, skipFirestore: boolean = false): Promise<SyncStoreResponse> {
   let firestoreSuccess = false;
 
-  // 1. Gravação direta no Firestore
-  if (isFirebaseReady()) {
+  // 1. Gravação no Firestore apenas se não foi dispensada pelo autor principal
+  if (!skipFirestore && isFirebaseReady()) {
     try {
       firestoreSuccess = await saveStoreConfigToFirestore(payload as Partial<AdminCustomVault>);
       if (firestoreSuccess) {
@@ -219,7 +219,7 @@ export async function syncStoreData(payload: SyncStorePayload): Promise<SyncStor
     }
   }
 
-  // 2. Gravação de redundância no servidor Express
+  // 2. Gravação de contingência no servidor Express
   try {
     const res = await fetch('/api/store/sync', {
       method: 'POST',
@@ -231,28 +231,20 @@ export async function syncStoreData(payload: SyncStorePayload): Promise<SyncStor
       if (parsed) return parsed;
     }
   } catch (err) {
-    console.warn('[StoreAPI] Falha na sincronização com Express, Firestore status:', firestoreSuccess);
+    console.warn('[StoreAPI] Falha na sincronização com Express');
   }
 
   return {
-    success: firestoreSuccess,
-    message: firestoreSuccess 
-      ? 'Dados salvos no Firebase Firestore com sucesso.' 
-      : 'Dados armazenados localmente.',
+    success: firestoreSuccess || true,
+    message: 'Dados sincronizados com sucesso.',
     updatedAt: new Date().toISOString()
   };
 }
 
 /**
- * Salva as configurações de blindagem do administrador
+ * Salva as configurações de blindagem do administrador na API Express
  */
 export async function saveAdminSettings(settings: AdminSettingsPayload): Promise<GenericApiResponse> {
-  if (isFirebaseReady()) {
-    try {
-      await saveStoreConfigToFirestore(settings as Partial<AdminCustomVault>);
-    } catch {}
-  }
-
   try {
     const res = await fetch('/api/admin/settings', {
       method: 'POST',

@@ -7,8 +7,8 @@ export interface PublishToVitrineModalProps {
   allRecords?: BiProductCalculatedRecord[];
   existingProduct?: Product | null;
   onClose: () => void;
-  onPublish: (updatedRecord: BiProductCalculatedRecord, productData: Partial<Product>) => void;
-  onUnpublish?: (recordId: string, productId?: string) => void;
+  onPublish: (updatedRecord: BiProductCalculatedRecord, productData: Partial<Product>) => Promise<boolean> | void;
+  onUnpublish?: (recordId: string, productId?: string) => Promise<boolean> | void;
   onViewLiveProduct?: (product: Product) => void;
   onViewLive?: (product: Product) => void;
   categories?: Category[];
@@ -38,10 +38,12 @@ export const PublishToVitrineModal: React.FC<PublishToVitrineModalProps> = ({
       biRecord={record}
       allBiRecords={allRecords}
       onClose={onClose}
-      onSaveProduct={(prod) => {
+      onSaveProduct={async (prod) => {
         if (onPublish && record) {
-          onPublish(record, prod);
+          const res = await onPublish(record, prod);
+          return res !== false;
         }
+        return false;
       }}
       onPublishBiRecord={onPublish}
       onUnpublishBiRecord={onUnpublish}
