@@ -13,10 +13,13 @@ import {
   Image as ImageIcon, 
   Upload, 
   Palette, 
-  AlertCircle 
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { BagType, RibbonOption } from '../types';
 import { BAG_TYPES, RIBBON_OPTIONS } from '../data/categories';
+import { uploadAdminImage, UploadImageError, validateImageUrl } from '../services/firebase';
+import { compressImageToBlob } from '../utils/storage';
 
 interface PackagingRibbonManagerProps {
   bagTypes: BagType[];
@@ -49,6 +52,8 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
   // Modal State for Bag
   const [showBagModal, setShowBagModal] = useState(false);
   const [editingBag, setEditingBag] = useState<BagType | null>(null);
+  const [currentBagId, setCurrentBagId] = useState<string>('');
+  const [isUploadingBagImage, setIsUploadingBagImage] = useState<boolean>(false);
   const [bagName, setBagName] = useState('');
   const [bagPrice, setBagPrice] = useState<string>('16.90');
   const [bagDescription, setBagDescription] = useState('');
@@ -76,6 +81,8 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
 
   // --- BAG HANDLERS ---
   const handleOpenAddBag = () => {
+    const newId = `bag-${Date.now()}`;
+    setCurrentBagId(newId);
     setEditingBag(null);
     setBagName('');
     setBagPrice('16.90');
@@ -87,6 +94,7 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
   };
 
   const handleOpenEditBag = (bag: BagType) => {
+    setCurrentBagId(bag.id);
     setEditingBag(bag);
     setBagName(bag.name);
     setBagPrice(bag.price.toString());
@@ -107,24 +115,55 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
     showToast(`Modelo "${newBag.name}" duplicado com sucesso!`);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      setBagError('A foto deve ter no máximo 2MB.');
+    if (bagFileInputRef.current) {
+      bagFileInputRef.current.value = '';
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setBagError('A foto deve ter no máximo 5MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      const result = uploadEvent.target?.result as string;
-      if (result) {
-        setBagImage(result);
-        setBagError(null);
+    // Ensure stable identifier before upload
+    const bagId = currentBagId || (editingBag ? editingBag.id : `bag-${Date.now()}`);
+    if (!currentBagId) {
+      setCurrentBagId(bagId);
+    }
+
+    setIsUploadingBagImage(true);
+    setBagError(null);
+
+    try {
+      let uploadTarget: Blob = file;
+      try {
+        const compressed = await compressImageToBlob(file, 800, 0.85);
+        if (compressed && compressed.size > 0) {
+          uploadTarget = compressed;
+        }
+      } catch {
+        uploadTarget = file;
       }
-    };
-    reader.readAsDataURL(file);
+
+      const httpsUrl = await uploadAdminImage(uploadTarget, {
+        entityType: 'packaging',
+        entityId: bagId
+      });
+
+      // Update bagImage with HTTPS URL only - Base64 NEVER enters state
+      setBagImage(httpsUrl);
+      setBagError(null);
+      showToast('Foto da embalagem enviada com sucesso! ✨');
+    } catch (err: any) {
+      console.error('[PackagingRibbonManager] Erro no upload da foto de embalagem:', err);
+      const msg = err instanceof UploadImageError ? err.message : (err?.message || 'Falha ao enviar foto da embalagem.');
+      setBagError(msg);
+    } finally {
+      setIsUploadingBagImage(false);
+    }
   };
 
   const handleSaveBag = (e: React.FormEvent) => {
@@ -142,8 +181,15 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
       return;
     }
 
-    if (!bagImage.trim()) {
+    const trimmedUrl = bagImage.trim();
+    if (!trimmedUrl) {
       setBagError('Por favor, insira a URL de uma imagem ou faça upload da foto.');
+      return;
+    }
+
+    const urlValidation = validateImageUrl(trimmedUrl);
+    if (!urlValidation.valid) {
+      setBagError(urlValidation.error || 'A URL da foto da embalagem é inválida.');
       return;
     }
 
@@ -156,7 +202,7 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
               name: bagName.trim(),
               price: parsedPrice,
               description: bagDescription.trim(),
-              image: bagImage.trim(),
+              image: trimmedUrl,
               color: bagColor
             }
           : b
@@ -166,11 +212,11 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
     } else {
       // Add
       const newBag: BagType = {
-        id: `bag-${Date.now()}`,
+        id: currentBagId || `bag-${Date.now()}`,
         name: bagName.trim(),
         price: parsedPrice,
         description: bagDescription.trim(),
-        image: bagImage.trim(),
+        image: trimmedUrl,
         color: bagColor,
         bgClass: 'from-amber-100 to-yellow-200 border-amber-300'
       };
@@ -614,17 +660,32 @@ export const PackagingRibbonManager: React.FC<PackagingRibbonManagerProps> = ({
                   <input
                     type="file"
                     ref={bagFileInputRef}
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={isUploadingBagImage}
                     onChange={handleImageUpload}
                     className="hidden"
                   />
                   <button
                     type="button"
+                    disabled={isUploadingBagImage}
                     onClick={() => bagFileInputRef.current?.click()}
-                    className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold rounded-xl flex items-center gap-1 shrink-0 cursor-pointer"
+                    className={`px-3 py-2 rounded-xl flex items-center gap-1 shrink-0 font-bold transition-colors ${
+                      isUploadingBagImage
+                        ? 'bg-amber-50 text-amber-500 cursor-wait'
+                        : 'bg-amber-100 hover:bg-amber-200 text-amber-900 cursor-pointer'
+                    }`}
                   >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Upload</span>
+                    {isUploadingBagImage ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Enviando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload</span>
+                      </>
+                    )}
                   </button>
                 </div>
 

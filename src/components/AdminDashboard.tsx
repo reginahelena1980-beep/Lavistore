@@ -57,7 +57,8 @@ import { Product, HeroConfig, HomePageConfig, FilterBarConfig, Category, Custome
 import { CATEGORIES, BAG_TYPES, RIBBON_OPTIONS } from '../data/categories';
 import { CUSTOMER_REVIEWS } from '../data/reviews';
 import { DEFAULT_COUPONS } from '../data/coupons';
-import { safeSetItem, safeGetItem } from '../utils/storage';
+import { safeSetItem, safeGetItem, compressImageToBlob } from '../utils/storage';
+import { uploadAdminImage, UploadImageError, validateImageUrl } from '../services/firebase';
 import { TrioFlowersIcon } from './LavistoreLogo';
 import defaultHeroImg from '../assets/images/lavistore_trio_flowers_1788111020961.jpg';
 import { HomeTextManager } from './HomeTextManager';
@@ -272,6 +273,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   });
 
   const [imageUrlInput, setImageUrlInput] = useState('');
+  const [isUploadingHero, setIsUploadingHero] = useState(false);
+  const [heroUploadError, setHeroUploadError] = useState<string | null>(null);
   const [isDraggingHero, setIsDraggingHero] = useState(false);
   const dragStartRef = useRef<{ clientX: number; clientY: number; posX: number; posY: number }>({ clientX: 0, clientY: 0, posX: 50, posY: 50 });
 
@@ -339,26 +342,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }, [heroConfig]);
 
-  // Handle uploading image file from computer / mobile
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle uploading image file from computer / mobile securely to backend
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset input value so same file can be selected again if needed
+    e.target.value = '';
 
     if (file.size > 5 * 1024 * 1024) {
       alert('A imagem é muito grande! Por favor, escolha uma imagem com menos de 5MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      if (base64) {
-        setHeroForm(prev => ({ ...prev, image: base64 }));
-        setCopiedNotification('Nova foto da capa carregada com sucesso! Clique em "Salvar Alterações". 📸');
-        setTimeout(() => setCopiedNotification(null), 3500);
+    setIsUploadingHero(true);
+    setHeroUploadError(null);
+
+    try {
+      let uploadTarget: Blob = file;
+      try {
+        const compressed = await compressImageToBlob(file, 1920, 0.85);
+        if (compressed && compressed.size > 0) {
+          uploadTarget = compressed;
+        }
+      } catch {
+        uploadTarget = file;
       }
-    };
-    reader.readAsDataURL(file);
+
+      const httpsUrl = await uploadAdminImage(uploadTarget, {
+        entityType: 'banner',
+        entityId: 'hero'
+      });
+
+      // Update heroForm image with returned HTTPS URL - Base64 NEVER enters state
+      setHeroForm(prev => ({ ...prev, image: httpsUrl }));
+      setCopiedNotification('Nova foto da capa enviada com sucesso! Clique em "Salvar Alterações". 📸✨');
+      setTimeout(() => setCopiedNotification(null), 3500);
+    } catch (err: any) {
+      console.error('[AdminDashboard] Erro no envio da foto da capa:', err);
+      const msg = err instanceof UploadImageError ? err.message : (err?.message || 'Falha ao enviar foto da capa.');
+      setHeroUploadError(msg);
+      alert(msg);
+    } finally {
+      setIsUploadingHero(false);
+    }
   };
 
   // Preset sample covers
@@ -383,6 +410,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleSaveHero = (e: React.FormEvent) => {
     e.preventDefault();
+    const validation = validateImageUrl(heroForm.image, { allowLocalAsset: true });
+    if (!validation.valid) {
+      alert(validation.error || 'A foto da capa possui um endereço inválido.');
+      return;
+    }
     if (onUpdateHeroConfig) {
       onUpdateHeroConfig(heroForm);
       setCopiedNotification('Capa da página principal atualizada com sucesso! ✨');
@@ -1452,6 +1484,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
+            {heroUploadError && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border-2 border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2 shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span className="font-semibold">{heroUploadError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setHeroUploadError(null)}
+                  className="p-1 text-rose-500 hover:text-rose-700 font-bold rounded-lg hover:bg-rose-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleSaveHero} className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
@@ -1469,19 +1517,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
 
                     {/* File Upload Button */}
-                    <label className="flex flex-col items-center justify-center p-5 border-2 border-dashed border-amber-300 hover:border-amber-400 bg-amber-50/50 hover:bg-amber-100/40 rounded-2xl cursor-pointer transition-all group text-center">
-                      <div className="w-10 h-10 rounded-2xl bg-amber-200/80 flex items-center justify-center text-purple-950 group-hover:scale-110 transition-transform mb-2">
-                        <Upload className="w-5 h-5 text-purple-950" />
-                      </div>
-                      <span className="text-xs font-bold text-purple-950">
-                        📁 Selecionar Foto do Dispositivo
-                      </span>
-                      <span className="text-[10px] text-slate-500 mt-1">
-                        JPG, PNG ou WEBP
-                      </span>
+                    <label className={`flex flex-col items-center justify-center p-5 border-2 border-dashed rounded-2xl transition-all text-center ${
+                      isUploadingHero
+                        ? 'border-purple-300 bg-purple-50/60 cursor-wait'
+                        : 'border-amber-300 hover:border-amber-400 bg-amber-50/50 hover:bg-amber-100/40 cursor-pointer group'
+                    }`}>
+                      {isUploadingHero ? (
+                        <div className="flex flex-col items-center gap-2 py-1">
+                          <RefreshCw className="w-6 h-6 text-purple-700 animate-spin" />
+                          <span className="text-xs font-bold text-purple-950">
+                            Enviando imagem segura para o servidor...
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            Processando hash determinístico e token HTTPS
+                          </span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-10 h-10 rounded-2xl bg-amber-200/80 flex items-center justify-center text-purple-950 group-hover:scale-110 transition-transform mb-2">
+                            <Upload className="w-5 h-5 text-purple-950" />
+                          </div>
+                          <span className="text-xs font-bold text-purple-950">
+                            📁 Selecionar Foto do Dispositivo
+                          </span>
+                          <span className="text-[10px] text-slate-500 mt-1">
+                            JPG, PNG ou WEBP (Máx. 5MB)
+                          </span>
+                        </>
+                      )}
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
+                        disabled={isUploadingHero}
                         onChange={handleFileUpload}
                         className="hidden"
                       />
@@ -1504,14 +1571,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            if (imageUrlInput.trim()) {
-                              setHeroForm(prev => ({ ...prev, image: imageUrlInput.trim() }));
-                              setImageUrlInput('');
-                              setCopiedNotification('Link de foto aplicado ao preview!');
-                              setTimeout(() => setCopiedNotification(null), 3000);
+                            const trimmed = imageUrlInput.trim();
+                            if (!trimmed) return;
+                            const validation = validateImageUrl(trimmed);
+                            if (!validation.valid) {
+                              alert(validation.error || 'A URL informada é inválida.');
+                              return;
                             }
+                            setHeroForm(prev => ({ ...prev, image: trimmed }));
+                            setImageUrlInput('');
+                            setCopiedNotification('Link de foto aplicado ao preview!');
+                            setTimeout(() => setCopiedNotification(null), 3000);
                           }}
-                          className="px-3 py-2 bg-amber-400 hover:bg-amber-500 text-purple-950 font-bold text-xs rounded-xl shadow-2xs transition-colors"
+                          className="px-3 py-2 bg-amber-400 hover:bg-amber-500 text-purple-950 font-bold text-xs rounded-xl shadow-2xs transition-colors cursor-pointer"
                         >
                           Aplicar
                         </button>

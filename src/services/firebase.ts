@@ -233,6 +233,13 @@ export class UploadImageError extends Error {
   }
 }
 
+export interface UploadAdminImageOptions {
+  entityType: 'product' | 'product-color' | 'banner' | 'packaging';
+  entityId?: string;
+  imageIndex?: number;
+  slotId?: string;
+}
+
 export interface UploadProductImageOptions {
   entityType: 'product' | 'product-color';
   entityId: string;
@@ -263,14 +270,57 @@ export async function blobToDataUrl(fileOrBlob: File | Blob): Promise<string> {
 }
 
 /**
- * Faz upload seguro de imagem comprimida para o backend administrativo
- * (POST /api/admin/upload-image com mode: "admin") e retorna exclusivamente
- * a URL HTTPS pública tokenizada do Firebase Admin Storage.
- * NUNCA armazena Data URL / Base64 e não utiliza o Firebase Web Storage SDK.
+ * Validação rigorosa de URLs manuais de imagens (produto principal, cores, banner e embalagens).
+ * Bloqueia estritamente data:, data:image/, javascript: e blob:, aceitando apenas https:// (e http:// para dev).
  */
-export async function uploadProductImage(
+export function validateImageUrl(
+  url: string,
+  options?: { allowLocalAsset?: boolean }
+): { valid: boolean; error?: string } {
+  const trimmed = (url || '').trim();
+  if (!trimmed) {
+    return { valid: false, error: 'A URL da imagem não pode estar vazia.' };
+  }
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('data:') || lower.startsWith('data:image/')) {
+    return {
+      valid: false,
+      error: 'Para proteger o banco de dados contra limites de tamanho de documento, URLs em formato Base64 (data:) não são permitidas. Por favor, utilize uma URL HTTPS.'
+    };
+  }
+  if (lower.startsWith('javascript:')) {
+    return {
+      valid: false,
+      error: 'URLs do tipo javascript: são bloqueadas por segurança.'
+    };
+  }
+  if (lower.startsWith('blob:')) {
+    return {
+      valid: false,
+      error: 'URLs do tipo blob: não são permitidas para persistência. Envie o arquivo diretamente ou utilize uma URL HTTPS.'
+    };
+  }
+  if (options?.allowLocalAsset && lower.startsWith('/')) {
+    return { valid: true };
+  }
+  if (!lower.startsWith('https://') && !lower.startsWith('http://')) {
+    return {
+      valid: false,
+      error: 'A URL da foto deve ser um link válido iniciando com https:// ou http://'
+    };
+  }
+  return { valid: true };
+}
+
+/**
+ * Faz upload seguro de imagem para o backend administrativo (POST /api/admin/upload-image com mode: "admin")
+ * e retorna exclusivamente a URL HTTPS pública tokenizada do Firebase Admin Storage.
+ * NUNCA armazena Data URL / Base64 e não utiliza o Firebase Web Storage SDK no cliente.
+ * Suporta entidades: 'product', 'product-color', 'banner', 'packaging'.
+ */
+export async function uploadAdminImage(
   fileOrBlob: File | Blob,
-  options: UploadProductImageOptions
+  options: UploadAdminImageOptions
 ): Promise<string> {
   if (!fileOrBlob) {
     throw new UploadImageError('Nenhum arquivo ou imagem fornecido para upload.', 400);
@@ -280,12 +330,27 @@ export async function uploadProductImage(
     throw new UploadImageError('Opções semânticas de upload não fornecidas.', 400);
   }
 
-  const entityId = options.entityId?.trim();
-  if (!entityId) {
-    throw new UploadImageError('MISSING_PRODUCT_ID: O identificador estável do produto (entityId) é obrigatório.', 400);
+  const { entityType } = options;
+  if (!entityType || !['product', 'product-color', 'banner', 'packaging'].includes(entityType)) {
+    throw new UploadImageError(`INVALID_ENTITY_TYPE: Tipo de entidade não suportado: ${(options as any)?.entityType}`, 400);
   }
 
-  if (options.entityType === 'product') {
+  let entityId = options.entityId?.trim() || '';
+
+  if (entityType === 'banner') {
+    if (!entityId) {
+      entityId = 'hero';
+    } else if (entityId.toLowerCase() !== 'hero') {
+      throw new UploadImageError('INVALID_BANNER_ID: O identificador de banner suportado é exclusivamente "hero".', 400);
+    }
+  } else if (entityType === 'packaging') {
+    if (!entityId) {
+      throw new UploadImageError('MISSING_PACKAGING_ID: O identificador estável da sacolinha/embalagem (entityId) é obrigatório.', 400);
+    }
+  } else if (entityType === 'product') {
+    if (!entityId) {
+      throw new UploadImageError('MISSING_PRODUCT_ID: O identificador estável do produto (entityId) é obrigatório.', 400);
+    }
     if (
       options.imageIndex === undefined ||
       options.imageIndex === null ||
@@ -295,27 +360,28 @@ export async function uploadProductImage(
     ) {
       throw new UploadImageError('INVALID_IMAGE_INDEX: O índice da imagem do produto (imageIndex) deve ser um número inteiro >= 0.', 400);
     }
-  } else if (options.entityType === 'product-color') {
+  } else if (entityType === 'product-color') {
+    if (!entityId) {
+      throw new UploadImageError('MISSING_PRODUCT_ID: O identificador estável do produto (entityId) é obrigatório.', 400);
+    }
     if (!options.slotId || typeof options.slotId !== 'string' || !options.slotId.trim()) {
       throw new UploadImageError('INVALID_SLOT_ID: O identificador da variação de cor (slotId) é obrigatório.', 400);
     }
-  } else {
-    throw new UploadImageError(`INVALID_ENTITY_TYPE: Tipo de entidade não suportado: ${(options as any).entityType}`, 400);
   }
 
-  // 1. Converte o Blob para Data URL exclusivamente em memória para transporte HTTP
+  // 1. Converte o Blob para Data URL exclusivamente em memória para transporte HTTP temporário
   const imageBase64 = await blobToDataUrl(fileOrBlob);
 
   const payload: Record<string, any> = {
     mode: 'admin',
     imageBase64,
-    entityType: options.entityType,
+    entityType,
     entityId
   };
 
-  if (options.entityType === 'product') {
+  if (entityType === 'product') {
     payload.imageIndex = options.imageIndex;
-  } else {
+  } else if (entityType === 'product-color') {
     payload.slotId = options.slotId!.trim();
   }
 
@@ -386,6 +452,16 @@ export async function uploadProductImage(
   }
 
   return data.url;
+}
+
+/**
+ * Wrapper específico para compatibilidade com uploads de produtos (H3).
+ */
+export async function uploadProductImage(
+  fileOrBlob: File | Blob,
+  options: UploadProductImageOptions
+): Promise<string> {
+  return uploadAdminImage(fileOrBlob, options);
 }
 
 export { firestoreInstance as db, authInstance as auth, appInstance as app, storageInstance as storage };

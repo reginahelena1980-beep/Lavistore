@@ -31,7 +31,8 @@ import {
 import { Product, ProductSizeVariant, ProductColorVariant, Category, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { safeSetItem, safeGetItem, safeRemoveItem, compressImage, compressImageToBlob } from '../utils/storage';
-import { uploadProductImage, UploadImageError } from '../services/firebase';
+import { uploadProductImage, UploadImageError, validateImageUrl } from '../services/firebase';
+export { validateImageUrl };
 import { 
   getGroupingKey, 
   normalizeBaseProductName, 
@@ -84,43 +85,6 @@ export const getSuggestedPhotoForName = (text: string) => {
   }
   return null;
 };
-
-/**
- * Validação rigorosa de URLs manuais de imagens (produto principal e cores).
- * Bloqueia estritamente data:, javascript: e blob:, aceitando apenas https:// (e http:// para dev).
- */
-export function validateImageUrl(url: string): { valid: boolean; error?: string } {
-  const trimmed = (url || '').trim();
-  if (!trimmed) {
-    return { valid: false, error: 'A URL da imagem não pode estar vazia.' };
-  }
-  const lower = trimmed.toLowerCase();
-  if (lower.startsWith('data:') || lower.startsWith('data:image/')) {
-    return {
-      valid: false,
-      error: 'Para proteger o banco de dados contra limites de tamanho de documento, URLs em formato Base64 (data:) não são permitidas. Por favor, utilize uma URL HTTPS.'
-    };
-  }
-  if (lower.startsWith('javascript:')) {
-    return {
-      valid: false,
-      error: 'URLs do tipo javascript: são bloqueadas por segurança.'
-    };
-  }
-  if (lower.startsWith('blob:')) {
-    return {
-      valid: false,
-      error: 'URLs do tipo blob: não são permitidas para persistência. Envie o arquivo diretamente ou utilize uma URL HTTPS.'
-    };
-  }
-  if (!lower.startsWith('https://') && !lower.startsWith('http://')) {
-    return {
-      valid: false,
-      error: 'A URL da foto deve ser um link válido iniciando com https:// ou http://'
-    };
-  }
-  return { valid: true };
-}
 
 export interface AdminProductModalProps {
   isOpen: boolean;
