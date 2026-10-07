@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, 
   Trash2, 
@@ -19,6 +19,7 @@ import { CartItem, ShippingOption, Coupon } from '../types';
 import { evaluateCoupon } from '../utils/couponUtils';
 import { DEFAULT_COUPONS } from '../data/coupons';
 import { calculateMelhorEnvioShipping, formatCep, isValidCep } from '../services/shippingService';
+import { getTop4CheapestShippingOptions, ensureSelectedOptionInTop4 } from '../utils/shippingDisplayEngine';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -89,6 +90,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const isFreeShippingCoupon = couponEval.isFreeShipping;
   const isGiftCoupon = couponEval.isGift || appliedCoupon?.toUpperCase() === 'BRINDE';
   const isFreeShippingEligible = isFreeShippingCoupon || isGiftCoupon || subtotal >= FREE_SHIPPING_THRESHOLD;
+
+  // Opções de frete exibidas: Top 4 mais baratas pelo preço efetivo para o cliente
+  const displayedShippingOptions = useMemo(() => {
+    return getTop4CheapestShippingOptions(shippingOptions, isFreeShippingEligible);
+  }, [shippingOptions, isFreeShippingEligible]);
+
+  // Garante que a opção de frete selecionada pertence exclusivamente aos Top 4 exibidos
+  useEffect(() => {
+    if (displayedShippingOptions.length === 0) return;
+    const synced = ensureSelectedOptionInTop4(selectedShippingOption, displayedShippingOptions);
+    if (synced && (!selectedShippingOption || selectedShippingOption.id !== synced.id)) {
+      if (setSelectedShippingOption) {
+        setSelectedShippingOption(synced);
+      }
+    }
+  }, [displayedShippingOptions, selectedShippingOption, setSelectedShippingOption]);
 
   // Valor do frete considerado
   const rawShippingCost = selectedShippingOption ? selectedShippingOption.price : 0;
@@ -366,13 +383,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   )}
 
                   {/* Lista de Opções de Frete Retornadas pela API */}
-                  {shippingOptions.length > 0 && (
+                  {displayedShippingOptions.length > 0 && (
                     <div className="space-y-1.5 pt-1">
                       <p className="text-[10px] font-bold text-purple-900 uppercase tracking-wide">
                         Opções disponíveis para o seu CEP:
                       </p>
                       <div className="space-y-1.5">
-                        {shippingOptions.map(option => {
+                        {displayedShippingOptions.map(option => {
                           const isSelected = selectedShippingOption?.id === option.id;
                           const finalOptionPrice = isFreeShippingEligible ? 0 : option.price;
 

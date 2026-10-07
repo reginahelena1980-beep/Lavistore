@@ -33,6 +33,7 @@ import { HomeTextEditorModal } from './components/HomeTextEditorModal';
 import { CategoryEditorModal } from './components/CategoryEditorModal';
 import { DEFAULT_HOME_PAGE_CONFIG, getFontSizeClass, getFontWeightClass } from './utils/textFormatter';
 import { DEFAULT_FILTER_BAR_CONFIG } from './data/filterConfig';
+import { getProductEffectivePrice, sortProducts } from './utils/productPriceEngine';
 import { 
   safeSetItem, 
   safeGetItem, 
@@ -98,7 +99,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('catalog');
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('featured');
+  const [sortBy, setSortBy] = useState('price-asc');
   const [priceFilter, setPriceFilter] = useState('all');
   const [isCategoryEditorOpen, setIsCategoryEditorOpen] = useState(false);
   const [isReturnPolicyOpen, setIsReturnPolicyOpen] = useState(false);
@@ -1281,29 +1282,25 @@ export default function App() {
       const matchedRange = filterBarConfig?.priceRanges?.find(r => r.id === priceFilter);
       if (matchedRange) {
         list = list.filter(p => {
-          if (matchedRange.minPrice != null && p.price < matchedRange.minPrice) return false;
-          if (matchedRange.maxPrice != null && p.price > matchedRange.maxPrice) return false;
+          const effectivePrice = getProductEffectivePrice(p);
+          if (matchedRange.minPrice != null && effectivePrice < matchedRange.minPrice) return false;
+          if (matchedRange.maxPrice != null && effectivePrice > matchedRange.maxPrice) return false;
           return true;
         });
       } else if (priceFilter === 'under50') {
-        list = list.filter(p => p.price <= 50);
+        list = list.filter(p => getProductEffectivePrice(p) <= 50);
       } else if (priceFilter === 'under100') {
-        list = list.filter(p => p.price >= 50 && p.price <= 100);
+        list = list.filter(p => {
+          const eff = getProductEffectivePrice(p);
+          return eff >= 50 && eff <= 100;
+        });
       } else if (priceFilter === 'above100') {
-        list = list.filter(p => p.price > 100);
+        list = list.filter(p => getProductEffectivePrice(p) > 100);
       }
     }
 
-    // Sorting
-    if (sortBy === 'rating') {
-      list.sort((a, b) => b.rating - a.rating);
-    } else if (sortBy === 'price-asc') {
-      list.sort((a, b) => a.price - b.price);
-    } else if (sortBy === 'price-desc') {
-      list.sort((a, b) => b.price - a.price);
-    } else if (sortBy === 'name-asc') {
-      list.sort((a, b) => a.name.localeCompare(b.name));
-    }
+    // Sorting - Defaults to price-asc (Menor Preço), respects any selected option
+    list = sortProducts(list, sortBy);
 
     return list;
   }, [products, selectedCategory, searchQuery, priceFilter, sortBy, filterBarConfig]);

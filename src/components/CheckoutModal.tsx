@@ -27,6 +27,7 @@ import { CartItem, ShippingOption, Coupon, HomePageConfig, OrderData } from '../
 import { evaluateCoupon } from '../utils/couponUtils';
 import { DEFAULT_COUPONS } from '../data/coupons';
 import { calculateMelhorEnvioShipping, formatCep, isValidCep, getShippingConfig } from '../services/shippingService';
+import { getTop4CheapestShippingOptions, ensureSelectedOptionInTop4 } from '../utils/shippingDisplayEngine';
 import { fetchAddressByCep } from '../services/cepService';
 import { isValidCpf, isValidDocument, formatCpf, formatDocument, repairOrGenerateValidCpf, cleanCustomerCpf } from '../utils/documentUtils';
 import { processClientSidePixOrder, validatePixCopiaECola } from '../services/pixPaymentService';
@@ -163,6 +164,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     environment: 'production'
   });
   const [creditCardMode, setCreditCardMode] = useState<'brick' | 'form'>('brick');
+  const [brickReloadKey, setBrickReloadKey] = useState(0);
   const [isBrickReady, setIsBrickReady] = useState(false);
   const [isBrickLoading, setIsBrickLoading] = useState(false);
   const [brickError, setBrickError] = useState(false);
@@ -316,6 +318,38 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     });
   }, []);
 
+  // Opções padrão de contingência para frete
+  const fallbackShippingOptions: ShippingOption[] = useMemo(() => [
+    { id: 'melhor-envio-correios-pac', name: 'Correios PAC', carrier: 'Correios', deadline: '3 a 6 dias úteis', price: 12.90, originalPrice: 12.90, deliveryDays: 4 },
+    { id: 'melhor-envio-jadlog-package', name: 'Jadlog .Package', carrier: 'Jadlog', deadline: '2 a 4 dias úteis', price: 14.90, originalPrice: 14.90, deliveryDays: 3 },
+    { id: 'melhor-envio-correios-sedex', name: 'Correios SEDEX', carrier: 'Correios', deadline: '1 a 2 dias úteis', price: 22.90, originalPrice: 22.90, deliveryDays: 2 }
+  ], []);
+
+  // Lógica de cálculo do cupom
+  const couponEvaluation = evaluateCoupon(checkoutCoupon, subtotal, 0, availableCoupons);
+  const isFreeShippingCoupon = couponEvaluation.isFreeShipping;
+  const isGiftCoupon = couponEvaluation.isGift || checkoutCoupon?.toUpperCase() === 'BRINDE';
+  const FREE_SHIPPING_THRESHOLD = 149.00;
+  const isFreeShippingEligible = isFreeShippingCoupon || isGiftCoupon || subtotal >= FREE_SHIPPING_THRESHOLD;
+
+  // Opções de frete exibidas: Top 4 mais baratas calculadas pelo valor efetivo para o cliente
+  const displayedShippingOptions = useMemo(() => {
+    const rawList = shippingOptions.length > 0 ? shippingOptions : fallbackShippingOptions;
+    return getTop4CheapestShippingOptions(rawList, isFreeShippingEligible);
+  }, [shippingOptions, fallbackShippingOptions, isFreeShippingEligible]);
+
+  // Garante que a opção de frete selecionada pertence exclusivamente aos Top 4 exibidos
+  useEffect(() => {
+    if (displayedShippingOptions.length === 0) return;
+    const synced = ensureSelectedOptionInTop4(selectedOption || externalSelectedShipping, displayedShippingOptions);
+    if (synced && (!selectedOption || selectedOption.id !== synced.id)) {
+      setSelectedOption(synced);
+      if (setExternalSelectedShipping) {
+        setExternalSelectedShipping(synced);
+      }
+    }
+  }, [displayedShippingOptions, selectedOption, externalSelectedShipping, setExternalSelectedShipping]);
+
   // Busca opções de frete assim que o modal abre ou o CEP mudar
   const fetchShipping = async (targetCep: string) => {
     if (!isValidCep(targetCep) || items.length === 0) return;
@@ -326,27 +360,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const res = await calculateMelhorEnvioShipping(targetCep, items);
       if (res.options && res.options.length > 0) {
         setShippingOptions(res.options);
-
-        // Preserva rigorosamente o frete calculado e selecionado na etapa anterior
-        const preferredOption = selectedOption || externalSelectedShipping;
-        let chosen: ShippingOption | undefined;
-
-        if (preferredOption) {
-          chosen = res.options.find(o => o.id === preferredOption.id)
-            || res.options.find(o => o.name.toLowerCase() === preferredOption.name.toLowerCase())
-            || res.options.find(o => o.carrier.toLowerCase() === preferredOption.carrier.toLowerCase() && Math.abs(o.price - preferredOption.price) < 2)
-            || res.options.find(o => o.carrier.toLowerCase() === preferredOption.carrier.toLowerCase());
-        }
-
-        // Se ainda não havia nenhuma escolhida, adota a mais em conta ou a primeira
-        if (!chosen) {
-          chosen = [...res.options].sort((a, b) => a.price - b.price)[0] || res.options[0];
-        }
-
-        setSelectedOption(chosen);
-        if (setExternalSelectedShipping) {
-          setExternalSelectedShipping(chosen);
-        }
       } else {
         setShippingError('Nenhuma opção de frete encontrada para este CEP.');
       }
@@ -367,20 +380,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }, [isOpen]);
 
-  // Lógica de cálculo do cupom
-  const couponEvaluation = evaluateCoupon(checkoutCoupon, subtotal, 0, availableCoupons);
-  const isFreeShippingCoupon = couponEvaluation.isFreeShipping;
-  const isGiftCoupon = couponEvaluation.isGift || checkoutCoupon?.toUpperCase() === 'BRINDE';
-  const FREE_SHIPPING_THRESHOLD = 149.00;
-  const isFreeShippingEligible = isFreeShippingCoupon || isGiftCoupon || subtotal >= FREE_SHIPPING_THRESHOLD;
-
   // Desconto no subtotal dos produtos (ex: LAVI10, FLORZINHA, BRINDE)
   const currentDiscountAmount = isGiftCoupon ? subtotal : couponEvaluation.calculatedDiscount;
 
-  // Valor do Frete Selecionado (preserva o valor previamente escolhido/calculado do Melhor Envio)
+  // Valor do Frete Selecionado (garantido dentro dos Top 4 exibidos)
   const baseShippingCost = selectedOption 
     ? selectedOption.price 
-    : (externalSelectedShipping ? externalSelectedShipping.price : (shippingOptions[0]?.price ?? 13.38));
+    : (displayedShippingOptions[0]?.price ?? 13.38);
   const finalShippingCost = (isFreeShippingEligible || isGiftCoupon) ? 0 : baseShippingCost;
 
   // Base para cálculo do desconto PIX: Subtotal após cupom + Frete Real do Melhor Envio
@@ -423,9 +429,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setCouponFeedback({ message: 'Cupom removido.', isError: false });
   };
 
-  // Inicialização oficial do Mercado Pago Payment Brick (com suporte nativo a parcelamento em até 12x)
+  // Inicialização oficial do Mercado Pago Payment Brick
   useEffect(() => {
-    if (!isOpen || paymentMethod !== 'credit' || creditCardMode !== 'brick') return;
+    if (!isOpen || paymentMethod !== 'credit') return;
 
     let isMounted = true;
     let checkTimer: any;
@@ -441,7 +447,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setIsBrickLoading(false);
         const container = document.getElementById('paymentBrick_container');
         if (!container || !container.children.length) {
-          console.warn('[Mercado Pago Brick] Tempo limite de carregamento do componente visual excedido. Habilitando Formulário Direto.');
+          console.warn('[Mercado Pago Brick] Tempo limite de carregamento do componente visual excedido.');
           setBrickError(true);
         }
       }
@@ -589,7 +595,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       if (checkTimer) clearTimeout(checkTimer);
       if (safetyTimer) clearTimeout(safetyTimer);
     };
-  }, [isOpen, paymentMethod, creditCardMode, activePublicKey, finalOrderTotal]);
+  }, [isOpen, paymentMethod, activePublicKey, finalOrderTotal, brickReloadKey]);
 
   // Processamento unificado no Mercado Pago (Payment Brick ou Formulário Seguro Transparente)
   const executeMercadoPagoPayment = async (customFormData?: any, isOwnerTestSimulation: boolean = false) => {
@@ -1036,7 +1042,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     try {
       // 2. Se for Cartão em modo Brick oficial, clica no botão de submissão do Brick para disparar tokenização síncrona
-      if (paymentMethod === 'credit' && creditCardMode === 'brick' && !brickError) {
+      if (paymentMethod === 'credit' && !brickError) {
         const brickBtn = document.querySelector(
           '#paymentBrick_container button[type="submit"], #paymentBrick_container input[type="submit"], #paymentBrick_container form button'
         ) as HTMLButtonElement | null;
@@ -1348,20 +1354,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {(shippingOptions.length > 0 ? shippingOptions : [
-                        { id: 'melhor-envio-correios-pac', name: 'Correios PAC', carrier: 'Correios', deadline: '3 a 6 dias úteis', price: 12.90 },
-                        { id: 'melhor-envio-jadlog-package', name: 'Jadlog .Package', carrier: 'Jadlog', deadline: '2 a 4 dias úteis', price: 14.90 },
-                        { id: 'melhor-envio-correios-sedex', name: 'Correios SEDEX', carrier: 'Correios', deadline: '1 a 2 dias úteis', price: 22.90 }
-                      ]).map(ship => {
-                        const isSelected = selectedOption?.id === ship.id || (selectedOption?.name === ship.name && selectedOption?.carrier === ship.carrier);
+                      {displayedShippingOptions.map(ship => {
+                        const isSelected = selectedOption?.id === ship.id;
 
                         return (
                           <div
                             key={ship.id}
                             onClick={() => {
-                              setSelectedOption(ship as any);
+                              setSelectedOption(ship);
                               if (setExternalSelectedShipping) {
-                                setExternalSelectedShipping(ship as any);
+                                setExternalSelectedShipping(ship);
                               }
                             }}
                             className={`p-3 rounded-2xl border cursor-pointer text-xs transition-all relative ${
@@ -1385,8 +1387,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                 name="checkout_shipping_option"
                                 checked={isSelected}
                                 onChange={() => {
-                                  setSelectedOption(ship as any);
-                                  if (setExternalSelectedShipping) setExternalSelectedShipping(ship as any);
+                                  setSelectedOption(ship);
+                                  if (setExternalSelectedShipping) setExternalSelectedShipping(ship);
                                 }}
                                 className="accent-purple-600 mt-1 cursor-pointer"
                               />
@@ -1497,7 +1499,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       >
                         <CreditCard className="w-5 h-5 text-purple-600" />
                         <span className="text-xs">Cartão de Crédito</span>
-                        <span className="text-[9px] bg-purple-200 text-purple-900 px-2 py-0.5 rounded-full font-bold">Payment Brick até 12x</span>
+                        <span className="text-[9px] bg-purple-200 text-purple-900 px-2 py-0.5 rounded-full font-bold">Mercado Pago Oficial</span>
                       </button>
                     </div>
 
@@ -1543,190 +1545,40 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           </span>
                         </div>
 
-                        {/* Seletor de Modo: Payment Brick Oficial vs Formulário Direto */}
-                        <div className="flex items-center gap-2 p-1 bg-purple-100/70 rounded-xl border border-purple-200">
-                          <button
-                            type="button"
-                            onClick={() => setCreditCardMode('brick')}
-                            className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                              creditCardMode === 'brick'
-                                ? 'bg-white text-purple-950 shadow-xs'
-                                : 'text-purple-700 hover:text-purple-900'
+                        {/* Payment Brick Oficial do Mercado Pago */}
+                        <div className="space-y-2">
+                          {isBrickLoading && (
+                            <div className="p-6 bg-white rounded-2xl border border-purple-100 flex flex-col items-center justify-center gap-2 text-purple-800 text-xs text-center animate-pulse">
+                              <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
+                              <span className="font-semibold">Carregando Payment Brick oficial do Mercado Pago...</span>
+                            </div>
+                          )}
+
+                          {/* Container visual oficial do Payment Brick do Mercado Pago */}
+                          <div
+                            id="paymentBrick_container"
+                            className={`w-full min-h-[140px] bg-white rounded-2xl p-2 border border-purple-100 shadow-2xs transition-opacity duration-200 ${
+                              isBrickLoading ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'
                             }`}
-                          >
-                            💳 Payment Brick Oficial (até 12x)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCreditCardMode('form')}
-                            className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                              creditCardMode === 'form'
-                                ? 'bg-white text-purple-950 shadow-xs'
-                                : 'text-purple-700 hover:text-purple-900'
-                            }`}
-                          >
-                            📝 Formulário Direto Seguro
-                          </button>
-                        </div>
+                          />
 
-                        {creditCardMode === 'brick' && (
-                          <div className="space-y-2">
-                            {isBrickLoading && (
-                              <div className="p-6 bg-white rounded-2xl border border-purple-100 flex flex-col items-center justify-center gap-2 text-purple-800 text-xs text-center animate-pulse">
-                                <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
-                                <span className="font-semibold">Carregando Payment Brick oficial do Mercado Pago...</span>
-                                <span className="text-[10px] text-slate-500">Preparando suporte a parcelamento em até 12x</span>
-                              </div>
-                            )}
-
-                            {/* Container visual oficial do Payment Brick do Mercado Pago */}
-                            <div
-                              id="paymentBrick_container"
-                              className={`w-full min-h-[140px] bg-white rounded-2xl p-2 border border-purple-100 shadow-2xs transition-opacity duration-200 ${
-                                isBrickLoading ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'
-                              }`}
-                            />
-
-                            {brickError && (
-                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-center justify-between">
-                                <span>Componente visual bloqueado pela rede ou adblocker. Use o Formulário Direto:</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setCreditCardMode('form')}
-                                  className="text-pink-600 font-bold underline cursor-pointer ml-2"
-                                >
-                                  Preencher Cartão
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {(creditCardMode === 'form' || brickError) && (
-                          <div className="space-y-2.5 pt-1 animate-in fade-in">
-                            <p className="text-[11px] text-slate-700 leading-relaxed">
-                              Preencha os dados do seu cartão diretamente no site com total segurança. O pagamento é processado instantaneamente pela infraestrutura oficial do Mercado Pago.
-                            </p>
-
-                            {/* Campos Seguros de Cartão Direto no Site */}
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                                Número do Cartão de Crédito
-                              </label>
-                              <div className="relative">
-                                <input
-                                  type="text"
-                                  value={cardNumber}
-                                  onChange={(e) => setCardNumber(e.target.value)}
-                                  placeholder="0000 0000 0000 0000"
-                                  maxLength={19}
-                                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                />
-                                <CreditCard className="w-4 h-4 text-purple-400 absolute right-3 top-2.5 pointer-events-none" />
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                                Nome do Titular (Como impresso no cartão)
-                              </label>
-                              <input
-                                type="text"
-                                value={cardHolder}
-                                onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
-                                placeholder="Nome impresso no cartão"
-                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs uppercase font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                              />
-                            </div>
-
-                            {/* Opção de CPF do Titular do Cartão com validação cleanCustomerCpf */}
-                            <div className="p-2.5 bg-purple-100/50 rounded-xl border border-purple-200/80 space-y-2">
-                              <label className="flex items-center gap-2 text-[11px] text-purple-950 font-medium cursor-pointer select-none">
-                                <input
-                                  type="checkbox"
-                                  checked={sameAsCustomerCpf}
-                                  onChange={(e) => setSameAsCustomerCpf(e.target.checked)}
-                                  className="w-3.5 h-3.5 text-purple-600 rounded accent-purple-600 cursor-pointer"
-                                />
-                                <span>
-                                  Titular do cartão é a mesma pessoa da compra {customerCpf ? `(${customerCpf})` : ''}
-                                </span>
-                              </label>
-
-                              {!sameAsCustomerCpf && (
-                                <div className="pt-1 animate-in fade-in">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <label className="block text-[10px] font-bold text-slate-600 uppercase">
-                                      CPF do Titular do Cartão
-                                    </label>
-                                    {cleanCustomerCpf(cardHolderCpf).length === 11 && (
-                                      <span className={`text-[10px] font-bold ${isValidCpf(cardHolderCpf) ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                        {isValidCpf(cardHolderCpf) ? '✓ CPF Válido' : '⚠️ CPF Inválido'}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={cardHolderCpf}
-                                    maxLength={14}
-                                    onChange={(e) => setCardHolderCpf(formatCpf(e.target.value))}
-                                    placeholder="000.000.000-00"
-                                    className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                  />
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                                  Validade (MM/AA)
-                                </label>
-                                <input
-                                  type="text"
-                                  value={cardExpiry}
-                                  onChange={(e) => setCardExpiry(e.target.value)}
-                                  placeholder="MM/AA"
-                                  maxLength={5}
-                                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                                  CVV (Código de Segurança)
-                                </label>
-                                <input
-                                  type="password"
-                                  value={cardCvv}
-                                  onChange={(e) => setCardCvv(e.target.value)}
-                                  placeholder="CVV"
-                                  maxLength={4}
-                                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Parcelamento Dinâmico Mercado Pago (com valores calculados sobre total + frete) */}
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                                Quantidade de Parcelas (Mercado Pago em até 12x)
-                              </label>
-                              <select
-                                value={installments}
-                                onChange={(e) => setInstallments(e.target.value)}
-                                className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-medium text-purple-950 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
+                          {brickError && (
+                            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-center justify-between gap-3">
+                              <span>Não foi possível carregar o componente do Mercado Pago. Verifique sua conexão ou desative o bloqueador de anúncios.</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBrickError(false);
+                                  setIsBrickLoading(true);
+                                  setBrickReloadKey(prev => prev + 1);
+                                }}
+                                className="text-purple-900 font-bold bg-amber-200/80 hover:bg-amber-300 px-3 py-1.5 rounded-lg text-xs cursor-pointer shrink-0 transition-colors"
                               >
-                                <option value="1">1x de R$ {finalOrderTotal.toFixed(2)} (à vista)</option>
-                                <option value="2">2x de R$ {(finalOrderTotal / 2).toFixed(2)} sem juros</option>
-                                <option value="3">3x de R$ {(finalOrderTotal / 3).toFixed(2)} sem juros</option>
-                                <option value="4">4x de R$ {(finalOrderTotal / 4).toFixed(2)}</option>
-                                <option value="6">6x de R$ {(finalOrderTotal / 6).toFixed(2)}</option>
-                                <option value="10">10x de R$ {(finalOrderTotal / 10).toFixed(2)}</option>
-                                <option value="12">12x de R$ {(finalOrderTotal / 12).toFixed(2)}</option>
-                              </select>
+                                Tentar Novamente
+                              </button>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                         <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-purple-200/60">
                           <span>Processador oficial: Mercado Pago</span>
