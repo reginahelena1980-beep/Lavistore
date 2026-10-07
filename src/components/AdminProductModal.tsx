@@ -31,7 +31,7 @@ import {
 import { Product, ProductSizeVariant, ProductColorVariant, Category, BiProductCalculatedRecord } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { safeSetItem, safeGetItem, safeRemoveItem, compressImage, compressImageToBlob } from '../utils/storage';
-import { uploadProductImage, isFirebaseStorageReady } from '../services/firebase';
+import { uploadProductImage, UploadImageError } from '../services/firebase';
 import { 
   getGroupingKey, 
   normalizeBaseProductName, 
@@ -85,6 +85,43 @@ export const getSuggestedPhotoForName = (text: string) => {
   return null;
 };
 
+/**
+ * Validação rigorosa de URLs manuais de imagens (produto principal e cores).
+ * Bloqueia estritamente data:, javascript: e blob:, aceitando apenas https:// (e http:// para dev).
+ */
+export function validateImageUrl(url: string): { valid: boolean; error?: string } {
+  const trimmed = (url || '').trim();
+  if (!trimmed) {
+    return { valid: false, error: 'A URL da imagem não pode estar vazia.' };
+  }
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('data:') || lower.startsWith('data:image/')) {
+    return {
+      valid: false,
+      error: 'Para proteger o banco de dados contra limites de tamanho de documento, URLs em formato Base64 (data:) não são permitidas. Por favor, utilize uma URL HTTPS.'
+    };
+  }
+  if (lower.startsWith('javascript:')) {
+    return {
+      valid: false,
+      error: 'URLs do tipo javascript: são bloqueadas por segurança.'
+    };
+  }
+  if (lower.startsWith('blob:')) {
+    return {
+      valid: false,
+      error: 'URLs do tipo blob: não são permitidas para persistência. Envie o arquivo diretamente ou utilize uma URL HTTPS.'
+    };
+  }
+  if (!lower.startsWith('https://') && !lower.startsWith('http://')) {
+    return {
+      valid: false,
+      error: 'A URL da foto deve ser um link válido iniciando com https:// ou http://'
+    };
+  }
+  return { valid: true };
+}
+
 export interface AdminProductModalProps {
   isOpen: boolean;
   productToEdit: Product | null;
@@ -120,7 +157,8 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
   // Lista de linhas irmãs da família identificadas na planilha
   const [detectedSpreadsheetSiblings, setDetectedSpreadsheetSiblings] = useState<BiProductCalculatedRecord[]>([]);
 
-  const [formData, setFormData] = useState<Partial<Product>>({
+  const [formData, setFormData] = useState<Partial<Product>>(() => ({
+    id: productToEdit?.id || `lav-${Date.now().toString().slice(-5)}`,
     name: '',
     category: 'cadernos-planners',
     price: 39.90,
@@ -146,7 +184,7 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     isFloralSpecial: false,
     isPublished: true,
     autoHideWhenOutOfStock: true,
-  });
+  }));
 
   const [newFeatureText, setNewFeatureText] = useState('');
   const [imageUrlInput, setImageUrlInput] = useState('');
@@ -662,22 +700,57 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
   const handleColorImageUpload = async (id: string, file: File) => {
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      setErrorMessage('A imagem da cor deve ter no máximo 8MB.');
+    const productId = formData.id?.trim();
+    if (!productId) {
+      setErrorMessage('Identificador do produto (ID) não encontrado. Não é possível realizar o upload da cor.');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Por favor selecione um arquivo de imagem válido para a variação de cor.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMessage('A imagem da cor deve ter no máximo 10MB antes da compressão.');
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsUploadingImage(true);
+    try {
+      const compressedBlob = await compressImageToBlob(file, 500, 0.8);
+      const downloadUrl = await uploadProductImage(compressedBlob, {
+        entityType: 'product-color',
+        entityId: productId,
+        slotId: id
+      });
+      handleUpdateColorVariant(id, 'imageUrl', downloadUrl);
+    } catch (err: any) {
+      console.error('[AdminProductModal] Erro ao enviar foto da cor:', err?.message || err);
+      const isAuthError = err?.status === 401 || err?.message?.includes('expirou') || err?.message?.includes('401');
+      if (isAuthError) {
+        setErrorMessage('Sua sessão administrativa expirou. Faça login novamente para enviar imagens.');
+      } else {
+        setErrorMessage(`Erro ao enviar foto da variação de cor: ${err?.message || 'Falha na comunicação com o servidor.'}`);
+      }
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleColorImageUrlChange = (colId: string, val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      handleUpdateColorVariant(colId, 'imageUrl', undefined);
+      setErrorMessage(null);
+      return;
+    }
+    const validation = validateImageUrl(trimmed);
+    if (!validation.valid) {
+      setErrorMessage(validation.error!);
       return;
     }
     setErrorMessage(null);
-    try {
-      const compressedBlob = await compressImageToBlob(file, 500, 0.8);
-      const downloadUrl = await uploadProductImage(compressedBlob, `cor_${id}`);
-      handleUpdateColorVariant(id, 'imageUrl', downloadUrl);
-    } catch (e: any) {
-      console.warn('[AdminProductModal] Upload de imagem de cor via Storage indisponível:', e?.message || e);
-      setErrorMessage(
-        'O Firebase Storage ainda não foi ativado no projeto lavistorekides (Bucket indisponível). ' +
-        'Para manter o banco de dados leve e evitar exceder limites do Firestore, utilize uma URL HTTPS no campo de cor.'
-      );
-    }
+    handleUpdateColorVariant(colId, 'imageUrl', trimmed);
   };
 
   // MULTIPLE PHOTOS MANAGEMENT
@@ -685,43 +758,61 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    const productId = formData.id?.trim();
+    if (!productId) {
+      setErrorMessage('Identificador do produto (ID) não encontrado. Não é possível realizar o upload de fotos.');
+      e.target.value = '';
+      return;
+    }
+
     setIsUploadingImage(true);
     setErrorMessage(null);
 
     const fileList = Array.from(files);
     e.target.value = ''; // Reset input so same file can be selected again if needed
 
-    for (const file of fileList) {
+    let currentSlotIndex = (formData.images || []).length;
+
+    for (let idx = 0; idx < fileList.length; idx++) {
+      const file = fileList[idx];
+
       if (!file.type.startsWith('image/')) {
-        setErrorMessage('Por favor selecione apenas arquivos de imagem válidos.');
-        continue;
+        setErrorMessage(`O arquivo "${file.name}" não é uma imagem válida. Selecione arquivos JPEG, PNG ou WebP.`);
+        break;
       }
 
       if (file.size > 10 * 1024 * 1024) {
-        setErrorMessage('A imagem selecionada é muito pesada (máx 10MB).');
-        continue;
+        setErrorMessage(`A imagem "${file.name}" é muito pesada (máx 10MB antes da compressão).`);
+        break;
       }
 
       try {
         // 1. Comprime a imagem no cliente gerando um Blob JPEG otimizado
         const compressedBlob = await compressImageToBlob(file, 1000, 0.82);
 
-        // 2. Faz o upload binário para o Firebase Storage para obter a URL HTTPS (Zero Base64 no Firestore)
-        const downloadUrl = await uploadProductImage(compressedBlob, formData.name || 'mimo');
+        // 2. Faz o upload binário seguro via backend administrativo com índice determinístico
+        const downloadUrl = await uploadProductImage(compressedBlob, {
+          entityType: 'product',
+          entityId: productId,
+          imageIndex: currentSlotIndex
+        });
 
+        // 3. Acrescenta exclusivamente a URL HTTPS tokenizada (Zero Base64 no Firestore)
         setFormData(prev => ({
           ...prev,
           images: [...(prev.images || []), downloadUrl]
         }));
+        currentSlotIndex++;
       } catch (err: any) {
-        console.error('[AdminProductModal] Erro ao enviar foto para o Storage:', err?.message || err);
-        // Regra de Blindagem (Problem 3): NUNCA gravar Base64 no Firestore quando o Storage não estiver provisionado
-        setErrorMessage(
-          'O Firebase Storage ainda não está ativado no projeto lavistorekides (Bucket indisponível no Google Cloud). ' +
-          'Para proteger a integridade do banco de dados e evitar o erro de limite de 1MB do Firestore, ' +
-          'o armazenamento direto em Base64 foi bloqueado. Por favor, utilize uma URL HTTPS de imagem (ex: Unsplash, Imgur, CDN) ' +
-          'no campo "Adicionar Foto por URL" abaixo.'
-        );
+        console.error('[AdminProductModal] Erro ao enviar foto do produto:', err?.message || err);
+        const isAuthError = err?.status === 401 || err?.message?.includes('expirou') || err?.message?.includes('401');
+        if (isAuthError) {
+          setErrorMessage('Sua sessão administrativa expirou. Faça login novamente para enviar imagens.');
+        } else {
+          setErrorMessage(`Falha no upload da foto ${idx + 1} (${file.name}): ${err?.message || 'Erro desconhecido'}`);
+        }
+        // Interrompe o envio de fotos subsequentes do lote para não pular índices e preservar o estado das fotos anteriores
+        break;
       }
     }
 
@@ -732,13 +823,9 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
     const url = imageUrlInput.trim();
     if (!url) return;
 
-    if (url.startsWith('data:')) {
-      setErrorMessage('Para proteger o banco de dados contra limites de tamanho de documento, URLs em formato Base64 não são permitidas. Por favor, utilize uma URL HTTPS.');
-      return;
-    }
-
-    if (!url.startsWith('https://') && !url.startsWith('http://')) {
-      setErrorMessage('A URL da foto deve ser um link válido iniciando com https:// ou http://');
+    const validation = validateImageUrl(url);
+    if (!validation.valid) {
+      setErrorMessage(validation.error!);
       return;
     }
 
@@ -2101,10 +2188,9 @@ export const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
                           <input
                             type="url"
-                            value={col.imageUrl?.startsWith('data:') ? 'Foto do dispositivo' : (col.imageUrl || '')}
-                            disabled={col.imageUrl?.startsWith('data:')}
-                            onChange={(e) => handleUpdateColorVariant(col.id, 'imageUrl', e.target.value)}
-                            placeholder="ou Link da foto"
+                            value={col.imageUrl || ''}
+                            onChange={(e) => handleColorImageUrlChange(col.id, e.target.value)}
+                            placeholder="ou Link da foto (https://...)"
                             className="w-full px-2 py-0.5 bg-purple-50/30 border border-purple-200 rounded-lg text-[9px] text-slate-700 focus:outline-none focus:ring-1 focus:ring-pink-400"
                           />
                         </div>

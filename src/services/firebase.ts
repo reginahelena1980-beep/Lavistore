@@ -17,7 +17,7 @@ import {
   getDocFromServer 
 } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 import firebaseAppletConfig from '../../firebase-applet-config.json';
 
 export enum OperationType {
@@ -224,35 +224,168 @@ export function getStorageInstance(): FirebaseStorage | null {
   return storageInstance;
 }
 
+export class UploadImageError extends Error {
+  status: number;
+  constructor(message: string, status: number = 0) {
+    super(message);
+    this.name = 'UploadImageError';
+    this.status = status;
+  }
+}
+
+export interface UploadProductImageOptions {
+  entityType: 'product' | 'product-color';
+  entityId: string;
+  imageIndex?: number;
+  slotId?: string;
+}
+
+export async function blobToDataUrl(fileOrBlob: File | Blob): Promise<string> {
+  if (typeof FileReader !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Falha ao converter imagem para transmissão.'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Erro na leitura da imagem para upload.'));
+      reader.readAsDataURL(fileOrBlob);
+    });
+  }
+  // Fallback para Node.js / testes
+  const arrayBuffer = await fileOrBlob.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const type = fileOrBlob.type || 'image/jpeg';
+  return `data:${type};base64,${buffer.toString('base64')}`;
+}
+
 /**
- * Faz upload seguro de imagem comprimida para o Firebase Storage
- * e retorna exclusivamente a URL HTTPS pública de download.
- * NUNCA armazena Data URL / Base64 no Firestore.
+ * Faz upload seguro de imagem comprimida para o backend administrativo
+ * (POST /api/admin/upload-image com mode: "admin") e retorna exclusivamente
+ * a URL HTTPS pública tokenizada do Firebase Admin Storage.
+ * NUNCA armazena Data URL / Base64 e não utiliza o Firebase Web Storage SDK.
  */
 export async function uploadProductImage(
   fileOrBlob: File | Blob,
-  filenamePrefix: string = 'product'
+  options: UploadProductImageOptions
 ): Promise<string> {
-  if (!storageInstance) {
-    throw new Error('STORAGE_NOT_CONFIGURED: O Firebase Storage não está disponível ou configurado.');
+  if (!fileOrBlob) {
+    throw new UploadImageError('Nenhum arquivo ou imagem fornecido para upload.', 400);
   }
 
-  const timestamp = Date.now();
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
-  const cleanPrefix = filenamePrefix.toLowerCase().replace(/[^a-z0-9_-]/g, '_').substring(0, 30);
-  const filePath = `products/${cleanPrefix}_${timestamp}_${randomSuffix}.jpg`;
-  const storageRef = ref(storageInstance, filePath);
+  if (!options || typeof options !== 'object') {
+    throw new UploadImageError('Opções semânticas de upload não fornecidas.', 400);
+  }
 
+  const entityId = options.entityId?.trim();
+  if (!entityId) {
+    throw new UploadImageError('MISSING_PRODUCT_ID: O identificador estável do produto (entityId) é obrigatório.', 400);
+  }
+
+  if (options.entityType === 'product') {
+    if (
+      options.imageIndex === undefined ||
+      options.imageIndex === null ||
+      typeof options.imageIndex !== 'number' ||
+      !Number.isInteger(options.imageIndex) ||
+      options.imageIndex < 0
+    ) {
+      throw new UploadImageError('INVALID_IMAGE_INDEX: O índice da imagem do produto (imageIndex) deve ser um número inteiro >= 0.', 400);
+    }
+  } else if (options.entityType === 'product-color') {
+    if (!options.slotId || typeof options.slotId !== 'string' || !options.slotId.trim()) {
+      throw new UploadImageError('INVALID_SLOT_ID: O identificador da variação de cor (slotId) é obrigatório.', 400);
+    }
+  } else {
+    throw new UploadImageError(`INVALID_ENTITY_TYPE: Tipo de entidade não suportado: ${(options as any).entityType}`, 400);
+  }
+
+  // 1. Converte o Blob para Data URL exclusivamente em memória para transporte HTTP
+  const imageBase64 = await blobToDataUrl(fileOrBlob);
+
+  const payload: Record<string, any> = {
+    mode: 'admin',
+    imageBase64,
+    entityType: options.entityType,
+    entityId
+  };
+
+  if (options.entityType === 'product') {
+    payload.imageIndex = options.imageIndex;
+  } else {
+    payload.slotId = options.slotId!.trim();
+  }
+
+  // 2. Timeout limitado a 20 segundos
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 20000);
+
+  let response: Response;
   try {
-    const snapshot = await uploadBytes(storageRef, fileOrBlob, {
-      contentType: 'image/jpeg'
+    response = await fetch('/api/admin/upload-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+      signal: controller.signal
     });
-    const downloadUrl = await getDownloadURL(snapshot.ref);
-    return downloadUrl;
-  } catch (err: any) {
-    console.error('[Firebase Storage] Erro no upload da imagem:', err?.message || err);
-    throw err;
+  } catch (netErr: any) {
+    clearTimeout(timeoutId);
+    if (netErr?.name === 'AbortError') {
+      throw new UploadImageError('TIMEOUT: O tempo limite de 20 segundos para envio da imagem expirou. Verifique sua conexão e tente novamente.', 408);
+    }
+    throw new UploadImageError(`Falha de rede ou conexão ao enviar imagem: ${netErr?.message || 'Erro de rede desconhecido'}`, 0);
+  } finally {
+    clearTimeout(timeoutId);
   }
+
+  let data: any = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (response.status === 401) {
+    throw new UploadImageError('Sua sessão administrativa expirou. Faça login novamente para enviar imagens.', 401);
+  }
+
+  if (response.status === 413) {
+    throw new UploadImageError('A imagem selecionada excede o limite máximo permitido de 5 MB.', 413);
+  }
+
+  if (response.status === 415) {
+    throw new UploadImageError('Formato de imagem não suportado. Utilize imagens no formato JPEG, PNG ou WebP.', 415);
+  }
+
+  if (response.status === 400) {
+    throw new UploadImageError(data?.error || 'Dados da requisição de imagem inválidos.', 400);
+  }
+
+  if (response.status >= 500) {
+    throw new UploadImageError(data?.error || 'Erro interno no servidor de upload de imagens.', response.status);
+  }
+
+  if (!response.ok) {
+    throw new UploadImageError(data?.error || `Falha no upload com código HTTP ${response.status}`, response.status);
+  }
+
+  if (!data || data.success !== true) {
+    throw new UploadImageError(data?.error || 'O servidor não confirmou o upload com sucesso.', response.status);
+  }
+
+  if (!data.url || typeof data.url !== 'string' || !data.url.startsWith('https://')) {
+    throw new UploadImageError('INVALID_BACKEND_URL: A URL retornada pelo servidor não é uma URL HTTPS válida.', 500);
+  }
+
+  return data.url;
 }
 
 export { firestoreInstance as db, authInstance as auth, appInstance as app, storageInstance as storage };
