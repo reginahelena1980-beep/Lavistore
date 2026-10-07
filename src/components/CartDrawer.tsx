@@ -71,8 +71,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   }, [externalCep]);
 
-  if (!isOpen) return null;
-
   const FREE_SHIPPING_THRESHOLD = 149.00;
 
   const subtotal = items.reduce((acc, item) => {
@@ -106,6 +104,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       }
     }
   }, [displayedShippingOptions, selectedShippingOption, setSelectedShippingOption]);
+
+  if (!isOpen) return null;
 
   // Valor do frete considerado
   const rawShippingCost = selectedShippingOption ? selectedShippingOption.price : 0;
