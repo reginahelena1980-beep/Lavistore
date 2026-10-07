@@ -68,6 +68,8 @@ export interface MigrationExecutionResult {
   success: boolean;
   legacyFound: number;
   uploadedSuccessfully: number;
+  reusedCount?: number;
+  newUploadsCount?: number;
   failedCount: number;
   failedImages: {
     productId: string;
@@ -78,6 +80,9 @@ export interface MigrationExecutionResult {
   beforeSizeBytes: number;
   afterSizeBytes: number;
   reductionBytes: number;
+  biBeforeSizeBytes?: number;
+  biAfterSizeBytes?: number;
+  biReductionBytes?: number;
   migratedProducts: Product[];
   migratedBiRecords?: BiProductCalculatedRecord[];
   firestoreSaved: boolean;
@@ -572,6 +577,79 @@ export function validateMigratedCatalog(
   return { valid: true };
 }
 
+/**
+ * Validação rigorosa dos invariantes pré-gravação da Fase G7
+ */
+export function validatePreSaveInvariants(
+  originalProducts: Product[],
+  migratedProducts: Product[],
+  originalBiRecords: BiProductCalculatedRecord[],
+  migratedBiRecords: BiProductCalculatedRecord[]
+): { valid: boolean; error?: string } {
+  // 1. Contagem de produtos
+  if (originalProducts.length !== migratedProducts.length) {
+    return { valid: false, error: `Quantidade de produtos divergiu: ${originalProducts.length} antes vs ${migratedProducts.length} depois.` };
+  }
+
+  // 2. Integridade dos produtos (IDs, nomes, publicação e URLs)
+  for (let i = 0; i < originalProducts.length; i++) {
+    const o = originalProducts[i];
+    const m = migratedProducts[i];
+    if (o.id !== m.id) return { valid: false, error: `ID de produto alterado no índice ${i}: ${o.id} vs ${m.id}.` };
+    if (o.name !== m.name) return { valid: false, error: `Nome de produto alterado para ${o.id}.` };
+    if (o.isPublished !== m.isPublished) return { valid: false, error: `Status de publicação alterado para ${o.id}.` };
+
+    if (Array.isArray(m.images)) {
+      for (let j = 0; j < m.images.length; j++) {
+        const img = m.images[j];
+        if (img === undefined || img === null) {
+          return { valid: false, error: `Produto ${m.id} imagem[${j}] possui valor nulo ou indefinido acidental.` };
+        }
+        if (isBase64ImageUrl(img)) {
+          return { valid: false, error: `Produto ${m.id} imagem[${j}] ainda é uma string Base64 legada.` };
+        }
+        if (!isHttpsUrl(img)) {
+          return { valid: false, error: `Produto ${m.id} imagem[${j}] não é uma URL HTTPS válida: ${String(img).substring(0, 30)}` };
+        }
+      }
+    }
+  }
+
+  // 3. Contagem de registros de BI
+  if (originalBiRecords.length !== migratedBiRecords.length) {
+    return { valid: false, error: `Quantidade de registros de BI divergiu: ${originalBiRecords.length} antes vs ${migratedBiRecords.length} depois.` };
+  }
+
+  // 4. Integridade dos registros de BI (ordem, IDs, campos e ausência de Base64)
+  for (let i = 0; i < originalBiRecords.length; i++) {
+    const o = originalBiRecords[i];
+    const m = migratedBiRecords[i];
+    if (o.id !== m.id) return { valid: false, error: `ID do registro de BI divergiu no índice ${i}: ${o.id} vs ${m.id}.` };
+    if (o.produto !== m.produto) return { valid: false, error: `Campo produto divergiu no registro de BI ${o.id}.` };
+
+    const img = m.vitrineImageUrl;
+    if (img) {
+      if (isBase64ImageUrl(img)) {
+        return { valid: false, error: `Registro de BI ${m.id} ainda possui foto em Base64.` };
+      }
+      if (!isHttpsUrl(img)) {
+        return { valid: false, error: `Registro de BI ${m.id} vitrineImageUrl não é uma URL HTTPS: ${String(img).substring(0, 30)}` };
+      }
+    }
+  }
+
+  // 5. Preservação estrita da referência HTTPS do produto Canary lav-bi-anel
+  const canaryBefore = originalProducts.find(p => p.id === CANARY_TARGET_PRODUCT_ID);
+  const canaryAfter = migratedProducts.find(p => p.id === CANARY_TARGET_PRODUCT_ID);
+  if (canaryBefore && isHttpsUrl(canaryBefore.images?.[CANARY_TARGET_IMAGE_INDEX])) {
+    if (canaryBefore.images[CANARY_TARGET_IMAGE_INDEX] !== canaryAfter?.images?.[CANARY_TARGET_IMAGE_INDEX]) {
+      return { valid: false, error: `A referência HTTPS pré-existente de lav-bi-anel foi modificada indevidamente.` };
+    }
+  }
+
+  return { valid: true };
+}
+
 export const CANARY_TARGET_PRODUCT_ID = 'lav-bi-anel';
 export const CANARY_TARGET_IMAGE_INDEX = 0;
 export const CANARY_EXPECTED_STORAGE_OBJECT = 'legacy/product/lav-bi-anel/0-b1749e8b7ae58f40e56cd7b5574026ac5ab2213948da257ca4cf863dd8410443.jpeg';
@@ -896,6 +974,8 @@ export async function migrateLegacyProductImages(
       success: canaryRes.success,
       legacyFound: 1,
       uploadedSuccessfully: 1,
+      reusedCount: canaryRes.reused ? 1 : 0,
+      newUploadsCount: canaryRes.reused ? 0 : 1,
       failedCount: 0,
       failedImages: [],
       beforeSizeBytes: canaryRes.affectedDocUtf8SizeBefore,
@@ -907,7 +987,6 @@ export async function migrateLegacyProductImages(
     };
   }
 
-  const uploader = options.storageUploader || defaultStorageUploader;
   const onProgress = options.onProgress || (() => {});
 
   const rawBase = options.fullStoreConfigPayload || { products };
@@ -916,38 +995,9 @@ export async function migrateLegacyProductImages(
     ...cleanBeforePayload,
     products
   });
+  const biBeforeSizeBytes = estimateDocumentSizeInBytes({ records: biRecords });
 
-  // Mapeamento de fotos migradas: Base64 -> HTTPS URL
-  const base64ToHttpsMap = new Map<string, string>();
-  // Mapeamento de produtos para a nova URL HTTPS de sua foto principal
-  const productToPrimaryHttpsMap = new Map<string, string>();
-
-  // Contagem de fotos Base64 a migrar
-  let totalToMigrate = 0;
-  for (const p of products) {
-    if (Array.isArray(p.images)) {
-      for (const img of p.images) {
-        if (isBase64ImageUrl(img)) totalToMigrate++;
-      }
-    }
-    if (Array.isArray(p.colors)) {
-      for (const c of p.colors) {
-        if (isBase64ImageUrl(c.imageUrl)) totalToMigrate++;
-      }
-    }
-  }
-  for (const b of biRecords) {
-    if (isBase64ImageUrl(b.vitrineImageUrl)) {
-      // Se não for Base64 já contado em produtos, conta como imagem avulsa de BI
-      totalToMigrate++;
-    }
-  }
-
-  let processedCount = 0;
-  let uploadedSuccessfully = 0;
-  const failedImages: MigrationExecutionResult['failedImages'] = [];
-
-  // Cria cópia profunda dos produtos em memória para migração segura
+  // Cria cópias profundas em memória para substituição exclusiva após confirmação
   const migratedProducts: Product[] = products.map(p => ({
     ...p,
     images: Array.isArray(p.images) ? [...p.images] : [],
@@ -955,239 +1005,305 @@ export async function migrateLegacyProductImages(
     sizes: Array.isArray(p.sizes) ? p.sizes.map(s => ({ ...s })) : undefined
   }));
 
-  // 1. Processa fotos dos produtos
-  for (let pIdx = 0; pIdx < migratedProducts.length; pIdx++) {
-    const product = migratedProducts[pIdx];
+  const migratedBiRecords: BiProductCalculatedRecord[] = biRecords.map(b => ({ ...b }));
 
-    if (Array.isArray(product.images)) {
-      for (let imgIdx = 0; imgIdx < product.images.length; imgIdx++) {
-        const img = product.images[imgIdx];
+  // Identificação e descoberta dos candidatos a migração
+  interface CandidateReference {
+    candidateType: 'product' | 'product_color' | 'bi';
+    entityType: 'product' | 'bi';
+    entityId: string;
+    imageIndex: number;
+    originalBase64: string;
+    productIndex?: number;
+    colorIndex?: number;
+    biIndex?: number;
+    displayName: string;
+  }
 
+  const candidates: CandidateReference[] = [];
+
+  // 1. Candidatos de produtos
+  for (let pIdx = 0; pIdx < products.length; pIdx++) {
+    const p = products[pIdx];
+    if (Array.isArray(p.images)) {
+      for (let imgIdx = 0; imgIdx < p.images.length; imgIdx++) {
+        const img = p.images[imgIdx];
         if (isBase64ImageUrl(img)) {
-          processedCount++;
-          onProgress({
-            current: processedCount,
-            total: totalToMigrate,
-            currentProductId: product.id,
-            currentProductName: product.name,
-            stage: 'uploading',
-            statusText: `Migrando foto ${processedCount} de ${totalToMigrate}: "${product.name}"...`
+          candidates.push({
+            candidateType: 'product',
+            entityType: 'product',
+            entityId: p.id,
+            imageIndex: imgIdx,
+            originalBase64: img,
+            productIndex: pIdx,
+            displayName: `Produto "${p.name}" (foto ${imgIdx})`
           });
-
-          // Se esta string Base64 exata já foi enviada (ex: foto duplicada), reutiliza
-          if (base64ToHttpsMap.has(img)) {
-            const httpsUrl = base64ToHttpsMap.get(img)!;
-            product.images[imgIdx] = httpsUrl;
-            if (imgIdx === 0) {
-              productToPrimaryHttpsMap.set(product.id, httpsUrl);
-            }
-            uploadedSuccessfully++;
-            continue;
-          }
-
-          try {
-            // Faz upload via backend seguro
-            const downloadUrl = await callUploader(uploader, {
-              imageBase64: img,
-              entityType: 'product',
-              entityId: product.id,
-              imageIndex: imgIdx,
-              apiBaseUrl: options.apiBaseUrl,
-              customHeaders: options.customHeaders
-            });
-
-            // Valida estritamente se o resultado é uma URL HTTPS
-            if (!downloadUrl || !downloadUrl.startsWith('https://')) {
-              throw new Error(`URL de retorno não é HTTPS: "${downloadUrl}"`);
-            }
-
-            // Substitui em memória APÓS o sucesso confirmado
-            product.images[imgIdx] = downloadUrl;
-            base64ToHttpsMap.set(img, downloadUrl);
-            if (imgIdx === 0) {
-              productToPrimaryHttpsMap.set(product.id, downloadUrl);
-            }
-            uploadedSuccessfully++;
-          } catch (err: any) {
-            console.error(`[Legacy Migration] Falha no upload da foto ${imgIdx} do produto "${product.name}":`, err);
-            // Mantém a foto original em Base64 intacta na memória
-            failedImages.push({
-              productId: product.id,
-              productName: product.name,
-              imageIndex: imgIdx,
-              error: err?.message || String(err)
-            });
-          }
         }
       }
     }
-
-    // Processa também imagens de cores/estampas se existirem em Base64
-    if (Array.isArray(product.colors)) {
-      for (let cIdx = 0; cIdx < product.colors.length; cIdx++) {
-        const color = product.colors[cIdx];
-        if (isBase64ImageUrl(color.imageUrl)) {
-          processedCount++;
-          const dataUrl = color.imageUrl!;
-
-          if (base64ToHttpsMap.has(dataUrl)) {
-            color.imageUrl = base64ToHttpsMap.get(dataUrl)!;
-            uploadedSuccessfully++;
-            continue;
-          }
-
-          try {
-            const downloadUrl = await callUploader(uploader, {
-              imageBase64: dataUrl,
-              entityType: 'product',
-              entityId: product.id,
-              imageIndex: 100 + cIdx,
-              apiBaseUrl: options.apiBaseUrl,
-              customHeaders: options.customHeaders
-            });
-            if (downloadUrl && downloadUrl.startsWith('https://')) {
-              color.imageUrl = downloadUrl;
-              base64ToHttpsMap.set(dataUrl, downloadUrl);
-              uploadedSuccessfully++;
-            }
-          } catch (err: any) {
-            failedImages.push({
-              productId: product.id,
-              productName: `${product.name} (Cor ${color.name})`,
-              imageIndex: 100 + cIdx,
-              error: err?.message || String(err)
-            });
-          }
+    if (Array.isArray(p.colors)) {
+      for (let cIdx = 0; cIdx < p.colors.length; cIdx++) {
+        const c = p.colors[cIdx];
+        if (isBase64ImageUrl(c.imageUrl)) {
+          candidates.push({
+            candidateType: 'product_color',
+            entityType: 'product',
+            entityId: p.id,
+            imageIndex: 100 + cIdx,
+            originalBase64: c.imageUrl!,
+            productIndex: pIdx,
+            colorIndex: cIdx,
+            displayName: `Produto "${p.name}" (cor ${c.name})`
+          });
         }
       }
     }
   }
 
-  // 2. Atualiza registros de BI associados com as URLs HTTPS resultantes
-  const migratedBiRecords: BiProductCalculatedRecord[] = biRecords.map(record => {
-    // Preserva rigorosamente todas as propriedades originais do BI
-    const updatedRecord: BiProductCalculatedRecord = { ...record };
+  // 2. Candidatos de BI
+  for (let bIdx = 0; bIdx < biRecords.length; bIdx++) {
+    const b = biRecords[bIdx];
+    if (isBase64ImageUrl(b.vitrineImageUrl)) {
+      let entityType: 'product' | 'bi' = 'bi';
+      let entityId = b.id;
 
-    let updatedImageUrl: string | undefined = undefined;
-
-    // A. Correspondência direta: a imagem do BI era uma string Base64 que foi migrada
-    if (record.vitrineImageUrl && base64ToHttpsMap.has(record.vitrineImageUrl)) {
-      updatedImageUrl = base64ToHttpsMap.get(record.vitrineImageUrl);
-    }
-
-    // B. Correspondência por produto vinculado
-    if (!updatedImageUrl) {
-      const matchingProduct = migratedProducts.find(p => {
-        if (p.biRecordId && (p.biRecordId === record.id || p.biRecordId === (record as any).biRecordId)) return true;
-        if (record.vitrineProductId && p.id === record.vitrineProductId) return true;
+      // Verifica se corresponde a um produto existente no catálogo
+      const matchingProduct = products.find(p => {
+        if (b.vitrineProductId && p.id === b.vitrineProductId) return true;
+        if (p.biRecordId && (p.biRecordId === b.id || p.biRecordId === (b as any).biRecordId)) return true;
         const pKey = getGroupingKey(p.name);
-        const rKey = getGroupingKey(record.produto);
+        const rKey = getGroupingKey(b.produto);
         return pKey && rKey && pKey === rKey;
       });
 
-      if (matchingProduct && matchingProduct.images?.[0] && isHttpsUrl(matchingProduct.images[0])) {
-        // Se a imagem do BI era Base64 ou vazia, atualiza para a nova URL HTTPS do produto
-        if (!record.vitrineImageUrl || isBase64ImageUrl(record.vitrineImageUrl)) {
-          updatedImageUrl = matchingProduct.images[0];
-        }
+      if (matchingProduct) {
+        entityType = 'product';
+        entityId = matchingProduct.id;
       }
-    }
 
-    // C. Se a imagem do BI ainda for uma Base64 exclusiva não associada a nenhum produto, migra também
-    if (!updatedImageUrl && isBase64ImageUrl(record.vitrineImageUrl)) {
-      // Será tratada no bloco abaixo se necessário
-    }
-
-    if (updatedImageUrl) {
-      updatedRecord.vitrineImageUrl = updatedImageUrl;
-    }
-
-    return updatedRecord;
-  });
-
-  // Migra quaisquer Base64 residuais exclusivos que existiam apenas em biRecords
-  for (let bIdx = 0; bIdx < migratedBiRecords.length; bIdx++) {
-    const record = migratedBiRecords[bIdx];
-    if (isBase64ImageUrl(record.vitrineImageUrl)) {
-      const dataUrl = record.vitrineImageUrl!;
-      processedCount++;
-
-      onProgress({
-        current: processedCount,
-        total: totalToMigrate,
-        currentProductId: record.vitrineProductId || record.id,
-        currentProductName: record.produto,
-        stage: 'uploading',
-        statusText: `Migrando foto BI ${processedCount} de ${totalToMigrate}: "${record.produto}"...`
+      candidates.push({
+        candidateType: 'bi',
+        entityType,
+        entityId,
+        imageIndex: 0,
+        originalBase64: b.vitrineImageUrl!,
+        biIndex: bIdx,
+        displayName: `BI "${b.produto}" [${b.id}]`
       });
+    }
+  }
 
-      if (base64ToHttpsMap.has(dataUrl)) {
-        record.vitrineImageUrl = base64ToHttpsMap.get(dataUrl)!;
-        uploadedSuccessfully++;
-        continue;
-      }
+  const totalToMigrate = candidates.length;
+  let processedCount = 0;
+  let uploadedSuccessfully = 0;
+  let reusedCount = 0;
+  let newUploadsCount = 0;
+  const failedImages: MigrationExecutionResult['failedImages'] = [];
 
-      try {
-        const downloadUrl = await callUploader(uploader, {
-          imageBase64: dataUrl,
-          entityType: 'bi',
-          entityId: record.id,
-          imageIndex: 0,
+  // Cache em memória para reutilização imediata em mocks de teste
+  const base64ToHttpsMap = new Map<string, string>();
+
+  // Processamento SEQUENCIAL e estrito de cada candidato
+  for (const cand of candidates) {
+    processedCount++;
+    onProgress({
+      current: processedCount,
+      total: totalToMigrate,
+      currentProductId: cand.entityId,
+      currentProductName: cand.displayName,
+      stage: 'uploading',
+      statusText: `Processando candidato ${processedCount} de ${totalToMigrate}: ${cand.displayName}...`
+    });
+
+    let uploadRes: ServerUploadImageResult;
+    try {
+      if (options.storageUploader) {
+        // Suporte a mocks de teste unitário injetados
+        if (base64ToHttpsMap.has(cand.originalBase64)) {
+          const reusedUrl = base64ToHttpsMap.get(cand.originalBase64)!;
+          uploadRes = {
+            url: reusedUrl,
+            objectPath: `legacy/${cand.entityType}/${cand.entityId}/${cand.imageIndex}-reused.jpg`,
+            reused: true,
+            status: 200
+          };
+        } else {
+          const url = await callUploader(options.storageUploader, {
+            imageBase64: cand.originalBase64,
+            entityType: cand.entityType,
+            entityId: cand.entityId,
+            imageIndex: cand.imageIndex,
+            apiBaseUrl: options.apiBaseUrl,
+            customHeaders: options.customHeaders
+          });
+          base64ToHttpsMap.set(cand.originalBase64, url);
+          uploadRes = {
+            url,
+            objectPath: `legacy/${cand.entityType}/${cand.entityId}/${cand.imageIndex}.jpg`,
+            reused: false,
+            status: 200
+          };
+        }
+      } else {
+        // Chamada real ao endpoint seguro POST /api/admin/upload-image
+        uploadRes = await uploadLegacyImageToServer({
+          imageBase64: cand.originalBase64,
+          entityType: cand.entityType,
+          entityId: cand.entityId,
+          imageIndex: cand.imageIndex,
           apiBaseUrl: options.apiBaseUrl,
           customHeaders: options.customHeaders
         });
-        if (downloadUrl && downloadUrl.startsWith('https://')) {
-          record.vitrineImageUrl = downloadUrl;
-          base64ToHttpsMap.set(dataUrl, downloadUrl);
-          uploadedSuccessfully++;
-        }
-      } catch (err: any) {
-        failedImages.push({
-          productId: record.vitrineProductId || record.id,
-          productName: `BI: ${record.produto}`,
-          imageIndex: 0,
-          error: err?.message || String(err)
-        });
+      }
+
+      // Validação estrita da resposta HTTP e do payload
+      if (uploadRes.status !== 200 || !uploadRes.url || !uploadRes.url.startsWith('https://')) {
+        throw new Error(`Upload falhou: status HTTP ${uploadRes.status}, url: ${uploadRes.url}`);
+      }
+
+      // Validação do mapeamento de objeto
+      if (uploadRes.objectPath && !uploadRes.objectPath.startsWith(`legacy/${cand.entityType}/`)) {
+        throw new Error(`Incompatibilidade no caminho do Storage: esperado prefixo legacy/${cand.entityType}/, recebido "${uploadRes.objectPath}"`);
+      }
+
+      if (uploadRes.reused) {
+        reusedCount++;
+      } else {
+        newUploadsCount++;
+      }
+
+      // Substituição APENAS EM MEMÓRIA após o sucesso confirmado
+      if (cand.candidateType === 'product' && cand.productIndex !== undefined) {
+        migratedProducts[cand.productIndex].images[cand.imageIndex] = uploadRes.url;
+      } else if (cand.candidateType === 'product_color' && cand.productIndex !== undefined && cand.colorIndex !== undefined) {
+        migratedProducts[cand.productIndex].colors![cand.colorIndex].imageUrl = uploadRes.url;
+      } else if (cand.candidateType === 'bi' && cand.biIndex !== undefined) {
+        migratedBiRecords[cand.biIndex].vitrineImageUrl = uploadRes.url;
+      }
+
+      uploadedSuccessfully++;
+    } catch (err: any) {
+      console.error(`[Legacy Batch Migration] Falha no candidato "${cand.displayName}":`, err?.message || err);
+      failedImages.push({
+        productId: cand.entityId,
+        productName: cand.displayName,
+        imageIndex: cand.imageIndex,
+        error: err?.message || String(err)
+      });
+
+      // POLÍTICA DE FALHA: Se erro permanente (400, 401, 413, 415), INTERROMPE O LOTE IMEDIATAMENTE
+      const status = err?.status;
+      if (status === 400 || status === 401 || status === 413 || status === 415) {
+        return {
+          success: false,
+          legacyFound: totalToMigrate,
+          uploadedSuccessfully,
+          reusedCount,
+          newUploadsCount,
+          failedCount: failedImages.length,
+          failedImages,
+          beforeSizeBytes,
+          afterSizeBytes: beforeSizeBytes,
+          reductionBytes: 0,
+          biBeforeSizeBytes,
+          biAfterSizeBytes: biBeforeSizeBytes,
+          biReductionBytes: 0,
+          migratedProducts: products, // Mantém produtos intactos
+          migratedBiRecords: biRecords, // Mantém BI intacto
+          firestoreSaved: false,
+          errorMessage: `MIGRATION_BATCH_ABORTED: Falha permanente ao processar ${cand.displayName} (HTTP ${status}). Nenhuma alteração foi gravada no Firestore.`
+        };
       }
     }
   }
 
-  // 3. Validação de integridade atômica do catálogo antes de gravar
+  // Se qualquer imagem falhou (ex: timeout de rede simulado ou transiente), NUNCA grava no Firestore
+  if (failedImages.length > 0) {
+    return {
+      success: false,
+      legacyFound: totalToMigrate,
+      uploadedSuccessfully,
+      reusedCount,
+      newUploadsCount,
+      failedCount: failedImages.length,
+      failedImages,
+      beforeSizeBytes,
+      afterSizeBytes: beforeSizeBytes,
+      reductionBytes: 0,
+      biBeforeSizeBytes,
+      biAfterSizeBytes: biBeforeSizeBytes,
+      biReductionBytes: 0,
+      migratedProducts, // Preserva estado em memória com a foto com falha intacta em Base64
+      migratedBiRecords,
+      firestoreSaved: false,
+      errorMessage: `Lote incompleto: ${failedImages.length} foto(s) falharam. Persistência no Firestore bloqueada para segurança.`
+    };
+  }
+
+  // 3. Validação de integridade atômica e invariantes pré-gravação
   onProgress({
     current: totalToMigrate,
     total: totalToMigrate,
     currentProductId: '',
     currentProductName: '',
     stage: 'validating',
-    statusText: 'Validando integridade dos produtos e metadados...'
+    statusText: 'Validando catálogo e invariantes completos pré-gravação...'
   });
 
-  const validation = validateMigratedCatalog(products, migratedProducts);
-  if (!validation.valid) {
+  const catalogValidation = validateMigratedCatalog(products, migratedProducts);
+  if (!catalogValidation.valid) {
     return {
       success: false,
       legacyFound: totalToMigrate,
       uploadedSuccessfully,
+      reusedCount,
+      newUploadsCount,
       failedCount: failedImages.length,
       failedImages,
       beforeSizeBytes,
       afterSizeBytes: beforeSizeBytes,
       reductionBytes: 0,
-      migratedProducts: products, // Mantém catálogo original em caso de falha de validação
+      biBeforeSizeBytes,
+      biAfterSizeBytes: biBeforeSizeBytes,
+      biReductionBytes: 0,
+      migratedProducts: products,
       migratedBiRecords: biRecords,
       firestoreSaved: false,
-      errorMessage: `Erro de integridade na validação: ${validation.error}`
+      errorMessage: `Erro de integridade no catálogo: ${catalogValidation.error}`
     };
   }
 
-  // 4. Verificação de tamanho do documento no Firestore
+  const invariantsValidation = validatePreSaveInvariants(products, migratedProducts, biRecords, migratedBiRecords);
+  if (!invariantsValidation.valid) {
+    return {
+      success: false,
+      legacyFound: totalToMigrate,
+      uploadedSuccessfully,
+      reusedCount,
+      newUploadsCount,
+      failedCount: failedImages.length,
+      failedImages,
+      beforeSizeBytes,
+      afterSizeBytes: beforeSizeBytes,
+      reductionBytes: 0,
+      biBeforeSizeBytes,
+      biAfterSizeBytes: biBeforeSizeBytes,
+      biReductionBytes: 0,
+      migratedProducts: products,
+      migratedBiRecords: biRecords,
+      firestoreSaved: false,
+      errorMessage: `Erro de validação pré-gravação (invariantes): ${invariantsValidation.error}`
+    };
+  }
+
+  // 4. Verificação de tamanho dos documentos no Firestore
   onProgress({
     current: totalToMigrate,
     total: totalToMigrate,
     currentProductId: '',
     currentProductName: '',
     stage: 'verifying_size',
-    statusText: 'Calculando tamanho final do documento...'
+    statusText: 'Calculando tamanho final dos documentos...'
   });
 
   const { biRecords: _omittedBiAfter, ...cleanStoreConfigBase } = (options.fullStoreConfigPayload || {}) as any;
@@ -1199,27 +1315,52 @@ export async function migrateLegacyProductImages(
 
   const afterSizeBytes = estimateDocumentSizeInBytes(storeConfigPayload);
   const reductionBytes = Math.max(0, beforeSizeBytes - afterSizeBytes);
+  const biAfterSizeBytes = estimateDocumentSizeInBytes({ records: migratedBiRecords });
+  const biReductionBytes = Math.max(0, biBeforeSizeBytes - biAfterSizeBytes);
   const fieldSizeBreakdown = analyzeFieldSizes(storeConfigPayload);
 
-  // Se o documento ainda estiver acima do limiar de segurança (850 KB), NÃO grava
   if (afterSizeBytes > SAFE_FIRESTORE_SIZE_THRESHOLD_BYTES) {
-    const overLimitMsg = `Migration converted the legacy images successfully, but store_config is still too large for safe persistence (${(afterSizeBytes / 1024).toFixed(1)} KB > 850 KB).`;
-    console.warn(`[Legacy Migration] ${overLimitMsg}`, fieldSizeBreakdown);
-
     return {
       success: false,
       legacyFound: totalToMigrate,
       uploadedSuccessfully,
+      reusedCount,
+      newUploadsCount,
       failedCount: failedImages.length,
       failedImages,
       beforeSizeBytes,
       afterSizeBytes,
       reductionBytes,
+      biBeforeSizeBytes,
+      biAfterSizeBytes,
+      biReductionBytes,
       migratedProducts,
       migratedBiRecords,
       firestoreSaved: false,
-      errorMessage: overLimitMsg,
+      errorMessage: `Limite de tamanho de store_config excedido (${(afterSizeBytes / 1024).toFixed(1)} KB > 850 KB).`,
       fieldSizeBreakdown
+    };
+  }
+
+  if (biAfterSizeBytes > SAFE_FIRESTORE_SIZE_THRESHOLD_BYTES) {
+    return {
+      success: false,
+      legacyFound: totalToMigrate,
+      uploadedSuccessfully,
+      reusedCount,
+      newUploadsCount,
+      failedCount: failedImages.length,
+      failedImages,
+      beforeSizeBytes,
+      afterSizeBytes,
+      reductionBytes,
+      biBeforeSizeBytes,
+      biAfterSizeBytes,
+      biReductionBytes,
+      migratedProducts,
+      migratedBiRecords,
+      firestoreSaved: false,
+      errorMessage: `Limite de tamanho de bi_data excedido (${(biAfterSizeBytes / 1024).toFixed(1)} KB > 850 KB).`
     };
   }
 
@@ -1230,7 +1371,7 @@ export async function migrateLegacyProductImages(
     currentProductId: '',
     currentProductName: '',
     stage: 'saving_firestore',
-    statusText: 'Persistindo catálogo migrado com segurança no Firestore...'
+    statusText: 'Persistindo documentos de forma desacoplada no Firestore...'
   });
 
   let firestoreSaved = false;
@@ -1241,15 +1382,18 @@ export async function migrateLegacyProductImages(
         throw new Error('A função de gravação retornou falso para persistência no Firestore.');
       }
     } else {
-      // 1. Grava no documento oficial store_config
+      // 1. Grava no documento oficial store_config (sem biRecords)
       const storeSuccess = await saveStoreConfigToFirestore(storeConfigPayload);
       if (!storeSuccess) {
         throw new Error('Falha na resposta de gravação de store_config no Firestore.');
       }
 
-      // 2. Se houver registros de BI, atualiza também a coleção bi_data
+      // 2. Se houver registros de BI, atualiza exclusivamente bi_data
       if (migratedBiRecords && migratedBiRecords.length > 0) {
-        await saveBiRecordsToFirestore(migratedBiRecords);
+        const biSuccess = await saveBiRecordsToFirestore(migratedBiRecords);
+        if (!biSuccess) {
+          throw new Error('Falha na resposta de gravação de bi_data no Firestore.');
+        }
       }
 
       firestoreSaved = true;
@@ -1260,11 +1404,16 @@ export async function migrateLegacyProductImages(
       success: false,
       legacyFound: totalToMigrate,
       uploadedSuccessfully,
+      reusedCount,
+      newUploadsCount,
       failedCount: failedImages.length,
       failedImages,
       beforeSizeBytes,
       afterSizeBytes,
       reductionBytes,
+      biBeforeSizeBytes,
+      biAfterSizeBytes,
+      biReductionBytes,
       migratedProducts,
       migratedBiRecords,
       firestoreSaved: false,
@@ -1286,11 +1435,16 @@ export async function migrateLegacyProductImages(
     success: firestoreSaved,
     legacyFound: totalToMigrate,
     uploadedSuccessfully,
+    reusedCount,
+    newUploadsCount,
     failedCount: failedImages.length,
     failedImages,
     beforeSizeBytes,
     afterSizeBytes,
     reductionBytes,
+    biBeforeSizeBytes,
+    biAfterSizeBytes,
+    biReductionBytes,
     migratedProducts,
     migratedBiRecords,
     firestoreSaved,
