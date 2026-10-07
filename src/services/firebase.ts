@@ -17,7 +17,6 @@ import {
   getDocFromServer 
 } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
-import { getStorage, FirebaseStorage } from 'firebase/storage';
 import firebaseAppletConfig from '../../firebase-applet-config.json';
 
 export enum OperationType {
@@ -59,7 +58,6 @@ export const DEFAULT_FIREBASE_CONFIG = {
 let appInstance: FirebaseApp | null = null;
 let firestoreInstance: Firestore | null = null;
 let authInstance: Auth | null = null;
-let storageInstance: FirebaseStorage | null = null;
 let isConfigured = false;
 
 function resolveFirebaseConfig() {
@@ -122,15 +120,6 @@ try {
     }
 
     authInstance = getAuth(appInstance);
-
-    if (config.storageBucket) {
-      try {
-        storageInstance = getStorage(appInstance, `gs://${config.storageBucket.replace(/^gs:\/\//, '')}`);
-        console.info('[Firebase] Storage configurado com bucket:', config.storageBucket);
-      } catch (sErr: any) {
-        console.warn('[Firebase Storage] Aviso ao inicializar Storage:', sErr?.message || sErr);
-      }
-    }
 
     isConfigured = true;
     console.info('[Firebase] Firestore inicializado com sucesso para o projeto:', config.projectId);
@@ -212,16 +201,8 @@ export function isFirebaseReady(): boolean {
   return isConfigured && firestoreInstance !== null;
 }
 
-export function isFirebaseStorageReady(): boolean {
-  return isConfigured && storageInstance !== null;
-}
-
 export function getFirestoreDb(): Firestore | null {
   return firestoreInstance;
-}
-
-export function getStorageInstance(): FirebaseStorage | null {
-  return storageInstance;
 }
 
 export class UploadImageError extends Error {
@@ -464,4 +445,4 @@ export async function uploadProductImage(
   return uploadAdminImage(fileOrBlob, options);
 }
 
-export { firestoreInstance as db, authInstance as auth, appInstance as app, storageInstance as storage };
+export { firestoreInstance as db, authInstance as auth, appInstance as app };

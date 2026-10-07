@@ -12,6 +12,7 @@ import {
   OrderData,
   NewsletterLead
 } from '../types';
+import { findBase64ImagePath } from '../services/firestoreConfigService';
 
 export const ADMIN_VAULT_KEY = 'lavistore_admin_custom_vault';
 export const ADMIN_LOCK_KEY = 'lavistore_admin_locked';
@@ -321,8 +322,15 @@ export function downloadAdminBackupFile(vault: AdminCustomVault) {
 
 /**
  * Valida se um objeto JSON importado possui a estrutura de backup do Admin
+ * e garante que não contenha imagens em Base64 (defesa atômica com zero gravações no Firestore).
  */
-export function validateAdminBackup(data: unknown): { valid: boolean; error?: string; vault?: AdminCustomVault } {
+export function validateAdminBackup(data: unknown): { 
+  valid: boolean; 
+  error?: string; 
+  vault?: AdminCustomVault;
+  hasBase64Images?: boolean;
+  firstBase64Path?: string;
+} {
   if (!data || typeof data !== 'object') {
     return { valid: false, error: 'O arquivo selecionado não contém um formato JSON válido.' };
   }
@@ -343,6 +351,17 @@ export function validateAdminBackup(data: unknown): { valid: boolean; error?: st
     return { valid: false, error: 'O arquivo JSON não contém dados reconhecíveis da Lavistore (produtos, cupons, textos ou categorias).' };
   }
 
+  // FASE H5: Validação defensiva atômica prévia contra imagens em Base64
+  const offendingPath = findBase64ImagePath(candidate);
+  if (offendingPath) {
+    return {
+      valid: false,
+      error: `Este backup contém imagens antigas incorporadas em Base64 e não pode ser restaurado diretamente. As imagens precisam estar no Firebase Storage antes da restauração. (Campo: ${offendingPath})`,
+      hasBase64Images: true,
+      firstBase64Path: offendingPath
+    };
+  }
+
   const vault: AdminCustomVault = {
     version: (typeof candidate.version === 'number' ? candidate.version : 1) + 1,
     lastAdminSavedAt: new Date().toISOString(),
@@ -351,4 +370,23 @@ export function validateAdminBackup(data: unknown): { valid: boolean; error?: st
   };
 
   return { valid: true, vault };
+}
+
+/**
+ * Validador explícito de imagens Base64 para backups.
+ */
+export function validateBackupForBase64(data: unknown): {
+  hasBase64: boolean;
+  path?: string;
+  errorMessage?: string;
+} {
+  const offendingPath = findBase64ImagePath(data);
+  if (offendingPath) {
+    return {
+      hasBase64: true,
+      path: offendingPath,
+      errorMessage: `Este backup contém imagens antigas incorporadas em Base64 e não pode ser restaurado diretamente. As imagens precisam estar no Firebase Storage antes da restauração. (Campo: ${offendingPath})`
+    };
+  }
+  return { hasBase64: false };
 }

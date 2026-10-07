@@ -60,6 +60,81 @@ export function sanitizeStoreConfigPayload<T extends Record<string, any>>(payloa
 }
 
 /**
+ * FASE H5 — CENTRALIZED BASE64 FIRESTORE GUARD
+ * 
+ * Classe de erro específica para violações da barreira de imagens em Base64 no Firestore.
+ * Não expõe dados em Base64 nem segredos.
+ */
+export class Base64FirestoreGuardError extends Error {
+  path: string;
+  constructor(message: string, path: string) {
+    super(message);
+    this.name = 'Base64FirestoreGuardError';
+    this.path = path;
+  }
+}
+
+/**
+ * Regra de detecção estrita e resiliente a variações de whitespace e case.
+ * Identifica URLs de dados de imagem (ex: data:image/jpeg;base64,..., data:image/png;base64, etc.)
+ * Não rejeita strings ordinárias que apenas contenham a palavra "base64" (ex: "base64-test-id", "https://.../base64").
+ */
+export function isBase64ImageUrl(val: unknown): boolean {
+  if (typeof val !== 'string') return false;
+  return val.trim().toLowerCase().startsWith('data:image/');
+}
+
+/**
+ * Percorre recursivamente objetos simples, arrays e estruturas aninhadas à procura de Data URLs de imagens.
+ * Retorna o caminho lógico da primeira violação encontrada (ex: "heroConfig.image", "products[0].images[0]", etc.)
+ * ou null se o payload for seguro.
+ */
+export function findBase64ImagePath(payload: unknown, currentPath = ''): string | null {
+  if (payload === null || payload === undefined) {
+    return null;
+  }
+  if (typeof payload === 'string') {
+    if (isBase64ImageUrl(payload)) {
+      return currentPath || 'root';
+    }
+    return null;
+  }
+  if (Array.isArray(payload)) {
+    for (let i = 0; i < payload.length; i++) {
+      const itemPath = currentPath ? `${currentPath}[${i}]` : `[${i}]`;
+      const found = findBase64ImagePath(payload[i], itemPath);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof payload === 'object') {
+    if (payload instanceof Date) return null;
+    for (const [key, value] of Object.entries(payload)) {
+      const propPath = currentPath ? `${currentPath}.${key}` : key;
+      const found = findBase64ImagePath(value, propPath);
+      if (found) return found;
+    }
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Validador de barreira defensiva centralizada.
+ * Bloqueia a persistência ANTES do envio ao Firestore caso qualquer Data URL de imagem seja encontrada.
+ * Não altera ou limpa silenciosamente os dados; falha ruidosamente identificando o campo lógico.
+ */
+export function assertNoBase64Images(payload: unknown, contextPath = ''): void {
+  const offendingPath = findBase64ImagePath(payload, contextPath);
+  if (offendingPath) {
+    throw new Base64FirestoreGuardError(
+      `[BASE64_GUARD] Firestore write blocked: image Data URL detected at "${offendingPath}". Upload the image to Storage before saving.`,
+      offendingPath
+    );
+  }
+}
+
+/**
  * Registra um ouvinte em tempo real (onSnapshot) para as configurações e catálogo da loja.
  * Qualquer alteração feita pelo Administrador (produtos, preços, estoque, banner, frases)
  * reflete INSTANTANEAMENTE para todos os usuários e dispositivos conectados.
@@ -167,7 +242,10 @@ export async function saveStoreConfigToFirestore(payload: Partial<AdminCustomVau
     // 2. Garantia explícita: biRecords NUNCA deve ser gravado como dado em store_config
     delete (sanitizedData as any).biRecords;
 
-    // 3. FASE F3: Remoção atômica do campo legado biRecords no Firestore sem intervenção manual.
+    // 3. FASE H5: Guarda defensiva centralizada contra imagens Base64 no payload final de store_config
+    assertNoBase64Images(sanitizedData);
+
+    // 4. FASE F3: Remoção atômica do campo legado biRecords no Firestore sem intervenção manual.
     // deleteField() remove a duplicação legada enquanto { merge: true } preserva outros campos
     // como melhorEnvioToken configurados no documento.
     const writePayload = {
@@ -179,6 +257,10 @@ export async function saveStoreConfigToFirestore(payload: Partial<AdminCustomVau
     console.info('[Firestore] 🛡️ Dados da loja salvos e sincronizados com sucesso no Firestore (sem duplicação de biRecords).');
     return true;
   } catch (error: any) {
+    if (error instanceof Base64FirestoreGuardError) {
+      console.error('[Firestore Guard Blocked]:', error.message);
+      throw error;
+    }
     console.error('[Firestore setDoc] Erro ao gravar store_config:', error?.message || error);
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -209,6 +291,8 @@ export async function updateProductPublicationStatusInFirestore(
       updatedAt: new Date().toISOString(),
       biRecords: deleteField()
     });
+    // FASE H5: Guarda defensiva contra Base64 na vitrine
+    assertNoBase64Images(sanitizedStoreData);
     await setDoc(storeDocRef, sanitizedStoreData, { merge: true });
 
     // 2. Se houver registros de BI, grava no documento bi_data
@@ -218,12 +302,18 @@ export async function updateProductPublicationStatusInFirestore(
         records: updatedBiRecords,
         updatedAt: new Date().toISOString()
       });
+      // FASE H5: Guarda defensiva contra Base64 no BI
+      assertNoBase64Images(sanitizedBiData);
       await setDoc(biDocRef, sanitizedBiData, { merge: true });
     }
 
     console.info(`[Firestore] 🚀 Status de publicação de "${productId}" sincronizado no Firestore (isPublished=${isPublished})`);
     return true;
   } catch (error: any) {
+    if (error instanceof Base64FirestoreGuardError) {
+      console.error('[Firestore Guard Blocked]:', error.message);
+      throw error;
+    }
     console.error('[Firestore updateProductPublicationStatus]:', error);
     handleFirestoreError(error, OperationType.WRITE, `${FIRESTORE_SETTINGS_COLLECTION}/${FIRESTORE_STORE_CONFIG_DOC}`);
   }
@@ -537,9 +627,16 @@ export async function saveBiRecordsToFirestore(records: BiProductCalculatedRecor
       records,
       updatedAt: new Date().toISOString()
     });
+    // FASE H5: Guarda defensiva centralizada contra imagens Base64 no payload final de BI
+    assertNoBase64Images(sanitized);
+
     await setDoc(biDocRef, sanitized, { merge: true });
     return true;
   } catch (error: any) {
+    if (error instanceof Base64FirestoreGuardError) {
+      console.error('[Firestore Guard Blocked BI]:', error.message);
+      throw error;
+    }
     console.error('[Firestore saveBiRecords]:', error);
     handleFirestoreError(error, OperationType.WRITE, path);
   }

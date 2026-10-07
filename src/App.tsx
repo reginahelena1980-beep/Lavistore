@@ -605,7 +605,11 @@ export default function App() {
     } catch (err: any) {
       console.error('[Publish Error] Falha ao sincronizar dados da loja no Firestore:', err?.message || err);
       if (showFeedback) {
-        showToast('⚠️ Erro ao salvar na nuvem Firestore. Verifique sua conexão com a internet.');
+        if (err?.name === 'Base64FirestoreGuardError' || String(err?.message || '').includes('[BASE64_GUARD]')) {
+          showToast('⚠️ Gravação bloqueada: Imagem em Base64 detectada. Envie a foto antes de salvar.');
+        } else {
+          showToast('⚠️ Erro ao salvar na nuvem Firestore. Verifique sua conexão com a internet.');
+        }
       }
     }
     setIsPublishingToServer(false);

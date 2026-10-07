@@ -57,7 +57,7 @@ function generateSampleBiRecords(count: number = 42): BiProductCalculatedRecord[
       statusEstoque: 'ok',
       publishedToVitrine: true,
       vitrineProductId: `prod-${i}`,
-      vitrineImageUrl: i <= 13 ? `data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/sample-base64-image-reference-${i}` : `https://firebasestorage.googleapis.com/v0/b/bucket/o/prod-${i}.jpg`,
+      vitrineImageUrl: `https://firebasestorage.googleapis.com/v0/b/lavistorekides.firebasestorage.app/o/bi%2Fprod-${i}.jpg?alt=media`,
       vitrineCategory: 'kits-presente',
       vitrineTag: i === 1 ? 'Mais Vendido 🌸' : undefined
     });
@@ -90,8 +90,7 @@ function generateSampleProducts(): Product[] {
       stock: 8,
       rating: 5,
       reviewCount: 4,
-      // 1 das 3 fotos em Base64 para teste
-      images: ['data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/sample-base64-prod-image'],
+      images: ['https://firebasestorage.googleapis.com/v0/b/lavistorekides.firebasestorage.app/o/flores.jpg?alt=media'],
       description: 'Arranjo floral eterno em caixa acrílica',
       features: ['Flores desidratadas'],
       isPublished: true,
