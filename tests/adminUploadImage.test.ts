@@ -25,6 +25,7 @@ import {
   processImageUpload,
   computeImageSha256,
   buildDeterministicStoragePath,
+  buildAdminStoragePath,
   sanitizeEntityId,
   FIREBASE_STORAGE_BUCKET,
   MAX_IMAGE_SIZE_BYTES
@@ -567,6 +568,625 @@ async function runTests() {
       typeof uploadResult.body.url === 'string' &&
       uploadResult.body.url.startsWith('https://'),
       'TEST 15: Execução integrada do endpoint com autenticação e validação completas'
+    );
+  }
+
+  console.log('\n====================================================');
+  console.log('BATERIA DE REGRESSÃO LEGACY (SEÇÃO 13)');
+  console.log('====================================================');
+
+  // ----------------------------------------------------
+  // LEGACY REGRESSION 1: Request with no mode behaves as legacy
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const res = await processImageUpload({
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'legacy_nomode_1',
+      imageIndex: 0
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      res.status === 200 &&
+      res.body.success === true &&
+      typeof res.body.objectPath === 'string' &&
+      res.body.objectPath.startsWith('legacy/product/legacy_nomode_1/0-') &&
+      res.body.mode === 'legacy',
+      'LEGACY-1: Requisição sem campo "mode" comporta-se estritamente como legacy'
+    );
+  }
+
+  // ----------------------------------------------------
+  // LEGACY REGRESSION 2: Request with mode: "legacy" behaves as legacy
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const res = await processImageUpload({
+      mode: 'legacy',
+      imageBase64: SAMPLE_PNG_2,
+      entityType: 'bi',
+      entityId: 'legacy_explicit_2',
+      imageIndex: 1
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      res.status === 200 &&
+      res.body.success === true &&
+      typeof res.body.objectPath === 'string' &&
+      res.body.objectPath.startsWith('legacy/bi/legacy_explicit_2/1-') &&
+      res.body.mode === 'legacy',
+      'LEGACY-2: Requisição com mode: "legacy" comporta-se estritamente como legacy'
+    );
+  }
+
+  // ----------------------------------------------------
+  // LEGACY REGRESSION 3: Legacy product deterministic path unchanged
+  // ----------------------------------------------------
+  {
+    const path = buildDeterministicStoragePath('product', 'prod_legacy_stable', 3, 'abcdef1234567890', 'webp');
+    assert(
+      path === 'legacy/product/prod_legacy_stable/3-abcdef1234567890.webp',
+      'LEGACY-3: Caminho determinístico de produto legacy permanece estritamente idêntico'
+    );
+  }
+
+  // ----------------------------------------------------
+  // LEGACY REGRESSION 4: Legacy BI deterministic path unchanged
+  // ----------------------------------------------------
+  {
+    const path = buildDeterministicStoragePath('bi', 'bi_legacy_stable', 0, 'fedcba0987654321', 'png');
+    assert(
+      path === 'legacy/bi/bi_legacy_stable/0-fedcba0987654321.png',
+      'LEGACY-4: Caminho determinístico de BI legacy permanece estritamente idêntico'
+    );
+  }
+
+  // ----------------------------------------------------
+  // LEGACY REGRESSION 5: Legacy idempotency unchanged
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const payload = {
+      mode: 'legacy',
+      imageBase64: SAMPLE_JPEG_3,
+      entityType: 'product',
+      entityId: 'legacy_idem_test',
+      imageIndex: 0
+    };
+
+    const first = await processImageUpload(payload, { storageOverride: mockStorage as any });
+    const callsAfterFirst = mockStorage.getSaveCalls().length;
+
+    const second = await processImageUpload(payload, { storageOverride: mockStorage as any });
+    const callsAfterSecond = mockStorage.getSaveCalls().length;
+
+    assert(
+      first.status === 200 &&
+      second.status === 200 &&
+      first.body.reused === false &&
+      second.body.reused === true &&
+      first.body.objectPath === second.body.objectPath &&
+      first.body.url === second.body.url &&
+      callsAfterFirst === 1 &&
+      callsAfterSecond === 1,
+      'LEGACY-5: Idempotência de legacy preservada (reused: true no retry, sem duplicate writes)'
+    );
+  }
+
+  console.log('\n====================================================');
+  console.log('BATERIA DE TESTES DO MODO ADMIN (SEÇÃO 14 — 21 REQUISITOS)');
+  console.log('====================================================');
+
+  // ----------------------------------------------------
+  // ADMIN 1 & 2: Admin product main image accepted and path correct
+  // ----------------------------------------------------
+  let adminProdPath1 = '';
+  {
+    const mockStorage = createMockStorage();
+    const res = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'prod_tenis_esportivo',
+      imageIndex: 0
+    }, { storageOverride: mockStorage as any });
+
+    adminProdPath1 = res.body.objectPath || '';
+
+    const pathMatches = /^admin\/products\/prod_tenis_esportivo\/images\/0-[a-f0-9]{64}\.webp$/.test(adminProdPath1);
+
+    assert(
+      res.status === 200 && res.body.success === true,
+      'ADMIN-1: Imagem principal de produto em modo admin aceita com sucesso (HTTP 200)'
+    );
+
+    assert(
+      pathMatches,
+      `ADMIN-2: Caminho do produto admin correto: admin/products/{productId}/images/{imageIndex}-{sha256}.{ext} (obtido: ${adminProdPath1})`
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 3: Same product/image slot + same bytes → same path
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const resA = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'prod_tenis_esportivo',
+      imageIndex: 0
+    }, { storageOverride: mockStorage as any });
+
+    const resB = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'prod_tenis_esportivo',
+      imageIndex: 0
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      resA.body.objectPath === resB.body.objectPath && resA.body.objectPath === adminProdPath1,
+      'ADMIN-3: Mesmo produto/slot + mesmos bytes geram caminho estritamente idêntico'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 4: Same product/image slot + different bytes → different path
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const resA = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'prod_tenis_esportivo',
+      imageIndex: 0
+    }, { storageOverride: mockStorage as any });
+
+    const resB = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_PNG_2,
+      entityType: 'product',
+      entityId: 'prod_tenis_esportivo',
+      imageIndex: 0
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      resA.body.objectPath !== resB.body.objectPath,
+      'ADMIN-4: Mesmo produto/slot com bytes diferentes gera caminhos distintos (prevenindo cache estagnado)'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 5 & 6: Product-color accepted and stable color ID included in path
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const res = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_PNG_2,
+      entityType: 'product-color',
+      entityId: 'prod_camisa_polo',
+      slotId: 'cor_azul_marinho'
+    }, { storageOverride: mockStorage as any });
+
+    const pathMatches = /^admin\/products\/prod_camisa_polo\/colors\/cor_azul_marinho-[a-f0-9]{64}\.png$/.test(res.body.objectPath || '');
+
+    assert(
+      res.status === 200 && res.body.success === true,
+      'ADMIN-5: Imagem de variação product-color aceita com sucesso (HTTP 200)'
+    );
+
+    assert(
+      pathMatches,
+      `ADMIN-6: Color ID estável incluído com segurança no caminho: admin/products/{productId}/colors/{colorId}-{sha256}.{ext} (obtido: ${res.body.objectPath})`
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 7 & 8: Banner accepted and forced into admin/banners/hero/
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    // Test with entityId = "hero"
+    const resHero = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_JPEG_3,
+      entityType: 'banner',
+      entityId: 'hero'
+    }, { storageOverride: mockStorage as any });
+
+    const pathMatches = /^admin\/banners\/hero\/[a-f0-9]{64}\.jpeg$/.test(resHero.body.objectPath || '');
+
+    assert(
+      resHero.status === 200 && resHero.body.success === true,
+      'ADMIN-7: Banner aceito com sucesso em modo admin (HTTP 200)'
+    );
+
+    // Test rejection of arbitrary banner entityId (e.g. attempting to escape hero namespace)
+    const resArbitraryBanner = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_JPEG_3,
+      entityType: 'banner',
+      entityId: 'promo_popup_escape'
+    }, { storageOverride: mockStorage as any });
+
+    const resTraversalBanner = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_JPEG_3,
+      entityType: 'banner',
+      entityId: '../escape_hero'
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      pathMatches && resArbitraryBanner.status === 400 && resTraversalBanner.status === 400,
+      `ADMIN-8: Banner forçado estritamente no namespace admin/banners/hero/ (caminho: ${resHero.body.objectPath}); identificadores arbitrários/traversal rejeitados com 400`
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 9 & 10: Packaging accepted and bag ID sanitized/validated
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const resPackaging = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'packaging',
+      entityId: 'sacola_kraft_premium'
+    }, { storageOverride: mockStorage as any });
+
+    const pathMatches = /^admin\/packaging\/sacola_kraft_premium\/[a-f0-9]{64}\.webp$/.test(resPackaging.body.objectPath || '');
+
+    assert(
+      resPackaging.status === 200 && resPackaging.body.success === true,
+      'ADMIN-9: Imagem de embalagem (packaging) aceita com sucesso (HTTP 200)'
+    );
+
+    // Test bag ID validation / traversal rejection
+    const resBadPackaging = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'packaging',
+      entityId: '../../bags/escape'
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      pathMatches && resBadPackaging.status === 400,
+      `ADMIN-10: Bag ID validado e sanitizado: admin/packaging/{bagId}/{sha256}.{ext} (obtido: ${resPackaging.body.objectPath}); traversal bloqueado com 400`
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 11: Unsupported admin entityType rejected
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+
+    // "bi" is legacy-only, must be rejected in admin mode
+    const resBiInAdmin = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'bi',
+      entityId: 'bi_record_1'
+    }, { storageOverride: mockStorage as any });
+
+    // Arbitrary entity types
+    const resUser = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'user_avatar',
+      entityId: 'u1'
+    }, { storageOverride: mockStorage as any });
+
+    const resFooter = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'footer',
+      entityId: 'f1'
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      resBiInAdmin.status === 400 && resUser.status === 400 && resFooter.status === 400,
+      'ADMIN-11: entityType não suportado em modo admin (ex: "bi", "user_avatar") rejeitado com HTTP 400'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 12: Missing required imageIndex for product rejected
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const resNoIndex = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'prod_test_missing_index'
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      resNoIndex.status === 400 && resNoIndex.body.error?.includes('imageIndex'),
+      'ADMIN-12: Ausência de imageIndex para entityType "product" rejeitada com HTTP 400'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 13: Invalid imageIndex rejected (-1, 'abc', boolean, float)
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const resNeg = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'prod_test_idx',
+      imageIndex: -1
+    }, { storageOverride: mockStorage as any });
+
+    const resStr = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'prod_test_idx',
+      imageIndex: 'invalido'
+    }, { storageOverride: mockStorage as any });
+
+    const resBool = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'prod_test_idx',
+      imageIndex: true
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      resNeg.status === 400 && resStr.status === 400 && resBool.status === 400,
+      'ADMIN-13: imageIndex inválido (negativo, string não-numérica, booleano) rejeitado com HTTP 400'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 14: Missing color slotId rejected
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const resNoSlot = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product-color',
+      entityId: 'prod_test_missing_slot'
+    }, { storageOverride: mockStorage as any });
+
+    const resEmptySlot = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product-color',
+      entityId: 'prod_test_missing_slot',
+      slotId: '   '
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      resNoSlot.status === 400 && resEmptySlot.status === 400,
+      'ADMIN-14: Ausência de slotId para entityType "product-color" rejeitada com HTTP 400'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 15: Traversal attempt rejected in entityId/slotId
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+
+    const resTraversalProd = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: '../../etc/shadow',
+      imageIndex: 0
+    }, { storageOverride: mockStorage as any });
+
+    const resTraversalColor = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product-color',
+      entityId: 'p1',
+      slotId: '../colors/escape'
+    }, { storageOverride: mockStorage as any });
+
+    const resTraversalPackaging = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'packaging',
+      entityId: '/absolute/path/forbidden'
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      resTraversalProd.status === 400 &&
+      resTraversalColor.status === 400 &&
+      resTraversalPackaging.status === 400,
+      'ADMIN-15: Tentativas de path traversal em entityId ou slotId bloqueadas com HTTP 400'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 16: Unsupported MIME rejected in admin mode
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const resSvg = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_SVG_UNSUPPORTED,
+      entityType: 'product',
+      entityId: 'p1',
+      imageIndex: 0
+    }, { storageOverride: mockStorage as any });
+
+    const resGif = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_GIF_UNSUPPORTED,
+      entityType: 'packaging',
+      entityId: 'bag1'
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      resSvg.status === 415 && resGif.status === 415,
+      'ADMIN-16: Formatos de mídia não suportados (SVG, GIF) rejeitados com HTTP 415 em modo admin'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 17: >5 MB rejected in admin mode
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const largeBuffer = Buffer.alloc(5.2 * 1024 * 1024, 0x42);
+    const largeBase64 = `data:image/jpeg;base64,${largeBuffer.toString('base64')}`;
+
+    const resLarge = await processImageUpload({
+      mode: 'admin',
+      imageBase64: largeBase64,
+      entityType: 'banner',
+      entityId: 'hero'
+    }, { storageOverride: mockStorage as any });
+
+    assert(
+      resLarge.status === 413,
+      'ADMIN-17: Imagem maior que o limite estrito de 5 MB rejeitada com HTTP 413 em modo admin'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 18: Invalid or missing admin session rejected
+  // ----------------------------------------------------
+  {
+    const reqNoCookie = {
+      method: 'POST',
+      headers: {},
+      body: {
+        mode: 'admin',
+        imageBase64: SAMPLE_WEBP_1,
+        entityType: 'product',
+        entityId: 'p1',
+        imageIndex: 0
+      }
+    };
+    const resNoCookie = createMockRes();
+    await handler(reqNoCookie, resNoCookie);
+
+    const reqBadCookie = {
+      method: 'POST',
+      headers: {
+        cookie: `${ADMIN_SESSION_COOKIE_NAME}=malicious.untrusted.token`
+      },
+      body: {
+        mode: 'admin',
+        imageBase64: SAMPLE_WEBP_1,
+        entityType: 'product',
+        entityId: 'p1',
+        imageIndex: 0
+      }
+    };
+    const resBadCookie = createMockRes();
+    await handler(reqBadCookie, resBadCookie);
+
+    assert(
+      resNoCookie.getStatusCode() === 401 && resBadCookie.getStatusCode() === 401,
+      'ADMIN-18: Requisições em modo admin sem cookie ou com token inválido rejeitadas com HTTP 401'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 19: Existing deterministic object returns reused: true
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const payload = {
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'packaging',
+      entityId: 'sacola_reused_test'
+    };
+
+    const first = await processImageUpload(payload, { storageOverride: mockStorage as any });
+    const second = await processImageUpload(payload, { storageOverride: mockStorage as any });
+
+    assert(
+      first.status === 200 &&
+      first.body.reused === false &&
+      second.status === 200 &&
+      second.body.reused === true &&
+      first.body.objectPath === second.body.objectPath &&
+      first.body.url === second.body.url &&
+      mockStorage.getSaveCalls().length === 1,
+      'ADMIN-19: Objeto determinístico existente reutilizado com reused: true sem duplicar gravações no Storage'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 20: Response contains HTTPS URL
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+    const res = await processImageUpload({
+      mode: 'admin',
+      imageBase64: SAMPLE_JPEG_3,
+      entityType: 'product-color',
+      entityId: 'p_url_test',
+      slotId: 'c_url_test'
+    }, { storageOverride: mockStorage as any });
+
+    const url = res.body.url;
+    const isHttps = typeof url === 'string' && url.startsWith('https://firebasestorage.googleapis.com/');
+    const hasBucket = typeof url === 'string' && url.includes('lavistorekides.firebasestorage.app');
+    const hasToken = typeof url === 'string' && url.includes('token=');
+    const hasAlt = typeof url === 'string' && url.includes('alt=media');
+
+    assert(
+      res.status === 200 && isHttps && hasBucket && hasToken && hasAlt,
+      'ADMIN-20: Resposta de sucesso em modo admin contém URL HTTPS tokenizada com bucket e alt=media'
+    );
+  }
+
+  // ----------------------------------------------------
+  // ADMIN 21: Browser cannot provide bucket/path/hash/token
+  // ----------------------------------------------------
+  {
+    const mockStorage = createMockStorage();
+
+    // Attacker payload attempting to inject custom bucket, objectPath, hash and token
+    const maliciousPayload = {
+      mode: 'admin',
+      imageBase64: SAMPLE_WEBP_1,
+      entityType: 'product',
+      entityId: 'prod_injection_test',
+      imageIndex: 0,
+      bucket: 'evil-hacker-bucket.appspot.com',
+      objectPath: 'system/compromised/payload.webp',
+      sha256: '0000000000000000000000000000000000000000000000000000000000000000',
+      token: 'client-injected-token-12345'
+    };
+
+    const res = await processImageUpload(maliciousPayload, { storageOverride: mockStorage as any });
+    const savedCalls = mockStorage.getSaveCalls();
+
+    const usedClientPath = res.body.objectPath === maliciousPayload.objectPath;
+    const usedClientHash = res.body.objectPath?.includes(maliciousPayload.sha256);
+    const usedClientToken = res.body.url?.includes(maliciousPayload.token);
+    const usedClientBucket = res.body.url?.includes(maliciousPayload.bucket);
+
+    assert(
+      res.status === 200 &&
+      !usedClientPath &&
+      !usedClientHash &&
+      !usedClientToken &&
+      !usedClientBucket &&
+      savedCalls.length === 1 &&
+      savedCalls[0].path.startsWith('admin/products/prod_injection_test/images/0-'),
+      'ADMIN-21: Parâmetros arbitrários do cliente (bucket, path, hash, token) são sumariamente ignorados pelo servidor'
     );
   }
 

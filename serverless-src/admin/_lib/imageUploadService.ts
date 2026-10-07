@@ -3,8 +3,21 @@ import { getAdminStorage, FIREBASE_STORAGE_BUCKET } from './adminAuth';
 
 export { FIREBASE_STORAGE_BUCKET };
 export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB decoded limit
-export const ALLOWED_ENTITY_TYPES = ['product', 'bi'] as const;
-export type AllowedEntityType = typeof ALLOWED_ENTITY_TYPES[number];
+
+export const ALLOWED_MODES = ['legacy', 'admin'] as const;
+export type UploadMode = typeof ALLOWED_MODES[number];
+
+// Legacy entity types (strictly preserved for backward compatibility)
+export const LEGACY_ENTITY_TYPES = ['product', 'bi'] as const;
+export type LegacyEntityType = typeof LEGACY_ENTITY_TYPES[number];
+
+// Backward-compatible alias for existing imports
+export const ALLOWED_ENTITY_TYPES = LEGACY_ENTITY_TYPES;
+export type AllowedEntityType = LegacyEntityType;
+
+// Admin entity types supported in Phase H2+
+export const ADMIN_ENTITY_TYPES = ['product', 'product-color', 'banner', 'packaging'] as const;
+export type AdminEntityType = typeof ADMIN_ENTITY_TYPES[number];
 
 export const ALLOWED_MIME_TYPES: Record<string, string> = {
   'image/jpeg': 'jpeg',
@@ -22,6 +35,8 @@ export interface ProcessImageUploadResult {
     mimeType?: string;
     size?: number;
     reused?: boolean;
+    mode?: string;
+    entityType?: string;
     error?: string;
   };
 }
@@ -77,13 +92,43 @@ export function computeImageSha256(buffer: Buffer): string {
  * Format: legacy/{entityType}/{safeEntityId}/{imageIndex}-{sha256}.{extension}
  */
 export function buildDeterministicStoragePath(
-  entityType: AllowedEntityType,
+  entityType: LegacyEntityType | string,
   safeEntityId: string,
   imageIndex: number,
   sha256: string,
   extension: string
 ): string {
   return `legacy/${entityType}/${safeEntityId}/${imageIndex}-${sha256}.${extension}`;
+}
+
+/**
+ * Builds the deterministic storage object path for admin mode uploads.
+ * Paths:
+ * - product: admin/products/{safeProductId}/images/{imageIndex}-{sha256}.{ext}
+ * - product-color: admin/products/{safeProductId}/colors/{safeColorId}-{sha256}.{ext}
+ * - banner: admin/banners/hero/{sha256}.{ext}
+ * - packaging: admin/packaging/{safeBagId}/{sha256}.{ext}
+ */
+export function buildAdminStoragePath(
+  entityType: AdminEntityType,
+  params: {
+    safeEntityId?: string;
+    imageIndex?: number;
+    safeSlotId?: string;
+    sha256: string;
+    extension: string;
+  }
+): string {
+  switch (entityType) {
+    case 'product':
+      return `admin/products/${params.safeEntityId}/images/${params.imageIndex}-${params.sha256}.${params.extension}`;
+    case 'product-color':
+      return `admin/products/${params.safeEntityId}/colors/${params.safeSlotId}-${params.sha256}.${params.extension}`;
+    case 'banner':
+      return `admin/banners/hero/${params.sha256}.${params.extension}`;
+    case 'packaging':
+      return `admin/packaging/${params.safeEntityId}/${params.sha256}.${params.extension}`;
+  }
 }
 
 /**
@@ -102,6 +147,10 @@ export function buildFirebaseDownloadUrl(
  * Core image upload processor shared between Vercel serverless function and Express server.
  * Implements strict payload validation, Base64 decoding, size limits, deterministic hashing,
  * idempotency check, and Firebase download token creation.
+ *
+ * Supports two modes:
+ * - "legacy" (or omitted): 100% backward compatible for legacy migration (types: product, bi).
+ * - "admin": New secure admin upload endpoint (types: product, product-color, banner, packaging).
  */
 export async function processImageUpload(
   payload: any,
@@ -117,9 +166,32 @@ export async function processImageUpload(
     };
   }
 
-  const { imageBase64, entityType, entityId, imageIndex } = payload;
+  const {
+    imageBase64,
+    entityType,
+    entityId,
+    imageIndex,
+    slotId,
+    mode
+  } = payload;
 
-  // 1. Validate entityType
+  // 1. Validate mode (omitted or null/empty defaults strictly to "legacy" for backward compatibility)
+  let targetMode: UploadMode = 'legacy';
+  if (mode !== undefined && mode !== null && String(mode).trim() !== '') {
+    const rawMode = String(mode).trim().toLowerCase();
+    if (!ALLOWED_MODES.includes(rawMode as UploadMode)) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `Modo "${mode}" inválido. Modos permitidos: ${ALLOWED_MODES.join(', ')}.`
+        }
+      };
+    }
+    targetMode = rawMode as UploadMode;
+  }
+
+  // 2. Validate entityType according to mode
   if (!entityType || typeof entityType !== 'string') {
     return {
       status: 400,
@@ -128,56 +200,194 @@ export async function processImageUpload(
   }
 
   const normalizedEntityType = entityType.trim().toLowerCase();
-  if (!ALLOWED_ENTITY_TYPES.includes(normalizedEntityType as AllowedEntityType)) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: `entityType "${entityType}" inválido. Tipos permitidos: ${ALLOWED_ENTITY_TYPES.join(', ')}.`
+
+  if (targetMode === 'legacy') {
+    if (!LEGACY_ENTITY_TYPES.includes(normalizedEntityType as LegacyEntityType)) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `entityType "${entityType}" inválido. Tipos permitidos: ${LEGACY_ENTITY_TYPES.join(', ')}.`
+        }
+      };
+    }
+  } else {
+    // Admin mode
+    if (!ADMIN_ENTITY_TYPES.includes(normalizedEntityType as AdminEntityType)) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: `entityType "${entityType}" inválido para modo admin. Tipos permitidos: ${ADMIN_ENTITY_TYPES.join(', ')}.`
+        }
+      };
+    }
+  }
+
+  // 3. Validate entityId, imageIndex, and slotId based on mode and entityType
+  let safeEntityId = '';
+  let parsedIndex: number | undefined = undefined;
+  let safeSlotId = '';
+
+  if (targetMode === 'legacy') {
+    // Legacy: requires entityId (sanitized) and imageIndex (non-negative integer)
+    if (typeof entityId !== 'string' || !entityId.trim()) {
+      return {
+        status: 400,
+        body: { success: false, error: 'entityId é obrigatório.' }
+      };
+    }
+
+    safeEntityId = sanitizeEntityId(entityId);
+    if (!safeEntityId) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: 'entityId inválido ou tentativa de path traversal detectada.'
+        }
+      };
+    }
+
+    if (
+      imageIndex === undefined ||
+      imageIndex === null ||
+      typeof imageIndex === 'boolean'
+    ) {
+      return {
+        status: 400,
+        body: { success: false, error: 'imageIndex é obrigatório.' }
+      };
+    }
+
+    const idx = Number(imageIndex);
+    if (!Number.isInteger(idx) || idx < 0) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: 'imageIndex deve ser um número inteiro não-negativo (ex: 0, 1, 2).'
+        }
+      };
+    }
+    parsedIndex = idx;
+  } else {
+    // Admin mode: validate specific entity types
+    if (normalizedEntityType === 'product') {
+      // Product: requires entityId (productId) and imageIndex
+      if (typeof entityId !== 'string' || !entityId.trim()) {
+        return {
+          status: 400,
+          body: { success: false, error: 'entityId é obrigatório.' }
+        };
       }
-    };
-  }
 
-  // 2. Validate and sanitize entityId (strict path traversal defense)
-  if (typeof entityId !== 'string' || !entityId.trim()) {
-    return {
-      status: 400,
-      body: { success: false, error: 'entityId é obrigatório.' }
-    };
-  }
-
-  const safeEntityId = sanitizeEntityId(entityId);
-  if (!safeEntityId) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: 'entityId inválido ou tentativa de path traversal detectada.'
+      safeEntityId = sanitizeEntityId(entityId);
+      if (!safeEntityId) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            error: 'entityId inválido ou tentativa de path traversal detectada.'
+          }
+        };
       }
-    };
-  }
 
-  // 3. Validate imageIndex
-  if (
-    imageIndex === undefined ||
-    imageIndex === null ||
-    typeof imageIndex === 'boolean'
-  ) {
-    return {
-      status: 400,
-      body: { success: false, error: 'imageIndex é obrigatório.' }
-    };
-  }
-
-  const parsedIndex = Number(imageIndex);
-  if (!Number.isInteger(parsedIndex) || parsedIndex < 0) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        error: 'imageIndex deve ser um número inteiro não-negativo (ex: 0, 1, 2).'
+      if (
+        imageIndex === undefined ||
+        imageIndex === null ||
+        typeof imageIndex === 'boolean'
+      ) {
+        return {
+          status: 400,
+          body: { success: false, error: 'imageIndex é obrigatório para entityType "product".' }
+        };
       }
-    };
+
+      const idx = Number(imageIndex);
+      if (!Number.isInteger(idx) || idx < 0) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            error: 'imageIndex deve ser um número inteiro não-negativo (ex: 0, 1, 2).'
+          }
+        };
+      }
+      parsedIndex = idx;
+    } else if (normalizedEntityType === 'product-color') {
+      // Product-color: requires entityId (productId) and slotId (colorId)
+      if (typeof entityId !== 'string' || !entityId.trim()) {
+        return {
+          status: 400,
+          body: { success: false, error: 'entityId é obrigatório.' }
+        };
+      }
+
+      safeEntityId = sanitizeEntityId(entityId);
+      if (!safeEntityId) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            error: 'entityId inválido ou tentativa de path traversal detectada.'
+          }
+        };
+      }
+
+      if (typeof slotId !== 'string' || !slotId.trim()) {
+        return {
+          status: 400,
+          body: { success: false, error: 'slotId é obrigatório para entityType "product-color".' }
+        };
+      }
+
+      safeSlotId = sanitizeEntityId(slotId);
+      if (!safeSlotId) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            error: 'slotId inválido ou tentativa de path traversal detectada.'
+          }
+        };
+      }
+    } else if (normalizedEntityType === 'banner') {
+      // Banner: namespace is strictly server-controlled "hero"
+      // If entityId is passed, validate it matches 'hero' (path traversal attempts rejected)
+      if (entityId !== undefined && entityId !== null && String(entityId).trim() !== '') {
+        const bannerId = String(entityId).trim().toLowerCase();
+        if (bannerId !== 'hero') {
+          return {
+            status: 400,
+            body: {
+              success: false,
+              error: 'entityId inválido para banner. O namespace exclusivo suportado é "hero".'
+            }
+          };
+        }
+      }
+      safeEntityId = 'hero';
+    } else if (normalizedEntityType === 'packaging') {
+      // Packaging: requires entityId (bagId)
+      if (typeof entityId !== 'string' || !entityId.trim()) {
+        return {
+          status: 400,
+          body: { success: false, error: 'entityId é obrigatório.' }
+        };
+      }
+
+      safeEntityId = sanitizeEntityId(entityId);
+      if (!safeEntityId) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            error: 'entityId inválido ou tentativa de path traversal detectada.'
+          }
+        };
+      }
+    }
   }
 
   // 4. Validate imageBase64 string
@@ -266,16 +476,32 @@ export async function processImageUpload(
     };
   }
 
-  // 5. Deterministic hash & Storage path
+  // 5. Deterministic hash & Storage path (server-calculated, client cannot override)
   const sha256 = computeImageSha256(imageBuffer);
-  const objectPath = buildDeterministicStoragePath(
-    normalizedEntityType as AllowedEntityType,
-    safeEntityId,
-    parsedIndex,
-    sha256,
-    extension
-  );
 
+  let objectPath: string;
+  if (targetMode === 'legacy') {
+    objectPath = buildDeterministicStoragePath(
+      normalizedEntityType as LegacyEntityType,
+      safeEntityId,
+      parsedIndex as number,
+      sha256,
+      extension
+    );
+  } else {
+    objectPath = buildAdminStoragePath(
+      normalizedEntityType as AdminEntityType,
+      {
+        safeEntityId,
+        imageIndex: parsedIndex,
+        safeSlotId,
+        sha256,
+        extension
+      }
+    );
+  }
+
+  // Browser cannot specify bucket; strictly server-configured
   const targetBucketName = options?.bucketName || FIREBASE_STORAGE_BUCKET;
 
   // 6. Access Firebase Storage
@@ -321,7 +547,9 @@ export async function processImageUpload(
           objectPath,
           mimeType: metadata?.contentType || normalizedMime,
           size: Number(metadata?.size) || imageBuffer.length,
-          reused: true
+          reused: true,
+          mode: targetMode,
+          entityType: normalizedEntityType
         }
       };
     }
@@ -349,7 +577,9 @@ export async function processImageUpload(
         objectPath,
         mimeType: normalizedMime,
         size: imageBuffer.length,
-        reused: false
+        reused: false,
+        mode: targetMode,
+        entityType: normalizedEntityType
       }
     };
   } catch (err: any) {
