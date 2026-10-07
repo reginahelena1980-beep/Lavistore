@@ -2,8 +2,6 @@ import { createRequire } from 'module'; const require = createRequire(import.met
 
 // serverless-src/admin/_lib/adminAuth.ts
 import crypto2 from "crypto";
-import fs from "fs";
-import path from "path";
 
 // node_modules/nodemailer/dist/esm/shared/url.js
 import net from "node:net";
@@ -478,11 +476,11 @@ var Cookies = class {
   getPath(pathname) {
     const pathParts = (pathname || "/").split("/");
     pathParts.pop();
-    const path2 = pathParts.join("/").trim();
-    if (path2.charAt(0) !== "/") {
+    const path = pathParts.join("/").trim();
+    if (path.charAt(0) !== "/") {
       return "/";
     }
-    return path2;
+    return path;
   }
 };
 
@@ -1633,14 +1631,14 @@ var ETHEREAL_CACHE = ["true", "yes", "y", "1"].includes((process.env.ETHEREAL_CA
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+var FIREBASE_STORAGE_BUCKET = "lavistorekides.firebasestorage.app";
 var ADMIN_SESSION_COOKIE_NAME = "lavistore_admin_session";
 var ADMIN_SESSION_DURATION_MS = 8 * 60 * 60 * 1e3;
 var ADMIN_SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 var ADMIN_RECOVERY_DURATION_MS = 15 * 60 * 1e3;
 var ADMIN_RECOVERY_MAX_AGE_SECONDS = 15 * 60;
-var ADMIN_PASSWORD_KEY_LENGTH = 64;
 var cachedApp = null;
-var cachedFirestore = null;
+var cachedStorage = null;
 function normalizePrivateKey(rawKey) {
   if (!rawKey) return void 0;
   let key = rawKey.trim();
@@ -1680,105 +1678,21 @@ function getFirebaseAdminApp() {
     return null;
   }
 }
-function getAdminFirestore() {
-  if (cachedFirestore) {
-    return cachedFirestore;
+function getAdminStorage() {
+  if (cachedStorage) {
+    return cachedStorage;
   }
   const app = getFirebaseAdminApp();
   if (!app) {
     return null;
   }
   try {
-    cachedFirestore = getFirestore(app);
-    return cachedFirestore;
+    cachedStorage = getStorage(app);
+    return cachedStorage;
   } catch (err) {
-    console.error("[Firebase Admin Firestore] Error:", err?.message || err);
+    console.error("[Firebase Admin Storage] Error:", err?.message || err);
     return null;
   }
-}
-function verifyAdminPasswordHash(password, storedHash) {
-  try {
-    const [algorithm, saltHex, hashHex] = storedHash.split(":");
-    if (algorithm !== "scrypt" || !saltHex || !hashHex) {
-      return false;
-    }
-    const salt = Buffer.from(saltHex, "hex");
-    const storedKey = Buffer.from(hashHex, "hex");
-    if (storedKey.length !== ADMIN_PASSWORD_KEY_LENGTH) {
-      return false;
-    }
-    const derivedKey = crypto2.scryptSync(
-      password,
-      salt,
-      ADMIN_PASSWORD_KEY_LENGTH
-    );
-    return crypto2.timingSafeEqual(storedKey, derivedKey);
-  } catch {
-    return false;
-  }
-}
-function findServerHashedCredential() {
-  const candidateFiles = [
-    path.join(process.cwd(), "persistent_data", "admin_persistent_settings.json"),
-    path.join(process.cwd(), "persistent_data", "store_state.json"),
-    path.join(process.cwd(), "src", "data", "admin_persistent_vault.json")
-  ];
-  for (const filePath of candidateFiles) {
-    try {
-      if (fs.existsSync(filePath)) {
-        const raw = fs.readFileSync(filePath, "utf-8");
-        const data = JSON.parse(raw);
-        if (typeof data?.adminPasswordHash === "string" && data.adminPasswordHash.startsWith("scrypt:")) {
-          return {
-            adminPasswordHash: data.adminPasswordHash,
-            adminPasswordChanged: Boolean(data.adminPasswordChanged),
-            adminPasswordChangedAt: data.adminPasswordChangedAt
-          };
-        }
-      }
-    } catch {
-    }
-  }
-  return null;
-}
-async function getAdminCredential() {
-  const firestore = getAdminFirestore();
-  if (firestore) {
-    try {
-      const docRef = firestore.collection("private_admin").doc("auth");
-      const snap = await docRef.get();
-      if (snap.exists) {
-        const data = snap.data();
-        if (typeof data?.adminPasswordHash === "string" && data.adminPasswordHash.startsWith("scrypt:")) {
-          return {
-            adminPasswordHash: data.adminPasswordHash,
-            adminPasswordChanged: Boolean(data.adminPasswordChanged),
-            adminPasswordChangedAt: data.adminPasswordChangedAt
-          };
-        }
-      }
-      const existingServerHash = findServerHashedCredential();
-      if (existingServerHash) {
-        const now = (/* @__PURE__ */ new Date()).toISOString();
-        const payloadToMigrate = {
-          adminPasswordHash: existingServerHash.adminPasswordHash,
-          adminPasswordChanged: existingServerHash.adminPasswordChanged,
-          adminPasswordChangedAt: existingServerHash.adminPasswordChangedAt || now,
-          updatedAt: now
-        };
-        await docRef.set(payloadToMigrate, { merge: true });
-        return existingServerHash;
-      }
-    } catch (err) {
-      console.error("[Admin Credential] Firestore retrieval error:", err?.message || err);
-    }
-  } else {
-    const existingServerHash = findServerHashedCredential();
-    if (existingServerHash) {
-      return existingServerHash;
-    }
-  }
-  return null;
 }
 function getAdminSessionSecret() {
   const secret = process.env.ADMIN_SESSION_SECRET?.trim();
@@ -1787,46 +1701,62 @@ function getAdminSessionSecret() {
   }
   return secret;
 }
-function createSignedAdminSession() {
+function verifyAdminSessionToken(token) {
+  if (!token || typeof token !== "string") {
+    return { valid: false, payload: null };
+  }
   const secret = getAdminSessionSecret();
   if (!secret) {
-    return null;
+    return { valid: false, payload: null };
   }
-  const now = Date.now();
-  const payload = {
-    role: "admin",
-    iat: now,
-    exp: now + ADMIN_SESSION_DURATION_MS
-  };
-  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = crypto2.createHmac("sha256", secret).update(payloadB64).digest("base64url");
-  return `${payloadB64}.${signature}`;
+  const parts = token.split(".");
+  if (parts.length !== 2) {
+    return { valid: false, payload: null };
+  }
+  const [payloadB64, signature] = parts;
+  if (!payloadB64 || !signature) {
+    return { valid: false, payload: null };
+  }
+  const expectedSignature = crypto2.createHmac("sha256", secret).update(payloadB64).digest("base64url");
+  const sigBuf = Buffer.from(signature);
+  const expectedBuf = Buffer.from(expectedSignature);
+  if (sigBuf.length !== expectedBuf.length || !crypto2.timingSafeEqual(sigBuf, expectedBuf)) {
+    return { valid: false, payload: null };
+  }
+  try {
+    const rawPayload = Buffer.from(payloadB64, "base64url").toString("utf-8");
+    const parsed = JSON.parse(rawPayload);
+    if (!parsed || typeof parsed !== "object" || parsed.role !== "admin" || typeof parsed.iat !== "number" || typeof parsed.exp !== "number") {
+      return { valid: false, payload: null };
+    }
+    if (Date.now() > parsed.exp) {
+      return { valid: false, payload: null };
+    }
+    return { valid: true, payload: parsed };
+  } catch {
+    return { valid: false, payload: null };
+  }
 }
-function serializeCookie(name2, value, options = {}) {
-  const parts = [`${encodeURIComponent(name2)}=${encodeURIComponent(value)}`];
-  parts.push(`Path=${options.path || "/"}`);
-  if (options.maxAge !== void 0) {
-    parts.push(`Max-Age=${options.maxAge}`);
-  }
-  if (options.httpOnly !== false) {
-    parts.push("HttpOnly");
-  }
-  const isProduction = process.env.NODE_ENV === "production";
-  const secure = options.secure !== void 0 ? options.secure : isProduction;
-  if (secure) {
-    parts.push("Secure");
-  }
-  const sameSite = options.sameSite || "lax";
-  parts.push(`SameSite=${sameSite.charAt(0).toUpperCase() + sameSite.slice(1)}`);
-  return parts.join("; ");
-}
-function buildSessionCookie(token) {
-  return serializeCookie(ADMIN_SESSION_COOKIE_NAME, token, {
-    maxAge: ADMIN_SESSION_MAX_AGE_SECONDS,
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/"
+function parseCookies(cookieHeader) {
+  const list = {};
+  if (!cookieHeader) return list;
+  cookieHeader.split(";").forEach((cookie) => {
+    const parts = cookie.split("=");
+    const key = parts.shift()?.trim();
+    if (key) {
+      const val = parts.join("=").trim();
+      try {
+        list[key] = decodeURIComponent(val);
+      } catch {
+        list[key] = val;
+      }
+    }
   });
+  return list;
+}
+function getAdminSessionFromCookies(req) {
+  const cookies = parseCookies(req.headers?.cookie);
+  return cookies[ADMIN_SESSION_COOKIE_NAME] || null;
 }
 function parseRequestBody(req) {
   let body = req.body;
@@ -1852,18 +1782,250 @@ function sendResponse(res, statusCode, data, headers) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   return res.end(JSON.stringify(data));
 }
-function setCookies(res, cookies) {
-  const existing = res.getHeader("Set-Cookie");
-  let current = [];
-  if (Array.isArray(existing)) {
-    current = [...existing];
-  } else if (typeof existing === "string") {
-    current = [existing];
+
+// serverless-src/admin/_lib/imageUploadService.ts
+import crypto3 from "crypto";
+var MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+var ALLOWED_ENTITY_TYPES = ["product", "bi"];
+var ALLOWED_MIME_TYPES = {
+  "image/jpeg": "jpeg",
+  "image/jpg": "jpeg",
+  "image/png": "png",
+  "image/webp": "webp"
+};
+function sanitizeEntityId(rawId) {
+  if (typeof rawId !== "string") return "";
+  const trimmed = rawId.trim();
+  if (trimmed.includes("..") || trimmed.includes("/") || trimmed.includes("\\") || trimmed.includes(":") || trimmed.startsWith(".")) {
+    return "";
   }
-  res.setHeader("Set-Cookie", [...current, ...cookies]);
+  const sanitized = trimmed.replace(/[^a-zA-Z0-9_-]/g, "");
+  if (sanitized.length === 0 || sanitized.length > 128) {
+    return "";
+  }
+  return sanitized;
+}
+function computeImageSha256(buffer) {
+  return crypto3.createHash("sha256").update(buffer).digest("hex");
+}
+function buildDeterministicStoragePath(entityType, safeEntityId, imageIndex, sha256, extension) {
+  return `legacy/${entityType}/${safeEntityId}/${imageIndex}-${sha256}.${extension}`;
+}
+function buildFirebaseDownloadUrl(bucketName, objectPath, downloadToken) {
+  const encodedPath = encodeURIComponent(objectPath);
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${downloadToken}`;
+}
+async function processImageUpload(payload, options) {
+  if (!payload || typeof payload !== "object") {
+    return {
+      status: 400,
+      body: { success: false, error: "Corpo da requisi\xE7\xE3o inv\xE1lido." }
+    };
+  }
+  const { imageBase64, entityType, entityId, imageIndex } = payload;
+  if (!entityType || typeof entityType !== "string") {
+    return {
+      status: 400,
+      body: { success: false, error: "entityType \xE9 obrigat\xF3rio." }
+    };
+  }
+  const normalizedEntityType = entityType.trim().toLowerCase();
+  if (!ALLOWED_ENTITY_TYPES.includes(normalizedEntityType)) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        error: `entityType "${entityType}" inv\xE1lido. Tipos permitidos: ${ALLOWED_ENTITY_TYPES.join(", ")}.`
+      }
+    };
+  }
+  if (typeof entityId !== "string" || !entityId.trim()) {
+    return {
+      status: 400,
+      body: { success: false, error: "entityId \xE9 obrigat\xF3rio." }
+    };
+  }
+  const safeEntityId = sanitizeEntityId(entityId);
+  if (!safeEntityId) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        error: "entityId inv\xE1lido ou tentativa de path traversal detectada."
+      }
+    };
+  }
+  if (imageIndex === void 0 || imageIndex === null || typeof imageIndex === "boolean") {
+    return {
+      status: 400,
+      body: { success: false, error: "imageIndex \xE9 obrigat\xF3rio." }
+    };
+  }
+  const parsedIndex = Number(imageIndex);
+  if (!Number.isInteger(parsedIndex) || parsedIndex < 0) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        error: "imageIndex deve ser um n\xFAmero inteiro n\xE3o-negativo (ex: 0, 1, 2)."
+      }
+    };
+  }
+  if (typeof imageBase64 !== "string" || !imageBase64.trim()) {
+    return {
+      status: 400,
+      body: { success: false, error: "imageBase64 \xE9 obrigat\xF3rio." }
+    };
+  }
+  const trimmedImage = imageBase64.trim();
+  if (!trimmedImage.startsWith("data:")) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        error: "Formato de imagem inv\xE1lido. Esperado Data URL (ex: data:image/webp;base64,...)."
+      }
+    };
+  }
+  const dataUrlMatch = trimmedImage.match(/^data:([^;,]+);base64,(.+)$/s);
+  if (!dataUrlMatch) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        error: "Data URL mal formatado ou n\xE3o codificado em base64."
+      }
+    };
+  }
+  const rawMime = dataUrlMatch[1].trim().toLowerCase();
+  const rawBase64 = dataUrlMatch[2].trim();
+  if (!ALLOWED_MIME_TYPES[rawMime]) {
+    return {
+      status: 415,
+      body: {
+        success: false,
+        error: `Tipo de m\xEDdia n\xE3o suportado: "${rawMime}". Formatos aceitos: image/jpeg, image/png, image/webp.`
+      }
+    };
+  }
+  const extension = ALLOWED_MIME_TYPES[rawMime];
+  const normalizedMime = rawMime === "image/jpg" ? "image/jpeg" : rawMime;
+  const cleanBase64 = rawBase64.replace(/[\r\n\s]/g, "");
+  if (!cleanBase64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(cleanBase64)) {
+    return {
+      status: 400,
+      body: { success: false, error: "Conte\xFAdo Base64 inv\xE1lido ou corrompido." }
+    };
+  }
+  let imageBuffer;
+  try {
+    imageBuffer = Buffer.from(cleanBase64, "base64");
+  } catch {
+    return {
+      status: 400,
+      body: { success: false, error: "Falha ao decodificar Base64 da imagem." }
+    };
+  }
+  if (!imageBuffer || imageBuffer.length === 0) {
+    return {
+      status: 400,
+      body: { success: false, error: "A imagem decodificada est\xE1 vazia (0 bytes)." }
+    };
+  }
+  if (imageBuffer.length > MAX_IMAGE_SIZE_BYTES) {
+    return {
+      status: 413,
+      body: {
+        success: false,
+        error: `Imagem muito grande (${imageBuffer.length} bytes). O limite m\xE1ximo permitido \xE9 5 MB (${MAX_IMAGE_SIZE_BYTES} bytes).`
+      }
+    };
+  }
+  const sha256 = computeImageSha256(imageBuffer);
+  const objectPath = buildDeterministicStoragePath(
+    normalizedEntityType,
+    safeEntityId,
+    parsedIndex,
+    sha256,
+    extension
+  );
+  const targetBucketName = options?.bucketName || FIREBASE_STORAGE_BUCKET;
+  const storage = options?.storageOverride || getAdminStorage();
+  if (!storage) {
+    console.error("[Admin Upload Image] Firebase Admin Storage n\xE3o inicializado.");
+    return {
+      status: 500,
+      body: {
+        success: false,
+        error: "Servi\xE7o de armazenamento Firebase Storage indispon\xEDvel no servidor."
+      }
+    };
+  }
+  try {
+    const bucket = storage.bucket(targetBucketName);
+    const file = bucket.file(objectPath);
+    const [exists] = await file.exists();
+    if (exists) {
+      const [metadata] = await file.getMetadata();
+      let downloadToken2 = metadata?.metadata?.firebaseStorageDownloadTokens;
+      if (!downloadToken2 || typeof downloadToken2 !== "string") {
+        downloadToken2 = crypto3.randomUUID();
+        await file.setMetadata({
+          metadata: {
+            firebaseStorageDownloadTokens: downloadToken2
+          }
+        });
+      }
+      const activeToken = downloadToken2.split(",")[0].trim();
+      const downloadUrl2 = buildFirebaseDownloadUrl(targetBucketName, objectPath, activeToken);
+      return {
+        status: 200,
+        body: {
+          success: true,
+          url: downloadUrl2,
+          objectPath,
+          mimeType: metadata?.contentType || normalizedMime,
+          size: Number(metadata?.size) || imageBuffer.length,
+          reused: true
+        }
+      };
+    }
+    const downloadToken = crypto3.randomUUID();
+    await file.save(imageBuffer, {
+      contentType: normalizedMime,
+      metadata: {
+        contentType: normalizedMime,
+        metadata: {
+          firebaseStorageDownloadTokens: downloadToken
+        }
+      },
+      resumable: false
+    });
+    const downloadUrl = buildFirebaseDownloadUrl(targetBucketName, objectPath, downloadToken);
+    return {
+      status: 200,
+      body: {
+        success: true,
+        url: downloadUrl,
+        objectPath,
+        mimeType: normalizedMime,
+        size: imageBuffer.length,
+        reused: false
+      }
+    };
+  } catch (err) {
+    console.error("[Admin Upload Image] Storage error:", err?.message || "Falha desconhecida no Storage");
+    return {
+      status: 500,
+      body: {
+        success: false,
+        error: "Falha ao persistir imagem no Firebase Storage."
+      }
+    };
+  }
 }
 
-// serverless-src/admin/verify-password.ts
+// serverless-src/admin/upload-image.ts
 async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Origin", req.headers?.origin || "*");
@@ -1877,48 +2039,34 @@ async function handler(req, res) {
   }
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return sendResponse(res, 405, { success: false, error: `Method ${req.method} Not Allowed` });
+    return sendResponse(res, 405, {
+      success: false,
+      error: `Method ${req.method} Not Allowed`
+    });
+  }
+  const token = getAdminSessionFromCookies(req);
+  if (!token) {
+    return sendResponse(res, 401, {
+      success: false,
+      error: "Acesso n\xE3o autorizado. Sess\xE3o administrativa necess\xE1ria."
+    });
+  }
+  const { valid, payload } = verifyAdminSessionToken(token);
+  if (!valid || !payload) {
+    return sendResponse(res, 401, {
+      success: false,
+      error: "Sess\xE3o administrativa inv\xE1lida ou expirada."
+    });
   }
   try {
     const body = parseRequestBody(req);
-    const password = body?.password;
-    if (typeof password !== "string" || !password.trim()) {
-      return sendResponse(res, 400, {
-        success: false,
-        error: "Senha \xE9 obrigat\xF3ria."
-      });
-    }
-    const credential = await getAdminCredential();
-    if (!credential || !credential.adminPasswordHash) {
-      return sendResponse(res, 401, {
-        success: false,
-        error: "Senha de ger\xEAncia incorreta."
-      });
-    }
-    const isValid = verifyAdminPasswordHash(password.trim(), credential.adminPasswordHash);
-    if (!isValid) {
-      return sendResponse(res, 401, {
-        success: false,
-        error: "Senha de ger\xEAncia incorreta."
-      });
-    }
-    const sessionToken = createSignedAdminSession();
-    if (!sessionToken) {
-      return sendResponse(res, 500, {
-        success: false,
-        error: "N\xE3o foi poss\xEDvel iniciar a sess\xE3o administrativa."
-      });
-    }
-    setCookies(res, [buildSessionCookie(sessionToken)]);
-    return sendResponse(res, 200, {
-      success: true,
-      requiresPasswordChange: !Boolean(credential.adminPasswordChanged)
-    });
+    const result = await processImageUpload(body);
+    return sendResponse(res, result.status, result.body);
   } catch (err) {
-    console.error("[Admin Verify Password] Error:", err?.message || err);
+    console.error("[Admin Upload Image] Unexpected handler error:", err?.message || "Unknown error");
     return sendResponse(res, 500, {
       success: false,
-      error: "Erro ao validar senha."
+      error: "Erro interno ao processar upload de imagem."
     });
   }
 }

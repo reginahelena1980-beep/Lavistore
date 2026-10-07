@@ -37,6 +37,7 @@ import {
   generatePixCopiaECola,
   generatePixQrCodeDataUrl
 } from './mercadoPagoServer.ts';
+import { processImageUpload } from './serverless-src/admin/_lib/imageUploadService.ts';
 import { initializeApp as initFirebaseApp, getApps as getFirebaseApps, getApp as getFirebaseApp } from 'firebase/app';
 import { 
   getFirestore as getServerFirestore, 
@@ -1836,6 +1837,39 @@ app.post('/api/admin/change-password', (req, res) => {
       success: false,
       error:
         'Falha ao alterar senha de gerência.'
+    });
+  }
+});
+
+/**
+ * ALL /api/admin/upload-image
+ * Garante que apenas POST seja permitido no Express, retornando 405 para os demais métodos.
+ */
+app.all('/api/admin/upload-image', (req, res, next) => {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({
+      success: false,
+      error: `Method ${req.method} Not Allowed`
+    });
+  }
+  next();
+});
+
+/**
+ * POST /api/admin/upload-image
+ * Endpoint Express para paridade de desenvolvimento local.
+ * Protegido exclusivamente pelo middleware requireAdminSession.
+ */
+app.post('/api/admin/upload-image', requireAdminSession, async (req, res) => {
+  try {
+    const result = await processImageUpload(req.body);
+    return res.status(result.status).json(result.body);
+  } catch (err: any) {
+    console.error('[Admin Upload Image] Erro no servidor Express:', err?.message || 'Erro inesperado');
+    return res.status(500).json({
+      success: false,
+      error: 'Erro interno ao processar upload de imagem.'
     });
   }
 });

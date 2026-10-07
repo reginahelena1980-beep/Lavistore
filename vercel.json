@@ -30,6 +30,10 @@
       "destination": "/api/admin/change-password.js"
     },
     {
+      "source": "/api/admin/upload-image",
+      "destination": "/api/admin/upload-image.js"
+    },
+    {
       "source": "/api/admin/request-password-reset",
       "destination": "/api/admin/request-password-reset.js"
     },

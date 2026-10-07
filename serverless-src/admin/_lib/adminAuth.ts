@@ -4,6 +4,7 @@ import path from 'path';
 import nodemailer from 'nodemailer';
 import { initializeApp, getApps, cert, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { getStorage, type Storage } from 'firebase-admin/storage';
 
 /**
  * =====================================================================
@@ -14,6 +15,7 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
  * password hashes to the frontend.
  */
 
+export const FIREBASE_STORAGE_BUCKET = 'lavistorekides.firebasestorage.app';
 export const ADMIN_SESSION_COOKIE_NAME = 'lavistore_admin_session';
 export const ADMIN_RECOVERY_COOKIE_NAME = 'lavistore_admin_recovery';
 
@@ -29,6 +31,7 @@ const ADMIN_PASSWORD_KEY_LENGTH = 64;
 // Cache instances during serverless execution life cycle
 let cachedApp: App | null = null;
 let cachedFirestore: Firestore | null = null;
+let cachedStorage: Storage | null = null;
 
 /**
  * Safely normalizes private key from environment variables.
@@ -109,6 +112,29 @@ export function getAdminFirestore(): Firestore | null {
     return cachedFirestore;
   } catch (err: any) {
     console.error('[Firebase Admin Firestore] Error:', err?.message || err);
+    return null;
+  }
+}
+
+/**
+ * Retrieves the Storage instance from Firebase Admin.
+ * Fails closed if Firebase Admin is not initialized.
+ */
+export function getAdminStorage(): Storage | null {
+  if (cachedStorage) {
+    return cachedStorage;
+  }
+
+  const app = getFirebaseAdminApp();
+  if (!app) {
+    return null;
+  }
+
+  try {
+    cachedStorage = getStorage(app);
+    return cachedStorage;
+  } catch (err: any) {
+    console.error('[Firebase Admin Storage] Error:', err?.message || err);
     return null;
   }
 }

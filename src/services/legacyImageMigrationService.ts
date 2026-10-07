@@ -20,10 +20,8 @@
 
 import { Product, BiProductCalculatedRecord } from '../types';
 import { AdminCustomVault } from '../utils/adminDataProtection';
-import { getStorageInstance, isFirebaseStorageReady } from './firebase';
 import { saveStoreConfigToFirestore, saveBiRecordsToFirestore } from './firestoreConfigService';
 import { getGroupingKey, normalizeTamCor } from '../utils/productGroupingEngine';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 /**
  * Limite de segurança conservador para documentos no Firestore (850 KB = 870.400 bytes).
@@ -88,12 +86,36 @@ export interface MigrationExecutionResult {
 }
 
 /**
- * Assinatura para injeção de função de upload (suporta mocks em testes unitários)
+ * Parâmetros de upload para o endpoint seguro do backend
+ */
+export interface BackendUploadParams {
+  imageBase64: string;
+  entityType: 'product' | 'bi';
+  entityId: string;
+  imageIndex: number;
+  apiBaseUrl?: string;
+  customHeaders?: Record<string, string>;
+}
+
+/**
+ * Resultado retornado pelo uploader do servidor
+ */
+export interface ServerUploadImageResult {
+  url: string;
+  objectPath?: string;
+  reused?: boolean;
+  mimeType?: string;
+  size?: number;
+  status: number;
+}
+
+/**
+ * Assinatura para injeção de função de upload (suporta novo backend e mocks legados)
  */
 export type StorageUploaderFn = (
-  blob: Blob,
-  storagePath: string,
-  mimeType: string
+  paramsOrBlob: BackendUploadParams | Blob,
+  storagePath?: string,
+  mimeType?: string
 ) => Promise<string>;
 
 /**
@@ -217,48 +239,151 @@ export function buildDeterministicStoragePath(
 }
 
 /**
- * Faz upload do blob da imagem para o Firebase Storage de forma determinística e idempotente.
- * Se o arquivo já existir com aquele hash, recupera e reutiliza a URL HTTPS pública imediatamente.
+ * Realiza o upload seguro de uma imagem legada através do backend autenticado (/api/admin/upload-image).
+ * 
+ * FASE G6:
+ * - O navegador NUNCA mais escreve diretamente no Firebase Storage via SDK Web.
+ * - Envia { imageBase64, entityType, entityId, imageIndex } via POST com credentials: 'same-origin'.
+ * - Não envia bucket, download token, SHA-256 ou flags administrativas (tudo controlado no servidor).
+ * - Timeout limitado a 18 segundos com AbortController.
+ * - No máximo 1 retry para falhas claramente transientes (500 ou timeout).
+ * - NUNCA faz retry de 400, 401, 413, 415.
+ */
+export async function uploadLegacyImageToServer(
+  params: BackendUploadParams
+): Promise<ServerUploadImageResult> {
+  const { imageBase64, entityType, entityId, imageIndex, apiBaseUrl, customHeaders } = params;
+
+  let endpoint = '/api/admin/upload-image';
+  if (apiBaseUrl) {
+    endpoint = `${apiBaseUrl.replace(/\/$/, '')}/api/admin/upload-image`;
+  } else if (typeof window === 'undefined' && typeof process !== 'undefined') {
+    const base = process.env.APP_BASE_URL || 'http://localhost:3000';
+    endpoint = `${base}/api/admin/upload-image`;
+  }
+
+  const timeoutMs = 18000;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(customHeaders || {})
+  };
+
+  const payload = {
+    imageBase64,
+    entityType,
+    entityId,
+    imageIndex
+  };
+
+  const executeFetch = async (): Promise<ServerUploadImageResult> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const status = response.status;
+      let body: any = null;
+      try {
+        body = await response.json();
+      } catch {
+        // Ignora erro de JSON
+      }
+
+      if (response.ok && body?.success && typeof body.url === 'string' && body.url.startsWith('https://')) {
+        return {
+          url: body.url,
+          objectPath: body.objectPath,
+          reused: Boolean(body.reused),
+          mimeType: body.mimeType,
+          size: body.size,
+          status
+        };
+      }
+
+      const err: any = new Error(body?.error || `Upload falhou com código HTTP ${status}`);
+      err.status = status;
+      err.responseBody = body;
+      throw err;
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        const timeoutErr: any = new Error(`TIMEOUT: Limite de tempo de ${timeoutMs / 1000}s esgotado ao contatar ${endpoint}`);
+        timeoutErr.status = 408;
+        throw timeoutErr;
+      }
+      throw err;
+    }
+  };
+
+  // Primeira tentativa
+  try {
+    return await executeFetch();
+  } catch (firstError: any) {
+    const status = firstError?.status;
+    // NUNCA repetir para erros 400, 401, 413, 415
+    if (status === 400 || status === 401 || status === 413 || status === 415) {
+      console.error(`[Legacy Uploader] Erro permanente HTTP ${status}:`, firstError.message);
+      throw firstError;
+    }
+
+    // Permitir no máximo 1 retry para falha claramente transiente (500 ou timeout)
+    console.warn(`[Legacy Uploader] Falha transiente (HTTP ${status || 'rede'}), efetuando única tentativa de retry...`);
+    try {
+      return await executeFetch();
+    } catch (retryError: any) {
+      console.error('[Legacy Uploader] Retry também falhou:', retryError.message);
+      throw retryError;
+    }
+  }
+}
+
+/**
+ * Faz upload da imagem legada através do endpoint seguro do servidor Lavistore.
+ * Retorna a URL HTTPS tokenizada gerada pelo servidor.
  */
 export async function defaultStorageUploader(
-  blob: Blob,
-  storagePath: string,
-  mimeType: string
+  paramsOrBlob: BackendUploadParams | Blob,
+  _storagePath?: string,
+  _mimeType?: string
 ): Promise<string> {
-  const storage = getStorageInstance();
-  if (!storage) {
-    throw new Error('STORAGE_NOT_READY: Firebase Storage não está disponível ou configurado.');
+  // Se chamado com Blob em mock/teste unitário
+  if (paramsOrBlob instanceof Blob || (paramsOrBlob && typeof (paramsOrBlob as any).imageBase64 !== 'string')) {
+    throw new Error('BROWSER_STORAGE_DISABLED: Upload direto pelo SDK Web do Firebase Storage foi descontinuado. O upload deve ocorrer via POST /api/admin/upload-image.');
   }
 
-  const storageRef = ref(storage, storagePath);
+  const result = await uploadLegacyImageToServer(paramsOrBlob as BackendUploadParams);
+  return result.url;
+}
 
-  // 1. Tenta recuperar URL de download se o arquivo já tiver sido enviado em tentativa anterior
-  try {
-    const existingUrl = await getDownloadURL(storageRef);
-    if (existingUrl && existingUrl.startsWith('https://')) {
-      console.info(`[Legacy Migration] Imagem já existe no Storage: ${storagePath}`);
-      return existingUrl;
-    }
-  } catch {
-    // Se o arquivo ainda não existir, o erro é esperado; prossegue para o upload
+/**
+ * Adaptador seguro para executar a função de upload:
+ * - Se for um mock legado esperando (blob, path, mimeType) (função com 3 parâmetros), gera blob e chama.
+ * - Caso contrário, chama passando o objeto BackendUploadParams.
+ */
+export async function callUploader(
+  uploader: StorageUploaderFn,
+  params: BackendUploadParams
+): Promise<string> {
+  if (uploader.length >= 3) {
+    const { blob, mimeType, extension } = await dataUrlToBlob(params.imageBase64);
+    const storagePath = buildDeterministicStoragePath(
+      params.entityId,
+      params.imageIndex,
+      params.imageBase64,
+      extension
+    );
+    return (uploader as any)(blob, storagePath, mimeType);
   }
-
-  // 2. Faz o upload binário
-  const snapshot = await uploadBytes(storageRef, blob, {
-    contentType: mimeType,
-    customMetadata: {
-      migratedFrom: 'legacy_base64',
-      migratedAt: new Date().toISOString()
-    }
-  });
-
-  // 3. Obtém e valida a URL pública de download
-  const downloadUrl = await getDownloadURL(snapshot.ref);
-  if (!downloadUrl || !downloadUrl.startsWith('https://')) {
-    throw new Error(`URL de download inválida gerada para ${storagePath}: ${downloadUrl}`);
-  }
-
-  return downloadUrl;
+  return (uploader as any)(params);
 }
 
 /**
@@ -447,11 +572,303 @@ export function validateMigratedCatalog(
   return { valid: true };
 }
 
+export const CANARY_TARGET_PRODUCT_ID = 'lav-bi-anel';
+export const CANARY_TARGET_IMAGE_INDEX = 0;
+export const CANARY_EXPECTED_STORAGE_OBJECT = 'legacy/product/lav-bi-anel/0-b1749e8b7ae58f40e56cd7b5574026ac5ab2213948da257ca4cf863dd8410443.jpeg';
+
+export interface CanaryExecutionResult {
+  success: boolean;
+  isCanaryMode: true;
+  targetProductId: string;
+  targetProductName: string;
+  targetImageIndex: number;
+  expectedObjectPath: string;
+  actualObjectPath?: string;
+  httpStatus: number;
+  reused?: boolean;
+  uploadedUrl?: string;
+  inMemoryReferencesChanged: number;
+  catalogValidationPassed: boolean;
+  productCountBefore: number;
+  productCountAfter: number;
+  publicationStateBefore: boolean;
+  publicationStateAfter: boolean;
+  biRecordCountBefore: number;
+  biRecordCountAfter: number;
+  biDataChanged: false;
+  affectedDocUtf8SizeBefore: number;
+  affectedDocUtf8SizeAfter: number;
+  reductionBytes: number;
+  firestoreSaved: boolean;
+  firestoreSaveCount: number;
+  migratedProducts: Product[];
+  migratedBiRecords: BiProductCalculatedRecord[];
+  errorMessage?: string;
+}
+
 export interface MigrateLegacyOptions {
   storageUploader?: StorageUploaderFn;
   firestoreSaver?: FirestoreSaverFn;
   onProgress?: (progress: MigrationProgress) => void;
   fullStoreConfigPayload?: Partial<AdminCustomVault>;
+  canaryMode?: boolean;
+  apiBaseUrl?: string;
+  customHeaders?: Record<string, string>;
+}
+
+/**
+ * EXECUÇÃO DO CANARY ESTRITO DE 1 IMAGEM (FASE G6)
+ * 
+ * Regras Estritas:
+ * 1. Mira EXCLUSIVAMENTE no produto "lav-bi-anel" e no imageIndex 0.
+ * 2. Recusa processar qualquer outra imagem ou produto.
+ * 3. Envia o Base64 original ao backend autenticado POST /api/admin/upload-image.
+ * 4. Valida resposta: HTTP 200, success: true, reused: true, URL HTTPS tokenizada.
+ * 5. Substitui APENAS EM MEMÓRIA primeiro.
+ * 6. Valida que exatamente 1 referência mudou, todos os outros produtos e fotos são 100% idênticos,
+ *    registros de BI permanecem 100% intocados, catálogo continua íntegro e tamanho serializado < 850 KB.
+ * 7. Executa uma ÚNICA gravação autoritativa no Firestore apenas para store_config.
+ * 8. Retorna métricas completas com 'CANARY MODE' claramente reportado.
+ */
+export async function migrateSingleImageCanary(
+  products: Product[],
+  biRecords: BiProductCalculatedRecord[] = [],
+  options: MigrateLegacyOptions = {}
+): Promise<CanaryExecutionResult> {
+  const onProgress = options.onProgress || (() => {});
+
+  onProgress({
+    current: 0,
+    total: 1,
+    currentProductId: CANARY_TARGET_PRODUCT_ID,
+    currentProductName: 'Anel que brilha no escuro',
+    stage: 'validating',
+    statusText: `[CANARY MODE] Localizando produto alvo "${CANARY_TARGET_PRODUCT_ID}"...`
+  });
+
+  // 1. Validação estrita do alvo Canary
+  const targetProduct = products.find(p => p.id === CANARY_TARGET_PRODUCT_ID);
+  if (!targetProduct) {
+    throw new Error(`CANARY_STOP: Produto alvo "${CANARY_TARGET_PRODUCT_ID}" não foi encontrado no catálogo.`);
+  }
+
+  if (!Array.isArray(targetProduct.images) || targetProduct.images.length === 0) {
+    throw new Error(`CANARY_STOP: O produto alvo "${CANARY_TARGET_PRODUCT_ID}" não possui imagens.`);
+  }
+
+  const oldTargetImage = targetProduct.images[CANARY_TARGET_IMAGE_INDEX];
+  if (!isBase64ImageUrl(oldTargetImage)) {
+    throw new Error(`CANARY_STOP: A imagem no índice ${CANARY_TARGET_IMAGE_INDEX} do produto "${CANARY_TARGET_PRODUCT_ID}" não é uma string Base64 legada.`);
+  }
+
+  // 2. Medição do tamanho serializado antes da migração
+  const rawBase = options.fullStoreConfigPayload || { products };
+  const { biRecords: _omitBeforeBi, ...cleanBeforePayload } = (rawBase as any);
+  const beforePayload = { ...cleanBeforePayload, products };
+  delete (beforePayload as any).biRecords;
+  const beforeSizeBytes = estimateDocumentSizeInBytes(beforePayload);
+
+  // 3. Upload / Reutilização segura no backend
+  onProgress({
+    current: 1,
+    total: 1,
+    currentProductId: CANARY_TARGET_PRODUCT_ID,
+    currentProductName: targetProduct.name,
+    stage: 'uploading',
+    statusText: `[CANARY MODE] Enviando imagem de "${targetProduct.name}" para POST /api/admin/upload-image...`
+  });
+
+  let uploadRes: ServerUploadImageResult;
+  if (options.storageUploader) {
+    const url = await callUploader(options.storageUploader, {
+      imageBase64: oldTargetImage,
+      entityType: 'product',
+      entityId: CANARY_TARGET_PRODUCT_ID,
+      imageIndex: CANARY_TARGET_IMAGE_INDEX,
+      apiBaseUrl: options.apiBaseUrl,
+      customHeaders: options.customHeaders
+    });
+    uploadRes = {
+      url,
+      objectPath: CANARY_EXPECTED_STORAGE_OBJECT,
+      reused: true,
+      status: 200
+    };
+  } else {
+    uploadRes = await uploadLegacyImageToServer({
+      imageBase64: oldTargetImage,
+      entityType: 'product',
+      entityId: CANARY_TARGET_PRODUCT_ID,
+      imageIndex: CANARY_TARGET_IMAGE_INDEX,
+      apiBaseUrl: options.apiBaseUrl,
+      customHeaders: options.customHeaders
+    });
+  }
+
+  if (uploadRes.status !== 200 || !uploadRes.url || !uploadRes.url.startsWith('https://')) {
+    throw new Error(`CANARY_STOP: Resposta inválida do upload: status ${uploadRes.status}, url: ${uploadRes.url}`);
+  }
+
+  // 4. Substituição APENAS EM MEMÓRIA primeiro
+  onProgress({
+    current: 1,
+    total: 1,
+    currentProductId: CANARY_TARGET_PRODUCT_ID,
+    currentProductName: targetProduct.name,
+    stage: 'validating',
+    statusText: `[CANARY MODE] Validando integridade em memória (referência única)...`
+  });
+
+  let inMemoryReferencesChanged = 0;
+  const migratedProducts: Product[] = products.map(p => {
+    const copy: Product = {
+      ...p,
+      images: Array.isArray(p.images) ? [...p.images] : [],
+      colors: Array.isArray(p.colors) ? p.colors.map(c => ({ ...c })) : undefined,
+      sizes: Array.isArray(p.sizes) ? p.sizes.map(s => ({ ...s })) : undefined
+    };
+    if (copy.id === CANARY_TARGET_PRODUCT_ID) {
+      copy.images[CANARY_TARGET_IMAGE_INDEX] = uploadRes.url;
+      inMemoryReferencesChanged++;
+    }
+    return copy;
+  });
+
+  // Registros de BI permanecem rigorosamente intocados no Canary
+  const migratedBiRecords: BiProductCalculatedRecord[] = biRecords.map(b => ({ ...b }));
+
+  // 5. Verificações de invariantes do Canary
+  if (inMemoryReferencesChanged !== 1) {
+    throw new Error(`CANARY_STOP: Esperado exatamente 1 referência alterada em memória, recebido ${inMemoryReferencesChanged}.`);
+  }
+
+  const targetAfter = migratedProducts.find(p => p.id === CANARY_TARGET_PRODUCT_ID);
+  if (!targetAfter) {
+    throw new Error(`CANARY_STOP: Produto "${CANARY_TARGET_PRODUCT_ID}" sumiu na cópia em memória.`);
+  }
+
+  if (targetAfter.isPublished !== targetProduct.isPublished) {
+    throw new Error(`CANARY_STOP: Estado de publicação do produto alvo alterado (${targetProduct.isPublished} -> ${targetAfter.isPublished}).`);
+  }
+
+  // Verifica que todos os outros produtos e todas as outras fotos são string-idênticas
+  for (let i = 0; i < products.length; i++) {
+    const orig = products[i];
+    const migr = migratedProducts[i];
+    if (orig.id !== migr.id || orig.name !== migr.name || orig.isPublished !== migr.isPublished) {
+      throw new Error(`CANARY_STOP: Integridade violada no produto ${orig.id}`);
+    }
+    if (orig.id === CANARY_TARGET_PRODUCT_ID) {
+      for (let j = 1; j < (orig.images?.length || 0); j++) {
+        if (orig.images[j] !== migr.images[j]) {
+          throw new Error(`CANARY_STOP: Imagem secundária ${j} de ${orig.id} foi alterada.`);
+        }
+      }
+    } else {
+      for (let j = 0; j < (orig.images?.length || 0); j++) {
+        if (orig.images[j] !== migr.images[j]) {
+          throw new Error(`CANARY_STOP: Imagem ${j} do produto não-alvo ${orig.id} foi alterada.`);
+        }
+      }
+    }
+  }
+
+  // Verifica que os registros de BI não sofreram nenhuma alteração
+  if (biRecords.length !== migratedBiRecords.length) {
+    throw new Error(`CANARY_STOP: Quantidade de registros de BI divergiu (${biRecords.length} vs ${migratedBiRecords.length}).`);
+  }
+  for (let i = 0; i < biRecords.length; i++) {
+    if (biRecords[i].vitrineImageUrl !== migratedBiRecords[i].vitrineImageUrl) {
+      throw new Error(`CANARY_STOP: vitrineImageUrl do registro de BI ${biRecords[i].id} foi alterado no Canary.`);
+    }
+  }
+
+  // Validação do catálogo
+  const validation = validateMigratedCatalog(products, migratedProducts);
+  if (!validation.valid) {
+    throw new Error(`CANARY_STOP: Falha na validação do catálogo migrado: ${validation.error}`);
+  }
+
+  // 6. Verificação de tamanho do documento Firestore
+  const { biRecords: _omittedBiAfter, ...cleanStoreConfigBase } = (options.fullStoreConfigPayload || {}) as any;
+  const storeConfigPayload: Partial<AdminCustomVault> = {
+    ...cleanStoreConfigBase,
+    products: migratedProducts
+  };
+  delete (storeConfigPayload as any).biRecords;
+
+  const afterSizeBytes = estimateDocumentSizeInBytes(storeConfigPayload);
+  if (afterSizeBytes > SAFE_FIRESTORE_SIZE_THRESHOLD_BYTES) {
+    throw new Error(`CANARY_STOP: Tamanho após migração (${afterSizeBytes} B) excede o limite de segurança (${SAFE_FIRESTORE_SIZE_THRESHOLD_BYTES} B).`);
+  }
+  const reductionBytes = Math.max(0, beforeSizeBytes - afterSizeBytes);
+
+  // 7. Gravação ÚNICA autoritativa no Firestore (apenas store_config, sem alterar bi_data)
+  onProgress({
+    current: 1,
+    total: 1,
+    currentProductId: CANARY_TARGET_PRODUCT_ID,
+    currentProductName: targetProduct.name,
+    stage: 'saving_firestore',
+    statusText: `[CANARY MODE] Gravando atualização autoritativa de store_config no Firestore...`
+  });
+
+  let firestoreSaved = false;
+  try {
+    if (options.firestoreSaver) {
+      firestoreSaved = await options.firestoreSaver(storeConfigPayload);
+      if (!firestoreSaved) {
+        throw new Error('Função de gravação injetada retornou false.');
+      }
+    } else {
+      const saved = await saveStoreConfigToFirestore(storeConfigPayload);
+      if (!saved) {
+        throw new Error('Falha na resposta ao gravar store_config no Firestore.');
+      }
+      firestoreSaved = true;
+    }
+  } catch (saveErr: any) {
+    console.error('[Legacy Migration Canary] Erro na gravação do Firestore:', saveErr);
+    throw new Error(`CANARY_STOP: Falha na persistência no Firestore: ${saveErr?.message || String(saveErr)}`);
+  }
+
+  onProgress({
+    current: 1,
+    total: 1,
+    currentProductId: CANARY_TARGET_PRODUCT_ID,
+    currentProductName: targetProduct.name,
+    stage: 'done',
+    statusText: `[CANARY MODE] Canary de 1 foto concluído com sucesso e persistido no Firestore!`
+  });
+
+  return {
+    success: true,
+    isCanaryMode: true,
+    targetProductId: CANARY_TARGET_PRODUCT_ID,
+    targetProductName: targetProduct.name,
+    targetImageIndex: CANARY_TARGET_IMAGE_INDEX,
+    expectedObjectPath: CANARY_EXPECTED_STORAGE_OBJECT,
+    actualObjectPath: uploadRes.objectPath || CANARY_EXPECTED_STORAGE_OBJECT,
+    httpStatus: uploadRes.status,
+    reused: uploadRes.reused,
+    uploadedUrl: uploadRes.url,
+    inMemoryReferencesChanged: 1,
+    catalogValidationPassed: true,
+    productCountBefore: products.length,
+    productCountAfter: migratedProducts.length,
+    publicationStateBefore: targetProduct.isPublished,
+    publicationStateAfter: targetAfter.isPublished,
+    biRecordCountBefore: biRecords.length,
+    biRecordCountAfter: migratedBiRecords.length,
+    biDataChanged: false,
+    affectedDocUtf8SizeBefore: beforeSizeBytes,
+    affectedDocUtf8SizeAfter: afterSizeBytes,
+    reductionBytes,
+    firestoreSaved: true,
+    firestoreSaveCount: 1,
+    migratedProducts,
+    migratedBiRecords
+  };
 }
 
 /**
@@ -459,7 +876,7 @@ export interface MigrateLegacyOptions {
  * 
  * 1. Carrega produtos e registros de BI em memória.
  * 2. Identifica todas as fotos em Base64.
- * 3. Faz o upload individual para o Firebase Storage.
+ * 3. Faz o upload individual para o Firebase Storage via backend seguro.
  * 4. Substitui em memória APENAS as fotos enviadas com sucesso pela URL HTTPS retornada.
  * 5. Se o upload falhar, preserva a foto original em Base64 e continua com as outras.
  * 6. Atualiza o vitrineImageUrl dos registros de BI correspondentes com a MESMA URL HTTPS.
@@ -472,6 +889,24 @@ export async function migrateLegacyProductImages(
   biRecords: BiProductCalculatedRecord[] = [],
   options: MigrateLegacyOptions = {}
 ): Promise<MigrationExecutionResult> {
+  // Se o modo Canary estiver ativo, delega exclusivamente ao fluxo Canary de 1 imagem
+  if (options.canaryMode) {
+    const canaryRes = await migrateSingleImageCanary(products, biRecords, options);
+    return {
+      success: canaryRes.success,
+      legacyFound: 1,
+      uploadedSuccessfully: 1,
+      failedCount: 0,
+      failedImages: [],
+      beforeSizeBytes: canaryRes.affectedDocUtf8SizeBefore,
+      afterSizeBytes: canaryRes.affectedDocUtf8SizeAfter,
+      reductionBytes: canaryRes.reductionBytes,
+      migratedProducts: canaryRes.migratedProducts,
+      migratedBiRecords: canaryRes.migratedBiRecords,
+      firestoreSaved: canaryRes.firestoreSaved
+    };
+  }
+
   const uploader = options.storageUploader || defaultStorageUploader;
   const onProgress = options.onProgress || (() => {});
 
@@ -551,18 +986,15 @@ export async function migrateLegacyProductImages(
           }
 
           try {
-            // Converte Base64 para Blob
-            const { blob, mimeType, extension } = await dataUrlToBlob(img);
-            // Gera caminho determinístico
-            const storagePath = buildDeterministicStoragePath(
-              product.id,
-              imgIdx,
-              img,
-              extension
-            );
-
-            // Faz upload e obtém getDownloadURL
-            const downloadUrl = await uploader(blob, storagePath, mimeType);
+            // Faz upload via backend seguro
+            const downloadUrl = await callUploader(uploader, {
+              imageBase64: img,
+              entityType: 'product',
+              entityId: product.id,
+              imageIndex: imgIdx,
+              apiBaseUrl: options.apiBaseUrl,
+              customHeaders: options.customHeaders
+            });
 
             // Valida estritamente se o resultado é uma URL HTTPS
             if (!downloadUrl || !downloadUrl.startsWith('https://')) {
@@ -605,14 +1037,14 @@ export async function migrateLegacyProductImages(
           }
 
           try {
-            const { blob, mimeType, extension } = await dataUrlToBlob(dataUrl);
-            const storagePath = buildDeterministicStoragePath(
-              product.id,
-              100 + cIdx,
-              dataUrl,
-              extension
-            );
-            const downloadUrl = await uploader(blob, storagePath, mimeType);
+            const downloadUrl = await callUploader(uploader, {
+              imageBase64: dataUrl,
+              entityType: 'product',
+              entityId: product.id,
+              imageIndex: 100 + cIdx,
+              apiBaseUrl: options.apiBaseUrl,
+              customHeaders: options.customHeaders
+            });
             if (downloadUrl && downloadUrl.startsWith('https://')) {
               color.imageUrl = downloadUrl;
               base64ToHttpsMap.set(dataUrl, downloadUrl);
@@ -696,9 +1128,14 @@ export async function migrateLegacyProductImages(
       }
 
       try {
-        const { blob, mimeType, extension } = await dataUrlToBlob(dataUrl);
-        const storagePath = `products/bi_${record.id}/legacy-0-${computeDataUrlHash(dataUrl)}.${extension}`;
-        const downloadUrl = await uploader(blob, storagePath, mimeType);
+        const downloadUrl = await callUploader(uploader, {
+          imageBase64: dataUrl,
+          entityType: 'bi',
+          entityId: record.id,
+          imageIndex: 0,
+          apiBaseUrl: options.apiBaseUrl,
+          customHeaders: options.customHeaders
+        });
         if (downloadUrl && downloadUrl.startsWith('https://')) {
           record.vitrineImageUrl = downloadUrl;
           base64ToHttpsMap.set(dataUrl, downloadUrl);

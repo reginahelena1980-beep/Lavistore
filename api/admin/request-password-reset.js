@@ -11675,6 +11675,7 @@ var nodemailer_default = nodemailer;
 // serverless-src/admin/_lib/adminAuth.ts
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 var ADMIN_RECOVERY_COOKIE_NAME = "lavistore_admin_recovery";
 var ADMIN_SESSION_DURATION_MS = 8 * 60 * 60 * 1e3;
 var ADMIN_SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;

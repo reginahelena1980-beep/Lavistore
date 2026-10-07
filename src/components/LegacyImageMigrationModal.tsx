@@ -21,6 +21,9 @@ import { AdminCustomVault } from '../utils/adminDataProtection';
 import { 
   detectLegacyBase64Images, 
   migrateLegacyProductImages, 
+  migrateSingleImageCanary,
+  CANARY_TARGET_PRODUCT_ID,
+  CanaryExecutionResult,
   LegacyImageDetectionResult, 
   MigrationProgress, 
   MigrationExecutionResult,
@@ -48,12 +51,14 @@ export const LegacyImageMigrationModal: React.FC<LegacyImageMigrationModalProps>
   const [isMigrating, setIsMigrating] = useState(false);
   const [progress, setProgress] = useState<MigrationProgress | null>(null);
   const [result, setResult] = useState<MigrationExecutionResult | null>(null);
+  const [canaryResult, setCanaryResult] = useState<CanaryExecutionResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Analisa o catálogo ao abrir o modal
   useEffect(() => {
     if (isOpen) {
       setResult(null);
+      setCanaryResult(null);
       setProgress(null);
       setErrorMessage(null);
       const det = detectLegacyBase64Images(products, biRecords, fullStoreConfigPayload);
@@ -62,6 +67,43 @@ export const LegacyImageMigrationModal: React.FC<LegacyImageMigrationModalProps>
   }, [isOpen, products, biRecords, fullStoreConfigPayload]);
 
   if (!isOpen) return null;
+
+  const handleStartCanary = async () => {
+    if (isMigrating) return;
+    setIsMigrating(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await migrateSingleImageCanary(products, biRecords, {
+        fullStoreConfigPayload,
+        onProgress: (p) => setProgress(p)
+      });
+
+      setCanaryResult(res);
+      setResult({
+        success: res.success,
+        legacyFound: 1,
+        uploadedSuccessfully: 1,
+        failedCount: 0,
+        failedImages: [],
+        beforeSizeBytes: res.affectedDocUtf8SizeBefore,
+        afterSizeBytes: res.affectedDocUtf8SizeAfter,
+        reductionBytes: res.reductionBytes,
+        migratedProducts: res.migratedProducts,
+        migratedBiRecords: res.migratedBiRecords,
+        firestoreSaved: res.firestoreSaved
+      });
+
+      if (res.success && res.firestoreSaved) {
+        onMigrationComplete(res.migratedProducts, res.migratedBiRecords);
+      }
+    } catch (err: any) {
+      console.error('[Canary UI] Erro durante o Canary:', err);
+      setErrorMessage(err?.message || 'Ocorreu um erro durante a execução do Canary.');
+    } finally {
+      setIsMigrating(false);
+    }
+  };
 
   const handleStartMigration = async () => {
     if (isMigrating) return;
@@ -136,10 +178,15 @@ export const LegacyImageMigrationModal: React.FC<LegacyImageMigrationModalProps>
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-2">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <span className="font-bold text-sm">Migração Concluída e Sincronizada!</span>
+                  <span className="font-bold text-sm">
+                    {canaryResult ? 'Canary de 1 Foto Concluído e Sincronizado!' : 'Migração Concluída e Sincronizada!'}
+                  </span>
                 </div>
                 <p className="text-xs text-emerald-800">
-                  Todas as fotos foram enviadas com sucesso para o Firebase Storage e substituídas por URLs HTTPS públicas. O documento soberano no Firestore foi atualizado de forma atômica.
+                  {canaryResult 
+                    ? `O produto alvo "${canaryResult.targetProductName}" teve sua foto Base64 migrada com sucesso para o Firebase Storage (objeto reutilizado: ${canaryResult.reused ? 'sim' : 'não'}). URL HTTPS gravada e confirmada no Firestore!`
+                    : 'Todas as fotos foram enviadas com sucesso para o Firebase Storage e substituídas por URLs HTTPS públicas. O documento soberano no Firestore foi atualizado de forma atômica.'
+                  }
                 </p>
               </div>
 
@@ -376,24 +423,47 @@ export const LegacyImageMigrationModal: React.FC<LegacyImageMigrationModalProps>
           </button>
 
           {!result?.success && detection?.hasLegacyImages && (
-            <button
-              type="button"
-              onClick={handleStartMigration}
-              disabled={isMigrating}
-              className="px-5 py-2.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-bold text-xs shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer"
-            >
-              {isMigrating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                  <span>Migrando fotos...</span>
-                </>
+            <div className="flex items-center gap-2">
+              {detection?.details.some(d => d.productId === CANARY_TARGET_PRODUCT_ID) ? (
+                <button
+                  type="button"
+                  onClick={handleStartCanary}
+                  disabled={isMigrating}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-950 to-indigo-900 hover:from-purple-900 hover:to-indigo-850 text-amber-300 font-bold text-xs shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer border border-amber-400/30"
+                >
+                  {isMigrating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                      <span>Executando Canary...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 text-amber-300" />
+                      <span>Executar Canary (1 Foto: Anel)</span>
+                    </>
+                  )}
+                </button>
               ) : (
-                <>
-                  <UploadCloud className="w-4 h-4 text-amber-300" />
-                  <span>Iniciar Migração Segura</span>
-                </>
+                <button
+                  type="button"
+                  onClick={handleStartMigration}
+                  disabled={isMigrating}
+                  className="px-5 py-2.5 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-bold text-xs shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer"
+                >
+                  {isMigrating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                      <span>Migrando fotos...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-4 h-4 text-amber-300" />
+                      <span>Iniciar Migração Segura</span>
+                    </>
+                  )}
+                </button>
               )}
-            </button>
+            </div>
           )}
 
           {result?.success && (
