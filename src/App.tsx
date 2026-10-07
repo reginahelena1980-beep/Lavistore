@@ -1200,7 +1200,7 @@ export default function App() {
       {
         product: customKitProduct,
         quantity: 1,
-        isGiftWrapped: true,
+        isGiftWrapped: false,
         customKitData: kitMetadata,
         dedication: kitDedication
       }
@@ -1227,7 +1227,7 @@ export default function App() {
   const rawCartSubtotal = cartItems.reduce((acc, item) => {
     const unitPrice = item.sizePrice ?? item.product.price;
     const itemCost = unitPrice * item.quantity;
-    const wrapCost = item.isGiftWrapped ? 5.90 * item.quantity : 0;
+    const wrapCost = (!item.customKitData && item.isGiftWrapped) ? 5.90 * item.quantity : 0;
     return acc + itemCost + wrapCost;
   }, 0);
 

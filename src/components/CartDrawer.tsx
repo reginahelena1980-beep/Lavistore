@@ -77,7 +77,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const subtotal = items.reduce((acc, item) => {
     const unitPrice = item.sizePrice ?? item.product.price;
     const itemCost = unitPrice * item.quantity;
-    const wrapCost = item.isGiftWrapped ? 5.90 * item.quantity : 0;
+    const wrapCost = (!item.customKitData && item.isGiftWrapped) ? 5.90 * item.quantity : 0;
     return acc + itemCost + wrapCost;
   }, 0);
 
@@ -278,7 +278,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             )}
                           </div>
 
-                          {item.isGiftWrapped && (
+                          {!item.customKitData && item.isGiftWrapped && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-pink-700 bg-pink-100 px-1.5 py-0.5 rounded-md mt-1">
                               <Gift className="w-2.5 h-2.5" />
                               <span>Embalagem Presente (+R$ 0,00)</span>
@@ -307,7 +307,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           </div>
 
                           <span className="text-xs sm:text-sm font-extrabold text-pink-600">
-                            R$ {((itemUnitPrice + (item.isGiftWrapped ? 5.90 : 0)) * item.quantity).toFixed(2)}
+                            R$ {((itemUnitPrice + (!item.customKitData && item.isGiftWrapped ? 5.90 : 0)) * item.quantity).toFixed(2)}
                           </span>
                         </div>
                       </div>

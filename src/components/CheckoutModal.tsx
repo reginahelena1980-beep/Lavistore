@@ -1870,7 +1870,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       {item.selectedColor && <span className="text-[8px] text-purple-300">({item.selectedColor})</span>}
                     </div>
                     <span className="font-bold text-pink-300">
-                      R$ {((item.product.price + (item.isGiftWrapped ? 5.90 : 0)) * item.quantity).toFixed(2)}
+                      R$ {(((item.sizePrice ?? item.product.price) + (!item.customKitData && item.isGiftWrapped ? 5.90 : 0)) * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 ))}
